@@ -1,0 +1,109 @@
+[
+  {
+    "schema_version": 1,
+    "id": "run_20260605_070629_734d",
+    "timestamp_iso": "2026-06-05T07:06:29",
+    "label": "",
+    "source": "manual",
+    "status": "actif",
+    "fingerprint": "734d3ef26c0c0015e4fd7d08002ef552674017dc",
+    "config": {
+      "screw_rpm": 120.0,
+      "n_elements": 23.0,
+      "feeders_actifs": 1,
+      "debit_principal_g_min": 30.0,
+      "matiere_principale": "granules",
+      "zones_die": 1,
+      "temps_consigne_C": {
+        "Z1": 25.0,
+        "Z2": 60.0,
+        "Z3": 80.0,
+        "Z4": 90.0,
+        "Z5": 95.0,
+        "Z6": 95.0,
+        "Z7": 90.0,
+        "Z8": 85.0,
+        "die": 80.0,
+        "die2": 75.0,
+        "die3": 70.0,
+        "die4": 65.0
+      }
+    },
+    "engine_kpis": {
+      "couple_total_nm": 0.3150629529810856,
+      "sme_kwh_kg": 0.0021995543522304113,
+      "residence_s": 33.51303431818184,
+      "fill_moyen": 0.44542788025539926,
+      "fill_crete": 1.0,
+      "cisaillement_max_s": 36.65191429188092,
+      "debit_massique_kg_h": 1.8,
+      "debit_sortie_pointe_cm3_s": 0.9090909090909091
+    },
+    "zones": [
+      {
+        "zone": 0,
+        "fill_moyen": 0.3903651327112631,
+        "fill_crete": 0.7026572388802735,
+        "residence_s": 3.5579225,
+        "matiere_dominante": "LiFePO4 (LFP)"
+      },
+      {
+        "zone": 1,
+        "fill_moyen": 0.7700386688712835,
+        "fill_crete": 0.9968462774320881,
+        "residence_s": 6.4092655,
+        "matiere_dominante": "LiFePO4 (LFP)"
+      },
+      {
+        "zone": 2,
+        "fill_moyen": 0.8007202517308785,
+        "fill_crete": 0.9968462774320881,
+        "residence_s": 6.4191435,
+        "matiere_dominante": "LiFePO4 (LFP)"
+      },
+      {
+        "zone": 3,
+        "fill_moyen": 0.8348095771557076,
+        "fill_crete": 1.0,
+        "residence_s": 7.876104318181818,
+        "matiere_dominante": "LiFePO4 (LFP)"
+      },
+      {
+        "zone": 4,
+        "fill_moyen": 0.7026572388802735,
+        "fill_crete": 0.7026572388802735,
+        "residence_s": 6.4042604999999995,
+        "matiere_dominante": "LiFePO4 (LFP)"
+      },
+      {
+        "zone": 5,
+        "fill_moyen": 0.15614605308450524,
+        "fill_crete": 0.7026572388802735,
+        "residence_s": 1.4231690000000001,
+        "matiere_dominante": "LiFePO4 (LFP)"
+      },
+      {
+        "zone": 6,
+        "fill_moyen": 0.0,
+        "fill_crete": 0.0,
+        "residence_s": 0.0,
+        "matiere_dominante": null
+      },
+      {
+        "zone": 7,
+        "fill_moyen": 0.0,
+        "fill_crete": 0.0,
+        "residence_s": 0.0,
+        "matiere_dominante": null
+      },
+      {
+        "zone": 8,
+        "fill_moyen": 0.15614605308450524,
+        "fill_crete": 0.7026572388802735,
+        "residence_s": 1.4231690000000001,
+        "matiere_dominante": "LiFePO4 (LFP)"
+      }
+    ],
+    "agent": null
+  }
+]

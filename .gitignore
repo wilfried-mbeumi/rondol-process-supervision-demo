@@ -1,0 +1,86 @@
+# =====================================================================
+# Rondol — Extrusion Digital Twin Prototype
+# Repo léger orienté démonstration manager/client.
+# Principe : on EXCLUT le lourd / inutile, on RÉ-INCLUT explicitement les
+# rares données nécessaires au lancement de l'application.
+# =====================================================================
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# ----- Environnements virtuels -----
+.venv/
+venv/
+env/
+
+# ----- Secrets / configuration locale -----
+.env
+*.env
+.streamlit/secrets.toml
+
+# ----- Notes internes IA / dev / handoff (repo vitrine manager, pas repo de travail) -----
+.claude/
+CLAUDE.md
+NOTES_HANDOFF_CLAUDE_CODE.md
+README_CLAUDE_DIRECTIVE.txt
+
+# ----- Outils hors-app : pipeline ML & générateurs de livrables (non requis pour lancer l'app) -----
+src/
+scripts/
+
+# ----- OS / OneDrive -----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----- Fichiers de référence non requis au runtime -----
+*.xlsx
+
+# ----- Historique RUNTIME (un seed anonymisé est fourni séparément) -----
+data/history/process_history.json
+
+# ----- Données brutes / lourdes (non nécessaires à l'app de démo) -----
+Essais_07-13_Avril_2026/
+*.zip
+data/raw/
+data/interim/
+data/processed/
+# (references : voir l'allowlist screw_elements plus bas)
+
+# ----- Documents académiques / non applicatifs -----
+*.pdf
+*.docx
+
+# ----- Expériences de rendu vis à la racine (hors runtime app) -----
+/debug_*.png
+/preview_*.html
+/preview_screw_new.py
+/build_preview_screw.py
+/build_preview_tests.py
+/capture_test_screenshots.py
+
+# ----- Modèles : ne garder que le SVM w60 consommé par l'app -----
+models/*
+!models/SVM_w60.joblib
+
+# ----- Datasets features : ne garder que w60 (consommé par l'app) -----
+data/features/*
+!data/features/dataset_ml_w60.csv
+!data/features/dataset_ml_w60_meta.json
+
+# ----- Reports : ne garder que les 3 fichiers lus par la page Settings -----
+reports/*
+!reports/ml_metrics_w60.json
+!reports/threshold_calibration_w60.csv
+!reports/feature_importance_SVM_w60_threshold80.csv
+
+# ----- References : ne garder QUE les images d'éléments de vis (chargées par l'app) -----
+references/*
+!references/screw_elements/
+# Fichier au nom non professionnel, non utilisé par le code :
+references/screw_elements/00 merde.png

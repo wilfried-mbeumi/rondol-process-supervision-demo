@@ -1,0 +1,19 @@
+# Rondol — Extrusion Digital Twin Prototype
+# Dépendances applicatives (Streamlit app + moteur procédé + agent IA explicable).
+# Versions épinglées sur l'environnement de développement validé (Python 3.13).
+#
+# Installation :  pip install -r requirements.txt
+# Lancement    :  streamlit run app/Supervision.py
+
+streamlit==1.54.0
+plotly==6.5.2
+pandas==2.3.3
+numpy==2.3.0
+scipy==1.17.1
+scikit-learn==1.7.0   # requis pour dé-sérialiser models/SVM_w60.joblib
+joblib==1.5.1
+Pillow==12.1.0
+
+# --- Optionnel : pipeline ML hors-ligne (src/, non requis pour lancer l'app) ---
+# Décommenter pour réentraîner les modèles à partir des essais bruts.
+# xgboost==2.1.4

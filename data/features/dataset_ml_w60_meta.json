@@ -1,0 +1,21 @@
+{
+  "window_sec": 60,
+  "step_sec": 30,
+  "shift_k_to_target": 2,
+  "target_horizon_sec": 60,
+  "n_rows_total": 798,
+  "n_rows_good_runs": 627,
+  "n_rows_bad_runs": 171,
+  "n_features_raw": 96,
+  "class_balance": {
+    "is_stable=1": 586,
+    "is_stable=0": 212
+  },
+  "thresholds": {
+    "stability_std_max_C": 1.5,
+    "stability_slope_max_Cps": 0.05,
+    "stability_score_threshold": 70.0,
+    "die_production_threshold_C": 120.0,
+    "bad_run_duration_min": 15
+  }
+}
