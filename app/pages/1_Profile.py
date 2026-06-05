@@ -45,7 +45,10 @@ from screw_logic import (  # noqa: E402
     enforce_tip_constraint,
     fill_factor_average,
     is_part2,
+    free_volume,
     new_empty_configuration,
+    occupied_volume_per_screw,
+    occupied_volume_total,
     place_element_at,
     position_to_zone,
     remaining_slots,
@@ -419,8 +422,10 @@ st.divider()
 # ---------------------------------------------------------------------------
 n_added = count_elements(cfg)
 n_remaining = remaining_slots(cfg)
-vol_used = total_volume_used(cfg)
-vol_free = max(0.0, TOTAL_FREE_VOL - vol_used)
+# Bivis : occupé par vis, occupé total (2 vis), libre = TOTAL − occupé total.
+occ_per_screw = occupied_volume_per_screw(cfg)
+occ_total = occupied_volume_total(cfg)
+vol_free = max(0.0, free_volume(cfg))
 rpm = float(st.session_state["screw_rpm"])
 feed = float(st.session_state["feeder_g_per_min"])
 dens = float(st.session_state["bulk_density"])
@@ -449,8 +454,7 @@ kcol2.metric(
 )
 kcol3.metric(
     t("profile.kpi.vol_used"),
-    f"{vol_used:.2f} cm³",
-    f"{(vol_used / TOTAL_FREE_VOL) * 100:.1f} %",
+    f"{occ_per_screw:.2f} cm³",
     help=t("profile.kpi.vol_used_help"),
 )
 kcol4.metric(
@@ -468,6 +472,14 @@ kcol6.metric(
     f"{rt:.1f} s",
     help=t("profile.kpi.rt_help"),
 )
+
+# Bivis : explicite les 3 volumes (par vis / total 2 vis / libre utile).
+st.caption(t(
+    "profile.cap.volumes",
+    per=f"{occ_per_screw:.2f}",
+    total=f"{occ_total:.2f}",
+    free=f"{vol_free:.2f}",
+))
 
 st.divider()
 

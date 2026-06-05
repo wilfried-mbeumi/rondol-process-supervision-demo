@@ -44,8 +44,8 @@ def test_T1_tip_only():
     cfg = new_empty_configuration()
     assert cfg[TIP_PART1_POS] == TIP_TYPE
     assert cfg[TIP_PART2_POS] == TIP_TYPE + PART2_OFFSET
-    assert approx(total_volume_used(cfg), 0.61060), total_volume_used(cfg)
-    assert approx(free_volume(cfg), 75.56500), free_volume(cfg)
+    assert approx(total_volume_used(cfg), 1.22120), total_volume_used(cfg)  # 2 vis × 0.61060
+    assert approx(free_volume(cfg), 74.95440), free_volume(cfg)
     assert count_user_elements(cfg) == 0.0
     assert remaining_slots(cfg) == 39.0
 
@@ -57,8 +57,8 @@ def test_T2_one_full_forward():
     cfg = new_empty_configuration()
     assert place_element_at(cfg, 4, 1)
     assert cfg[4] == 1 and cfg[5] == 101
-    assert approx(total_volume_used(cfg), 1.22120), total_volume_used(cfg)
-    assert approx(free_volume(cfg), 74.95440), free_volume(cfg)
+    assert approx(total_volume_used(cfg), 2.44240), total_volume_used(cfg)  # 2 vis × 1.22120
+    assert approx(free_volume(cfg), 73.73320), free_volume(cfg)
     assert count_user_elements(cfg) == 1.0
     assert remaining_slots(cfg) == 38.0
 
@@ -70,8 +70,8 @@ def test_T3_one_half():
     cfg = new_empty_configuration()
     assert place_element_at(cfg, 4, 2)
     assert cfg[4] == 2 and cfg[5] == 0
-    assert approx(total_volume_used(cfg), 0.91388), total_volume_used(cfg)
-    assert approx(free_volume(cfg), 75.26172), free_volume(cfg)
+    assert approx(total_volume_used(cfg), 1.82776), total_volume_used(cfg)  # 2 vis × 0.91388
+    assert approx(free_volume(cfg), 74.34784), free_volume(cfg)
     assert count_user_elements(cfg) == 0.5
     assert remaining_slots(cfg) == 38.5
 
@@ -86,8 +86,8 @@ def test_T4_mixed_config():
     assert place_element_at(cfg, 12, 2)
     assert place_element_at(cfg, 13, 5)
     assert place_element_at(cfg, 15, 4)
-    assert approx(total_volume_used(cfg), 4.57744), total_volume_used(cfg)
-    assert approx(free_volume(cfg), 71.59816), free_volume(cfg)
+    assert approx(total_volume_used(cfg), 9.15488), total_volume_used(cfg)  # 2 vis × 4.57744
+    assert approx(free_volume(cfg), 67.02072), free_volume(cfg)
     assert count_user_elements(cfg) == 6.5
     assert remaining_slots(cfg) == 32.5
 
@@ -101,7 +101,7 @@ def test_T5_saturation_halves():
         cfg[i] = 2
     assert count_user_elements(cfg) == 39.0
     assert remaining_slots(cfg) == 0.0
-    assert approx(total_volume_used(cfg), 24.26644), total_volume_used(cfg)
+    assert approx(total_volume_used(cfg), 48.53288), total_volume_used(cfg)  # 2 vis × 24.26644
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +115,10 @@ def test_T6_saturation_full_type1():
         cfg[pos + 1] = 101
     assert count_user_elements(cfg) == 39.0
     assert remaining_slots(cfg) == 0.0
-    assert approx(total_volume_used(cfg), 24.42400), total_volume_used(cfg)
+    # Vis saturée 39 convoyages : 24.42400 par vis → 48.84800 pour 2 vis.
+    # Volume libre correspondant = 76.1756 − 48.848 = 27.3276 cm³ (exemple manager).
+    assert approx(total_volume_used(cfg), 48.84800), total_volume_used(cfg)
+    assert approx(free_volume(cfg), 27.32760), free_volume(cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +130,7 @@ def test_T7_max_volume():
         pos = 1 + 2 * k
         cfg[pos] = 6
         cfg[pos + 1] = 106
-    assert approx(total_volume_used(cfg), 25.59907), total_volume_used(cfg)
+    assert approx(total_volume_used(cfg), 51.19814), total_volume_used(cfg)  # 2 vis × 25.59907
     assert total_volume_used(cfg) < 76.17560, "jamais > TOTAL_FREE"
 
 
@@ -145,7 +148,7 @@ def test_T8_reset_preserves_tip():
     cfg = reset_configuration()
     assert cfg[TIP_PART1_POS] == TIP_TYPE
     assert cfg[TIP_PART2_POS] == TIP_TYPE + PART2_OFFSET
-    assert approx(total_volume_used(cfg), 0.61060), total_volume_used(cfg)
+    assert approx(total_volume_used(cfg), 1.22120), total_volume_used(cfg)  # 2 vis × 0.61060
     assert count_user_elements(cfg) == 0.0
     assert remaining_slots(cfg) == 39.0
 

@@ -197,13 +197,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
               "Devient 0 quand la vis est complète.",
         "en": "Remaining user capacity before saturation (39 − added). "
               "Reaches 0 when the screw is full."},
-    "profile.kpi.vol_used": {"fr": "Volume occupé", "en": "Occupied volume"},
+    "profile.kpi.vol_used": {"fr": "Volume occupé / vis", "en": "Occupied volume / screw"},
+    "profile.cap.volumes": {
+        "fr": "Volume occupé / vis : {per} cm³ · Volume occupé total (2 vis) : {total} cm³ "
+              "· Volume libre utile : {free} cm³",
+        "en": "Occupied volume / screw: {per} cm³ · Total occupied (2 screws): {total} cm³ "
+              "· Usable free volume: {free} cm³"},
     "profile.kpi.vol_used_help": {
         "fr": "Volume de matière solide occupé par les éléments de vis. "
               "Le pourcentage est rapporté au volume libre nominal de la chambre.",
         "en": "Solid volume occupied by the screw elements. "
               "The percentage is relative to the nominal free volume of the chamber."},
-    "profile.kpi.vol_free": {"fr": "Volume libre", "en": "Free volume"},
+    "profile.kpi.vol_free": {"fr": "Volume libre utile", "en": "Usable free volume"},
     "profile.kpi.vol_free_help": {
         "fr": "Volume libre restant pour la matière (max {maxv} cm³ vis vide).",
         "en": "Free volume left for the material (max {maxv} cm³ when screw is empty)."},

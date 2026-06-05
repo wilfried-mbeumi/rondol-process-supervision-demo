@@ -42,6 +42,16 @@ TOTAL_FREE_VOL: float = 76.1756
 MAIN_FEEDER_POSITION: int = 4
 MAX_USER_ELEMENTS: float = 39.0
 
+# Correction métier (validée manager) : l'extrudeuse est une BIVIS.
+# Le volume occupé par les éléments doit être compté pour les DEUX vis :
+#   volume_occupé_total = N_SCREWS × volume_occupé_par_vis
+#   volume_libre        = TOTAL_FREE_VOL − volume_occupé_total
+# Exemple validé : 76.1756 − 2 × 24.424 = 27.3276 cm³.
+# Les VOLUME_CM3[] du PDF Network 7 sont PAR VIS → on applique le facteur ici,
+# au point unique de calcul (local_free_volumes + compute_process_state), ce qui
+# propage automatiquement à fill factor, résidence, capacités feeders, overflow.
+N_SCREWS: int = 2
+
 TIP_TYPE: int = 13
 TIP_PART1_POS: int = 79
 TIP_PART2_POS: int = 80
@@ -133,22 +143,104 @@ def local_free_volumes(config: list[int]) -> list[float]:
         if v == 0:
             lf[i] = BASE_FREE_VOL_PER_POS
         elif v == 2:
-            lf[i] = BASE_FREE_VOL_PER_POS - VOLUME_CM3[2]
+            lf[i] = BASE_FREE_VOL_PER_POS - N_SCREWS * VOLUME_CM3[2]
         elif is_part2(v):
             lf[i] = lf[i - 1] if i > 0 else BASE_FREE_VOL_PER_POS
         else:
-            lf[i] = BASE_FREE_VOL_PER_POS - VOLUME_CM3[v] / 2.0
+            lf[i] = BASE_FREE_VOL_PER_POS - N_SCREWS * VOLUME_CM3[v] / 2.0
     return lf
 
 
 def total_volume_used(config: list[int]) -> float:
-    """Volume occupé (cm³) = TOTAL_FREE − Σ Local_Free[i=1..80]."""
+    """Volume occupé TOTAL (cm³) pour les 2 vis = TOTAL_FREE − Σ Local_Free[1..80].
+
+    Bivis : la règle volume retire N_SCREWS × le volume par vis (cf. N_SCREWS).
+    """
     lf = local_free_volumes(config)
     return TOTAL_FREE_VOL - sum(lf[1:N_POSITIONS])
 
 
+def occupied_volume_per_screw(config: list[int]) -> float:
+    """Volume occupé par UNE vis (cm³)."""
+    return total_volume_used(config) / N_SCREWS
+
+
+def occupied_volume_total(config: list[int]) -> float:
+    """Volume occupé par les DEUX vis (cm³) = N_SCREWS × par vis."""
+    return total_volume_used(config)
+
+
 def free_volume(config: list[int]) -> float:
+    """Volume libre utile (cm³) = TOTAL_FREE − volume occupé total (2 vis)."""
     return TOTAL_FREE_VOL - total_volume_used(config)
+
+
+def free_volume_for_occupied_per_screw(occupied_per_screw: float) -> float:
+    """Formule métier validée : libre = TOTAL_FREE − N_SCREWS × occupé_par_vis.
+
+    Exemple : free_volume_for_occupied_per_screw(24.42) ≈ 27.3356 cm³.
+    """
+    return TOTAL_FREE_VOL - N_SCREWS * occupied_per_screw
+
+
+# ---------------------------------------------------------------------------
+# Garde « pas d'élément inventé » (règle manager) — l'IA ne doit jamais
+# recommander, substituer, réduire ou commenter un type d'élément ABSENT de la
+# configuration courante. Source unique, pure, partagée par screw_render et
+# AgentIndustrial_v1/core/recommendations.
+# ---------------------------------------------------------------------------
+def present_element_types(config: list[int]) -> set[int]:
+    """Types d'éléments réellement présents (base types 1..12 ; tip/vide exclus)."""
+    out: set[int] = set()
+    for v in config:
+        if v == 0 or v >= PART2_OFFSET:
+            continue
+        bt = base_type(v)
+        if bt in (0, TIP_TYPE):
+            continue
+        out.add(bt)
+    return out
+
+
+# Tokens textuels (FR/EN, minuscule) → familles de types d'éléments concernées.
+# Si un token apparaît dans le texte d'une reco mais qu'AUCUN de ses types n'est
+# présent dans la config, la reco cite un élément absent → interdite.
+_KNEADING_TYPES: frozenset[int] = frozenset({4, 5, 7, 8})
+_CONVEYING_TYPES: frozenset[int] = frozenset({1, 2, 9})
+ELEMENT_MENTION_TOKENS: tuple[tuple[str, frozenset[int]], ...] = (
+    ("kneading", _KNEADING_TYPES),
+    ("malaxage", _KNEADING_TYPES),
+    ("malaxeur", _KNEADING_TYPES),
+    ("convoyage", _CONVEYING_TYPES),
+    ("conveying", _CONVEYING_TYPES),
+    ("short-pitch", frozenset({3})),
+    ("pas court", frozenset({3})),
+    ("large pitch", frozenset({6})),
+    ("grand pas", frozenset({6})),
+    ("chaotic", frozenset({10})),
+    ("chaotique", frozenset({10})),
+    ("toothed", frozenset({11})),
+    ("dentelé", frozenset({11})),
+    ("special mixing", frozenset({12})),
+    ("mélange spécial", frozenset({12})),
+    ("reverse", frozenset({9})),
+)
+
+
+def recommendation_cites_absent_element(text: str, config: list[int]) -> bool:
+    """True si `text` mentionne un type d'élément ABSENT de `config`.
+
+    Pur, insensible à la casse. Utilisé pour filtrer toute recommandation qui
+    inventerait un élément non présent dans le run courant.
+    """
+    if not text:
+        return False
+    present = present_element_types(config)
+    low = text.lower()
+    for token, types in ELEMENT_MENTION_TOKENS:
+        if token in low and present.isdisjoint(types):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -495,10 +587,10 @@ def compute_process_state(config: list[int], params: ProcessParams) -> ProcessSt
     for i in range(N):
         v = cfg[i]
         if v < PART2_OFFSET:                         # 1ère partie
-            if v == 2:                               # PDF L0028
-                local_free_volume_cm3[i] = BASE_FREE_VOL_PER_POS - VOLUME_CM3[2]
-            else:                                    # PDF L0030
-                local_free_volume_cm3[i] = BASE_FREE_VOL_PER_POS - VOLUME_CM3[v] / 2.0
+            if v == 2:                               # PDF L0028 (× N_SCREWS bivis)
+                local_free_volume_cm3[i] = BASE_FREE_VOL_PER_POS - N_SCREWS * VOLUME_CM3[2]
+            else:                                    # PDF L0030 (× N_SCREWS bivis)
+                local_free_volume_cm3[i] = BASE_FREE_VOL_PER_POS - N_SCREWS * VOLUME_CM3[v] / 2.0
             local_free_volume_cm3_by_rev[i] = local_free_volume_cm3[i] * FACTOR_FREE_BY_REV[v]
         else:                                        # 2ème partie : recopie i-1
             local_free_volume_cm3_by_rev[i] = local_free_volume_cm3_by_rev[i - 1]

@@ -131,7 +131,7 @@ def test_U6_reset():
     assert remaining_slots(cfg) == 39.0
     assert cfg[TIP_PART1_POS] == TIP_TYPE
     assert cfg[TIP_PART2_POS] == TIP_TYPE + PART2_OFFSET
-    assert approx(total_volume_used(cfg), 0.61060)
+    assert approx(total_volume_used(cfg), 2 * 0.61060)  # bivis : 2 vis × tip
     invariant_add_remaining(cfg)
 
 
@@ -175,14 +175,15 @@ def test_U8_volume_invariant():
     # 2 × 0.30328 (type 2) = 0.60656
     # 1 × 0.61058 (type 5) = 0.61058
     # 1 × 0.61060 (tip)    = 0.61060
-    #                      = 4.27014
-    assert approx(total_volume_used(cfg), 4.27014), total_volume_used(cfg)
+    #                      = 4.27014 (PAR VIS)
+    # Bivis : volume occupé total = 2 × 4.27014 = 8.54028 cm³.
+    assert approx(total_volume_used(cfg), 2 * 4.27014), total_volume_used(cfg)
     # ADD = 4 entiers + 2×0.5 demis + 1 K30 entier = 6.0
     assert count_user_elements(cfg) == 6.0, count_user_elements(cfg)
     invariant_add_remaining(cfg)
     # retrait 1 entier (Forward à pos 1) → ADD = 5
     assert remove_at(cfg, 1)
-    assert approx(total_volume_used(cfg), 4.27014 - 0.61060), total_volume_used(cfg)
+    assert approx(total_volume_used(cfg), 2 * (4.27014 - 0.61060)), total_volume_used(cfg)
     assert count_user_elements(cfg) == 5.0, count_user_elements(cfg)
     invariant_add_remaining(cfg)
 

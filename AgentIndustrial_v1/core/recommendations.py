@@ -31,6 +31,19 @@ from .process import (
 )
 from .rules import Alert
 
+# Garde « pas d'élément inventé » (règle manager) — source canonique pure dans
+# screw_logic. Bootstrap sys.path (app/) identique à screw_adapter pour import nu.
+import sys as _sys
+from pathlib import Path as _Path
+
+_APP_DIR = _Path(__file__).resolve().parent.parent.parent / "app"
+if str(_APP_DIR) not in _sys.path:
+    _sys.path.insert(0, str(_APP_DIR))
+try:  # pragma: no cover - dépend du bootstrap sys.path
+    from screw_logic import recommendation_cites_absent_element as _cites_absent
+except Exception:  # pragma: no cover
+    _cites_absent = None
+
 
 # ---------------------------------------------------------------------------
 # Catégories — utilisées pour le grouping UI
@@ -802,4 +815,17 @@ def build_recommendations(
             prev = seen.get(rec.code)
             if prev is None or sev_order.get(rec.severity, 99) < sev_order.get(prev.severity, 99):
                 seen[rec.code] = rec
-    return list(seen.values())
+
+    recos = list(seen.values())
+
+    # Garde stricte : retirer toute reco qui cite un type d'élément ABSENT de la
+    # configuration courante (ex. « substituer Kneading 90° » sans malaxage).
+    # Les recos élément-agnostiques (baisser rpm, ajuster T°, réduire débit)
+    # subsistent → repli garanti. N'agit que si la config est connue.
+    config = list(getattr(state, "screw_config", []) or [])
+    if _cites_absent is not None and config:
+        def _reco_text(r: Recommendation) -> str:
+            return " ".join((r.title, r.rationale, r.action, r.delta_label))
+        recos = [r for r in recos if not _cites_absent(_reco_text(r), config)]
+
+    return recos

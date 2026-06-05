@@ -1743,6 +1743,55 @@ def compute_recommendations(
             evidence=f"{n_knead} disp · 0 distrib",
         ))
 
+    # -----------------------------------------------------------------------
+    # Garde « pas d'élément inventé » (règle manager) : on retire toute reco
+    # qui cite un type d'élément ABSENT de la config courante. La version
+    # canonique de cette logique est screw_logic.recommendation_cites_absent_element ;
+    # on la réplique ici en local pour préserver le découplage de screw_render
+    # (qui reçoit base_type_fn / is_part2_fn par injection, sans importer screw_logic).
+    # -----------------------------------------------------------------------
+    _present: set[int] = set()
+    for _v in cfg:
+        if _v == 0 or is_part2_fn(_v):
+            continue
+        _bt = base_type_fn(_v)
+        if _bt in (0, 13):
+            continue
+        _present.add(_bt)
+    _ELEMENT_TOKENS = (
+        ("kneading", {4, 5, 7, 8}), ("malaxage", {4, 5, 7, 8}), ("malaxeur", {4, 5, 7, 8}),
+        ("convoyage", {1, 2, 9}), ("conveying", {1, 2, 9}),
+        ("short-pitch", {3}), ("pas court", {3}),
+        ("large pitch", {6}), ("grand pas", {6}),
+        ("chaotic", {10}), ("chaotique", {10}),
+        ("toothed", {11}), ("dentelé", {11}),
+        ("special mixing", {12}), ("mélange spécial", {12}),
+        ("reverse", {9}),
+    )
+
+    def _cites_absent(r: dict) -> bool:
+        txt = " ".join(
+            str(r.get(k, "")) for k in
+            ("physics", "impact", "action", "title", "detail", "evidence")
+        ).lower()
+        return any(
+            tok in txt and _present.isdisjoint(types)
+            for tok, types in _ELEMENT_TOKENS
+        )
+
+    recs = [r for r in recs if not _cites_absent(r)]
+
+    # Repli générique élément-agnostique si la garde a tout retiré (config non vide).
+    if not recs:
+        recs.append(_rec(
+            "info", "Global", "Configuration cohérente",
+            "Aucune anomalie liée aux éléments présents",
+            f"Ajuster si besoin la vitesse vis ({rpm:.0f} rpm), le débit "
+            f"({feed:.0f} g/min) ou la température pour viser le taux de "
+            f"remplissage cible.",
+            evidence="recommandations limitées aux éléments présents",
+        ))
+
     # Tri par sévérité décroissante
     sev_order = {"critique": 0, "warning": 1, "info": 2, "ok": 3}
     recs.sort(key=lambda r: sev_order.get(r.get("severity", "info"), 4))
