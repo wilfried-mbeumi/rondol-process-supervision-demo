@@ -27,7 +27,7 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
-from i18n import language_selector, t  # noqa: E402
+from rondol_i18n import language_selector, t  # noqa: E402
 
 MODEL_PATH   = ROOT / "models" / "SVM_w60.joblib"
 DATASET_PATH = ROOT / "data" / "features" / "dataset_ml_w60.csv"

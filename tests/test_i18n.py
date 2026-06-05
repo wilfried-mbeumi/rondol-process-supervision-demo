@@ -24,7 +24,7 @@ for _p in (ROOT, APP):
         sys.path.insert(0, str(_p))
 
 import i18n_messages  # noqa: E402
-import i18n  # noqa: E402
+import rondol_i18n as i18n  # noqa: E402 — module local renommé (collision PyPI 'i18n')
 
 
 _PLACEHOLDER = re.compile(r"{(\w+)}")

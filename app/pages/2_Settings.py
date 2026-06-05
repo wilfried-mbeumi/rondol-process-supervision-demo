@@ -75,7 +75,7 @@ from AgentIndustrial_v1.core.editing_state import (  # noqa: E402
 )
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
-from i18n import language_selector, t  # noqa: E402
+from rondol_i18n import language_selector, t  # noqa: E402
 
 # Historique procédé PERSISTANT (disque) — figement des KPIs moteur au commit.
 # Le rapport moteur est construit via le helper PARTAGÉ (mêmes valeurs que la

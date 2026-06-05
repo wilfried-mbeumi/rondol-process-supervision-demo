@@ -71,7 +71,7 @@ from screw_render import (  # noqa: E402
 )
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
-from i18n import language_selector, t  # noqa: E402
+from rondol_i18n import language_selector, t  # noqa: E402
 
 st.set_page_config(page_title=t("page.profile.title"), layout="wide")
 
