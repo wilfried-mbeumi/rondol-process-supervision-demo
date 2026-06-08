@@ -76,6 +76,9 @@ from rondol_i18n import language_selector, t  # noqa: E402
 # Étalonnage feeder (RPM × coeff → débit réel) — bloc partagé.
 from feeder_ui import render_feeder_calibration  # noqa: E402
 
+# P3.2 : source de vérité current_run_state + projection legacy (sens unique).
+from run_state_adapter import sync_legacy_projection  # noqa: E402
+
 st.set_page_config(page_title=t("page.profile.title"), layout="wide")
 
 # ---------------------------------------------------------------------------
@@ -1130,3 +1133,12 @@ st.plotly_chart(fig_zones, use_container_width=True, key="zone_rt_chart")
 
 st.caption(t("profile.cap.residence", rpm=f"{rpm:.0f}", feed=f"{feed:.1f}",
               dens=f"{dens:.2f}", maxv=f"{TOTAL_FREE_VOL:.2f}"))
+
+# ─── P3.2 : formaliser le flux à sens unique current_run_state → clés legacy ──
+# Profile est une page de SAISIE : après capture des widgets, on (re)projette
+# l'état canonique vers les clés legacy partagées (idempotent, aucun effet
+# visible). Garde best-effort : ne doit JAMAIS casser le rendu de la page.
+try:
+    sync_legacy_projection(st.session_state)
+except Exception:  # noqa: BLE001 — la projection legacy ne doit pas casser l'UI
+    pass

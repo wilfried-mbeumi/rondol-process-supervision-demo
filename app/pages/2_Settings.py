@@ -75,6 +75,9 @@ from AgentIndustrial_v1.core.editing_state import (  # noqa: E402
 )
 from AgentIndustrial_v1.core.coercion import safe_int  # noqa: E402
 
+# P3.2 : source de vérité current_run_state + projection legacy (sens unique).
+from run_state_adapter import sync_legacy_projection  # noqa: E402
+
 # i18n — sélecteur de langue + traduction du chrome (B1).
 from rondol_i18n import language_selector, t  # noqa: E402
 
@@ -243,6 +246,13 @@ with _save_col:
             st.session_state, state,
             label=st.session_state.get("apply_label", "").strip(),
         )
+        # P3.2 : le snapshot validé EST désormais current_run_state. On projette
+        # l'état canonique vers les clés legacy partagées (sens unique). Garde
+        # best-effort : ne doit jamais casser l'enregistrement.
+        try:
+            sync_legacy_projection(st.session_state)
+        except Exception:  # noqa: BLE001
+            pass
         st.toast("Configuration enregistrée — Supervision mise à jour.", icon="✅")
         # Persistance historique procédé (disque) + KPIs moteur FIGÉS au commit.
         # try/except : un échec de persistance ne doit JAMAIS casser l'enregistrement

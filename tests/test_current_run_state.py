@@ -34,8 +34,16 @@ _DIM_OUTPUTS = ("fill_factor", "residence_time", "free_volume", "sme")
 
 
 def _session_with_snapshot(**extra):
-    """Session avec un snapshot validé (état USER_INPUT) + clés optionnelles."""
+    """Session avec un snapshot validé (état USER_INPUT) + profil réel + clés opt.
+
+    On place un profil de vis non vide (≥1 élément) pour que `screw_profile`
+    soit bien USER_INPUT sous la provenance par champ raffinée (P3.2).
+    """
+    from screw_logic import add_elements_atomic, new_empty_configuration  # noqa: E402
     sess: dict = {}
+    cfg = new_empty_configuration()
+    add_elements_atomic(cfg, 1, 6)        # profil réel → screw_profile USER_INPUT
+    sess["screw_config"] = cfg
     state = state_from_session(sess)
     commit(sess, state, label="test")
     sess.update(extra)

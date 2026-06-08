@@ -39,7 +39,7 @@ if str(_ROOT) not in sys.path:
 from physics.feeder_flow import FeederFlow, resolve_feeder_flow  # noqa: E402
 
 from .applied_state import get_applied
-from .coercion import safe_float
+from .coercion import safe_float, safe_int
 from .process import ProcessState
 from .state_sync import state_from_session
 
@@ -77,6 +77,19 @@ BIVIS_CORRECTION_IS_MANAGER: bool = True
 _FEEDER_RPM_KEY = "feeder_rpm"
 _FEEDER_CALIB_KEY = "feeder_calib_g_h_per_rpm"
 _DEMO_MODE_KEY = "demo_mode"
+_TARGET_COUNT_KEY = "target_screw_count"
+
+# Défauts TECHNIQUES (provenance DEFAULT_CONFIG tant que la valeur ne s'en écarte
+# pas). Exigence : un défaut ne doit jamais être étiqueté USER_INPUT.
+_DEFAULT_SCREW_RPM = 120.0
+_DEFAULT_BULK_DENSITY = 0.55
+_DEFAULT_N_DIE = 1
+_DEFAULT_TARGET_COUNT = 40   # standard Rondol validé manager
+
+
+def _param_provenance(value: Any, default: Any) -> str:
+    """USER_INPUT si la valeur diffère du défaut technique, sinon DEFAULT_CONFIG."""
+    return USER_INPUT if value != default else DEFAULT_CONFIG
 
 
 @dataclass(frozen=True)
@@ -212,12 +225,12 @@ def build_current_run_state(session: Mapping[str, Any]) -> CurrentRunState:
     """
     state = state_from_session(session)              # ne mute pas la session
     snap = get_applied(session)
-    src = USER_INPUT if snap is not None else DEFAULT_CONFIG
+    run_id_src = USER_INPUT if snap is not None else DEFAULT_CONFIG
     run_id_value = snap.timestamp_iso if (snap and snap.timestamp_iso) else "no-snapshot"
 
     kpis = state.kpis
     profile_known = (kpis.n_elements or 0.0) > 0.0
-    profile_src = USER_INPUT if (snap is not None or profile_known) else DEFAULT_CONFIG
+    profile_src = USER_INPUT if profile_known else DEFAULT_CONFIG
 
     calib_field, feed_field = _feeder_fields(session)
 
@@ -250,22 +263,39 @@ def build_current_run_state(session: Mapping[str, Any]) -> CurrentRunState:
         ),
     }
 
+    _rpm = float(state.screw_rpm)
+    _dens = float(state.feeders[0].density_g_per_cm3) if state.feeders else 0.0
+    _ndie = int(state.n_die_zones)
+    _target = safe_int(_get(session, _TARGET_COUNT_KEY, _DEFAULT_TARGET_COUNT),
+                       _DEFAULT_TARGET_COUNT, 1, 200)
+    _sf_en = bool(state.feeders[1].enabled) if len(state.feeders) > 1 else False
+
     process_parameters: dict[str, Field] = {
-        "screw_rpm": Field(float(state.screw_rpm), "tr/min", src, NOT_APPLICABLE),
-        "bulk_density": Field(
-            float(state.feeders[0].density_g_per_cm3) if state.feeders else 0.0,
-            "g/cm³", src, NOT_APPLICABLE),
-        "n_die_zones": Field(int(state.n_die_zones), "", src, NOT_APPLICABLE),
-        "side_feeder_enabled": Field(
-            bool(state.feeders[1].enabled) if len(state.feeders) > 1 else False,
-            "", src, NOT_APPLICABLE),
+        "screw_rpm": Field(_rpm, "tr/min",
+                           _param_provenance(_rpm, _DEFAULT_SCREW_RPM), NOT_APPLICABLE),
+        "bulk_density": Field(_dens, "g/cm³",
+                              _param_provenance(_dens, _DEFAULT_BULK_DENSITY), NOT_APPLICABLE),
+        "n_die_zones": Field(_ndie, "",
+                             _param_provenance(_ndie, _DEFAULT_N_DIE), NOT_APPLICABLE),
+        "target_element_count": Field(_target, "",
+                                      _param_provenance(_target, _DEFAULT_TARGET_COUNT), NOT_APPLICABLE),
+        "side_feeder_enabled": Field(_sf_en, "",
+                                     USER_INPUT if _sf_en else DEFAULT_CONFIG, NOT_APPLICABLE),
     }
 
     demo_flags = {"demo_mode": bool(_get(session, _DEMO_MODE_KEY, False))}
 
+    # Source DOMINANTE : USER_INPUT dès qu'un signal opérateur réel existe
+    # (snapshot validé, profil construit, étalonnage, ou un paramètre ≠ défaut).
+    _user_signal = (
+        snap is not None or profile_known or calib_field.source == USER_INPUT
+        or any(f.source == USER_INPUT for f in process_parameters.values())
+    )
+    source_type = USER_INPUT if _user_signal else DEFAULT_CONFIG
+
     return CurrentRunState(
-        run_id=Field(run_id_value, "", src, NOT_APPLICABLE),
-        source_type=src,
+        run_id=Field(run_id_value, "", run_id_src, NOT_APPLICABLE),
+        source_type=source_type,
         screw_profile=Field(
             list(state.screw_config), "", profile_src, NOT_APPLICABLE,
             "Profil de vis (81 positions).",
