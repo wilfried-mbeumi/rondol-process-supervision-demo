@@ -66,6 +66,42 @@ def test_clamped_flow_used_above_machine_max():
     assert abs(fill_effective - fill_at_5) < 1e-9  # calcul borné, pas 800 g/h
 
 
+def test_manager_scenario_300gh_100rpm_40elements():
+    """Scénario manager complet : 300 g/h (30 RPM × 10), vis 100 rpm, ρ=0.55.
+
+    Vérifie la chaîne entrée→sortie + provenance, sans imposer un FF « joli ».
+    """
+    ff = resolve_feeder_flow(30.0, 10.0)
+    # Débit : 300 g/h = 5 g/min = 0.0833 g/s.
+    assert abs(ff.effective_g_h - 300.0) < 1e-6
+    assert abs(ff.effective_g_min - 5.0) < 1e-6
+    assert abs(ff.effective_g_s - 0.083333) < 1e-5
+
+    # Q_vol = débit / densité (cm³/s).
+    rho = 0.55
+    qvol = ff.effective_g_s / rho
+    assert abs(qvol - 0.1515) < 1e-3
+
+    # FF & résidence cohérents (finis, positifs, FF ∈ [0,1]).
+    cfg = new_empty_configuration()
+    add_elements_atomic(cfg, 1, 39)  # vis pleine (max user = 39 ; cible 40)
+    fillv = fill_factor_average(cfg, 100.0, ff.effective_g_min, rho)
+    rt = residence_time(cfg, 100.0, ff.effective_g_min, rho)
+    assert 0.0 < fillv <= 1.0
+    assert rt > 0.0 and rt == rt  # fini, positif
+    # Toute sortie a une provenance (audit feeder).
+    rows = feeder_audit_rows(ff, rho)
+    assert all(r.get("provenance") for r in rows)
+
+
+def test_residence_time_is_finite_and_positive():
+    cfg = new_empty_configuration(); add_elements_atomic(cfg, 1, 39)
+    ff = resolve_feeder_flow(30.0, 10.0)
+    rt = residence_time(cfg, 100.0, ff.effective_g_min, 0.55)
+    import math
+    assert math.isfinite(rt) and rt > 0.0
+
+
 def test_no_real_mass_flow_without_calibration_in_session():
     ff = current_feeder_flow({"feeder_rpm": 30.0, "feeder_calib_g_h_per_rpm": 0.0})
     assert ff.calibrated is False
@@ -138,6 +174,13 @@ def test_moteur_procede_displays_calculation_audit():
     at.run(timeout=60)
     assert not at.exception, [str(e.value) for e in at.exception]
     blob = "\n".join(str(getattr(e, "value", "")) for e in at.markdown)
+    for kind in ("info", "warning", "caption"):
+        try:
+            blob += "\n".join(str(getattr(e, "value", "")) for e in getattr(at, kind))
+        except Exception:
+            pass
     blob += "\n".join(str(getattr(e, "body", getattr(e, "value", ""))) for e in at.get("html"))
-    assert "Audit calcul" in blob
-    assert "FF = Q_vol / capacité" in blob
+    # En-tête panneau (st.html), explication chiffrée (st.info), provenance PLC (st.caption).
+    assert "Audit calcul procédé" in blob
+    assert "Pourquoi FF" in blob
+    assert "Network 7" in blob

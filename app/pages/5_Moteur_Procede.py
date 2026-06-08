@@ -50,9 +50,13 @@ from app_mode import (  # noqa: E402
 from feeder_ui import (  # noqa: E402
     current_feeder_flow,
     ensure_feeder_defaults,
-    feeder_audit_rows,
 )
-from screw_logic import free_volume as _free_volume  # noqa: E402
+from screw_logic import (  # noqa: E402
+    MAIN_FEEDER_POSITION as _MAIN_POS,
+    _params_from_hmi,
+    compute_process_state as _compute_ps,
+    free_volume as _free_volume,
+)
 from AgentIndustrial_v1.core.coercion import safe_float, safe_int  # noqa: E402
 
 st.set_page_config(page_title="Moteur Procédé — Rondol", layout="wide")
@@ -487,53 +491,104 @@ if _pos_rows:
 else:
     st.caption("Aucune position à afficher (profil vide).")
 
-# ── Audit calcul (transparence débit → remplissage → résidence) ──────────────
-# Exigence manager : l'app doit MONTRER d'où vient chaque nombre. Aucune valeur
-# sans provenance ; toute constante non calibrée est signalée.
-_section("Audit calcul", "débit feeder · remplissage · résidence — provenance tracée")
+# ── Audit calcul procédé (transparence entrée → sortie, provenance + statut) ──
+# Exigence manager : MONTRER chaque variable machine, son unité, sa source, sa
+# formule et son STATUT (validé PLC / correction manager / à valider). Formules
+# vérifiées sur la source PLC Rondol (references/logique_metier/2-CALCULS.pdf,
+# Network 7). Aucune valeur sans provenance.
+_section("Audit calcul procédé", "débit · capacité · remplissage · résidence — source PLC Network 7")
 with st.container(border=True):
-    _audit_rows = feeder_audit_rows(feeder_flow, bulk_density, density_provenance="USER_INPUT")
-    # Grandeurs procédé calculées (lecture du rapport moteur — aucune nouvelle équation).
+    # ProcessState dédié à l'audit (mêmes paramètres plats que la chaîne) — sert
+    # à exposer capacité et FF AU MAIN FEEDER (point déterminant, pédagogique).
+    _ps_audit = _compute_ps(shared_config, _params_from_hmi(screw_rpm, feed_g_per_min, bulk_density))
+    _n_rps = screw_rpm / 60.0
+    _v_byrev_main = _ps_audit.local_free_volume_by_rev[_MAIN_POS]
+    _cap_main = _n_rps * _v_byrev_main
+    _ff_main = _ps_audit.fill_factor_local[_MAIN_POS]
+    _qvol = (feed_g_per_min / 60.0) / bulk_density if bulk_density > 0 else 0.0
     _free_vol_2screws = _free_volume(shared_config)
     _n_elem = count_user_elements(shared_config)
-    _audit_rows += [
-        {"grandeur": "Vitesse vis", "valeur": f"{report.screw_rpm:.0f} tr/min", "provenance": "USER_INPUT"},
-        {"grandeur": "Volume libre utile (2 vis)", "valeur": f"{_free_vol_2screws:.2f} cm³", "provenance": "CALCULATED"},
-        {"grandeur": "Nombre d'éléments", "valeur": f"{_n_elem:.0f}", "provenance": "USER_INPUT"},
-        {"grandeur": "Remplissage moyen (fill factor)", "valeur": f"{report.fill_factor_average * 100:.1f} %", "provenance": "CALCULATED"},
-        {"grandeur": "Temps de résidence total", "valeur": f"{report.residence_time_total_s:.1f} s", "provenance": "CALCULATED"},
+    _rpm_full = screw_rpm * _ff_main if _ff_main > 0 else 0.0  # rpm où FF≈100 %
+
+    _PLC = "Formule PLC validée (Network 7)"
+    _PLC_DB = "Constante PLC — valeurs DB à confirmer"
+    _MGR = "Correction manager (hors PLC d'origine)"
+    _MGR_LIM = "Limite manager — à valider"
+    _IN = "Saisie"
+    _CALC = "Calculé"
+
+    if feeder_flow.calibrated:
+        _dem = f"{feeder_flow.requested_g_h:.1f}"
+        _eff_gh = f"{feeder_flow.effective_g_h:.1f}"
+        _eff_gmin = f"{feeder_flow.effective_g_min:.3f}"
+        _eff_gs = f"{feeder_flow.effective_g_s:.5f}"
+        _coeff = f"{feeder_flow.calibration_g_h_per_rpm:.3f}"
+        _coeff_src, _coeff_stat = "USER_INPUT", "Étalonnage externe (= Mass_flow_rate PLC, g/tour×60)"
+    else:
+        _dem = _eff_gh = _eff_gmin = _eff_gs = "Non calculable"
+        _coeff = "Non renseigné"
+        _coeff_src, _coeff_stat = "NOT_AVAILABLE", "Étalonnage requis"
+
+    _rows = [
+        ("RPM feeder", f"{feeder_flow.feeder_rpm:.0f}", "RPM", "USER_INPUT", "—", _IN),
+        ("Coefficient étalonnage", _coeff, "g/h/RPM", _coeff_src, "= Mass_flow_rate (PLC L0018)", _coeff_stat),
+        ("Débit demandé", _dem, "g/h", "CALCULATED", "RPM × coeff", _CALC),
+        ("Débit max machine", f"{feeder_flow.max_machine_g_h:.0f}", "g/h", "DEFAULT_CONFIG", "—", _MGR_LIM),
+        ("Débit effectif (calcul)", _eff_gh, "g/h", "CALCULATED", "min(demandé, max)", _CALC),
+        ("Débit effectif", _eff_gmin, "g/min", "CALCULATED", "g/h ÷ 60", _CALC),
+        ("Débit effectif", _eff_gs, "g/s", "CALCULATED", "g/h ÷ 3600", _CALC),
+        ("Densité apparente ρ", f"{bulk_density:.3f}", "g/cm³", "USER_INPUT", "—", _IN),
+        ("Débit volumique Q_vol", f"{_qvol:.4f}", "cm³/s", "CALCULATED", "ṁ ÷ ρ (PLC L0056)", _PLC),
+        ("RPM vis", f"{screw_rpm:.0f}", "tr/min", "USER_INPUT", "—", _IN),
+        ("N (vis)", f"{_n_rps:.3f}", "tr/s", "CALCULATED", "rpm ÷ 60 (PLC L0015)", _PLC),
+        ("V libre / tour (main)", f"{_v_byrev_main:.4f}", "cm³/tour", "CALCULATED",
+         "V_libre × Factor_FreeByRev (PLC L0033)", _PLC_DB),
+        ("Capacité volumique (main)", f"{_cap_main:.4f}", "cm³/s", "CALCULATED",
+         "N × V_libre/tour (PLC L0057)", _PLC),
+        ("Volume libre utile (2 vis)", f"{_free_vol_2screws:.2f}", "cm³", "CALCULATED",
+         "76.1756 − 2×occupé/vis", _MGR),
+        ("Nombre d'éléments", f"{_n_elem:.0f}", "—", "USER_INPUT", "—", _IN),
+        ("Fill factor (main)", f"{_ff_main * 100:.1f}", "%", "CALCULATED",
+         "Q_vol ÷ capacité (PLC L0060)", _PLC),
+        ("Remplissage moyen (rapport)", f"{report.fill_factor_average * 100:.1f}", "%", "CALCULATED",
+         "moyenne FF (PLC L0153)", _PLC),
+        ("Temps de résidence total", f"{report.residence_time_total_s:.1f}", "s", "CALCULATED",
+         "Σ V_libre/VolFlow (PLC L0144)", _PLC),
     ]
     st.dataframe(
-        pd.DataFrame(_audit_rows), use_container_width=True, hide_index=True,
-        column_config={
-            "grandeur": st.column_config.TextColumn("Grandeur"),
-            "valeur": st.column_config.TextColumn("Valeur"),
-            "provenance": st.column_config.TextColumn("Provenance"),
-        },
+        pd.DataFrame(_rows, columns=["Variable", "Valeur", "Unité", "Source", "Formule", "Statut"]),
+        use_container_width=True, hide_index=True,
     )
-    st.markdown(
-        "**Formules** (constantes géométriques validées Rondol — PDF Network 7 ; "
-        "facteurs thermiques/presets = *non calibrés, indicatifs*) :\n"
-        "- Débit volumique : `Q_vol = ṁ / ρ` (g/s ÷ g/cm³ → cm³/s)\n"
-        "- Capacité conveyage : `capacité = N_tr/s × V_libre/tour` (cm³/s)\n"
-        "- **Fill factor** : `FF = Q_vol / capacité` (borné 0–1)\n"
-        "- Temps de résidence : `RT = Σ V_libre_local / débit_volumique_local`"
-    )
-    if not feeder_flow.calibrated:
+
+    # Explication chiffrée du « pourquoi 26 % » + condition FF→100 %.
+    if feeder_flow.calibrated and _cap_main > 0:
+        st.info(
+            f"**Pourquoi FF = {_ff_main * 100:.0f} % ?** Au main feeder, "
+            f"`Q_vol = {_qvol:.3f} cm³/s` alimenté contre une `capacité = "
+            f"{_cap_main:.3f} cm³/s` de convoyage → `FF = {_qvol:.3f}/{_cap_main:.3f} "
+            f"= {_ff_main * 100:.0f} %`. C'est **normal en bivis *starve-fed*** "
+            f"(capacité > débit). **FF → 100 %** seulement si la capacité descend "
+            f"au niveau du débit : baisser la vitesse vis vers **≈ {_rpm_full:.0f} tr/min** "
+            f"(à débit constant), augmenter le débit, ou augmenter la densité.",
+            icon="🧮",
+        )
+    elif not feeder_flow.calibrated:
         st.warning(
             "Débit réel **non calculable** (coefficient d'étalonnage feeder non "
-            "renseigné). Les indicateurs ci-dessus reposent sur la **saisie directe** "
-            "de débit (hors étalonnage) — renseignez le coefficient g/h/RPM dans "
-            "**Profile** pour un débit réel tracé.",
+            "renseigné). Les valeurs procédé ci-dessus reposent sur la **saisie "
+            "directe** de débit (hors étalonnage) — renseignez le coefficient "
+            "g/h/RPM dans **Profile** pour un débit réel tracé.",
             icon="⚠️",
         )
-    else:
-        st.caption(
-            "ℹ️ Un remplissage faible à haut régime est **normal en bivis "
-            "*starve-fed*** : si la capacité de convoyage (N × V_libre/tour) dépasse "
-            "le débit volumique alimenté, FF < 100 %. Baisser la vitesse vis "
-            "augmente le remplissage à débit constant."
-        )
+
+    st.caption(
+        "Statuts : *Formule PLC validée* = vérifiée sur la source automate Rondol "
+        "(2-CALCULS.pdf, Network 7). *Constante PLC — valeurs DB à confirmer* = "
+        "formule PLC mais valeurs par élément issues du bloc de données automate "
+        "(non re-vérifiées ici). *Correction manager (hors PLC)* = ajout bivis ×2 "
+        "validé manager, absent du PLC d'origine. *Limite manager — à valider* = "
+        "plafond 300 g/h indiqué par le manager, à confirmer Rondol."
+    )
 
 # ── Encart hypothèses ────────────────────────────────────────────────────────
 st.divider()
