@@ -51,6 +51,11 @@ from screw_render import (  # noqa: E402
 # session_state) : Supervision affiche les recos IA / score / alertes /
 # cooling pilotés par la page Settings, pas un second moteur divergent.
 from AgentIndustrial_v1.core.state_sync import state_from_session  # noqa: E402
+# P3.4 : config opérateur via current_run_state (jamais via le dataset ML demo).
+from run_state_adapter import (  # noqa: E402
+    build as build_crs,
+    build_moteur_inputs_from_current_run_state,
+)
 from AgentIndustrial_v1.core.rules import evaluate as agent_evaluate  # noqa: E402
 from AgentIndustrial_v1.core.recommendations import (  # noqa: E402
     build_recommendations as agent_build_recos,
@@ -467,14 +472,17 @@ else:
 # pour garder un comportement déterministe et un DOM stable.
 if "screw_config" not in st.session_state:
     st.session_state["screw_config"] = screw_new_empty()
-st.session_state.setdefault("screw_rpm", 120.0)
-st.session_state.setdefault("feeder_g_per_min", 30.0)
-st.session_state.setdefault("bulk_density", 0.55)
 
-_screw_cfg = st.session_state["screw_config"]
-_screw_rpm = float(st.session_state["screw_rpm"])
-_screw_feed = float(st.session_state["feeder_g_per_min"])
-_screw_dens = float(st.session_state["bulk_density"])
+# P3.4 : la configuration OPÉRATEUR (profil vis, rpm, débit, densité) vient
+# EXCLUSIVEMENT de current_run_state — jamais du dataset ML de démonstration ni
+# d'une lecture legacy plate. Le débit suit l'étalonnage feeder (0 si non
+# calculable, cohérent avec Moteur Procédé).
+_op_crs = build_crs(st.session_state)
+_op_mi = build_moteur_inputs_from_current_run_state(_op_crs)
+_screw_cfg = _op_mi["config"]
+_screw_rpm = _op_mi["screw_rpm"]
+_screw_feed = _op_mi["feed_g_per_min"]
+_screw_dens = _op_mi["bulk_density"]
 
 _count_rec = screw_recommend_count(
     _screw_cfg, _screw_rpm, _screw_feed, _screw_dens,

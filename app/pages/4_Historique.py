@@ -46,6 +46,8 @@ if str(APP) not in sys.path:
 # Lecture seule du stockage procédé PERSISTANT (disque). Aucun recalcul ici :
 # chaque record a été figé au moment du clic « Enregistrer » (KPIs moteur inclus).
 import history_store  # noqa: E402
+# P3.4 : marquage DEMO ML (séparation essais ML / historique procédé réel).
+from demo_ml_run import demo_ml_banner_html  # noqa: E402
 
 DATASET_PATH = ROOT / "data" / "features" / "dataset_ml_w60.csv"
 THRESHOLD = 80
@@ -285,6 +287,10 @@ def load_dataset() -> pd.DataFrame:
 
 
 with st.expander("Essais d'entraînement ML — données historiques modèle", expanded=False):
+    st.html(demo_ml_banner_html(
+        "Runs du jeu d'entraînement ML (SVM w60, essais avril 2026) — "
+        "<b>démonstration</b>, strictement distincts de l'historique procédé opérateur."
+    ))
     st.caption(
         "Runs du jeu de données d'entraînement (modèle SVM w60, essais Avril 2026). "
         "Données historiques du modèle — distinctes de l'historique procédé opérateur."
