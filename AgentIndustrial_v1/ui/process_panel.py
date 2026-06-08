@@ -74,7 +74,7 @@ def render_kpis(state: ProcessState) -> None:
     cols[4].metric(
         "SME estimé", f"{k.sme_kwh_per_kg:.2f} kWh/kg",
         help="Estimation V1 (proxy heuristique, sera remplacée par lecture "
-             "torque réelle en V2). Seuil critique typique SSB : 0.40 kWh/kg.",
+             "torque réelle en V2). Seuil procédé critique : 0.40 kWh/kg.",
     )
     cols[5].metric(
         "Profil", k.profile_archetype or "—",

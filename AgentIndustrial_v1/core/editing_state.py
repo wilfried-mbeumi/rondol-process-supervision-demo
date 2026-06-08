@@ -40,6 +40,7 @@ from __future__ import annotations
 from typing import Any, MutableMapping
 
 from .applied_state import _safe_get
+from .coercion import safe_float, safe_int
 from .feeders import new_feeder_bank
 from .process import ProcessState, default_zone_target
 from .screw_adapter import refresh_kpis
@@ -137,13 +138,19 @@ def build_state_from_widgets(session: MutableMapping[str, Any]) -> ProcessState:
         if f"fd_mat_{fid}" in session:
             f.material_id = str(session[f"fd_mat_{fid}"])
         if f"fd_dens_{fid}" in session:
-            f.density_g_per_cm3 = float(session[f"fd_dens_{fid}"])
+            f.density_g_per_cm3 = safe_float(
+                session[f"fd_dens_{fid}"], f.density_g_per_cm3, 0.0001, 10.0
+            )
         if f"fd_alpha_{fid}" in session:
-            f.thermal_expansion_per_K = float(session[f"fd_alpha_{fid}"])
+            f.thermal_expansion_per_K = safe_float(
+                session[f"fd_alpha_{fid}"], f.thermal_expansion_per_K, 0.0, 1.0
+            )
         if f"fd_pos_{fid}" in session:
             f.position = str(session[f"fd_pos_{fid}"])
         if f"fd_flow_{fid}" in session:
-            f.mass_flow_g_per_min = float(session[f"fd_flow_{fid}"])
+            f.mass_flow_g_per_min = safe_float(
+                session[f"fd_flow_{fid}"], f.mass_flow_g_per_min, 0.0, 2000.0
+            )
         if f"fd_poly_{fid}" in session:
             f.polymer_name = str(session[f"fd_poly_{fid}"])
         f.t_degradation_C = _none_if_zero(_safe_get(session, f"fd_tdeg_{fid}"))
@@ -152,19 +159,28 @@ def build_state_from_widgets(session: MutableMapping[str, Any]) -> ProcessState:
         f.t_melt_C = _none_if_zero(_safe_get(session, f"fd_tmelt_{fid}"))
         # Tg peut être négatif → seul 0.0 vaut « non renseigné ».
         _tg = _safe_get(session, f"fd_tglass_{fid}")
-        f.t_glass_C = float(_tg) if (_tg is not None and float(_tg) != 0.0) else None
+        if _tg is None:
+            f.t_glass_C = None
+        else:
+            _tg_val = safe_float(_tg, 0.0, -200.0, 600.0)
+            f.t_glass_C = _tg_val if _tg_val != 0.0 else None
 
     rpm = _safe_get(session, RPM_KEY, _safe_get(session, "screw_rpm", 120.0))
     screw_config = list(_safe_get(session, SCREW_CONFIG_KEY) or [])
 
     state = ProcessState(
         screw_config=screw_config,
-        screw_rpm=float(rpm),
+        screw_rpm=safe_float(rpm, 120.0, 1.0, 3000.0),
         feeders=feeders,
     )
     for zk in ZONE_KEYS:
-        state.zone_temps_C[zk] = float(_safe_get(session, f"th_{zk}", default_zone_target(zk)))
-    state.n_die_zones = int(_safe_get(session, N_DIE_KEY, state.n_die_zones))
+        state.zone_temps_C[zk] = safe_float(
+            _safe_get(session, f"th_{zk}", default_zone_target(zk)),
+            default_zone_target(zk), 0.0, 400.0,
+        )
+    state.n_die_zones = safe_int(
+        _safe_get(session, N_DIE_KEY, state.n_die_zones), state.n_die_zones, 1, 4
+    )
     state.v2.torque_pct = _none_if_zero(_safe_get(session, TORQUE_KEY))
     state.v2.pressure_die_bar = _none_if_zero(_safe_get(session, PRESSURE_KEY))
 
@@ -173,10 +189,10 @@ def build_state_from_widgets(session: MutableMapping[str, Any]) -> ProcessState:
 
 
 def _none_if_zero(value: Any) -> float | None:
-    """Champ optionnel widget : 0.0/absent → None, sinon float."""
+    """Champ optionnel widget : 0.0/absent/non numérique → None, sinon float."""
     if value is None:
         return None
-    v = float(value)
+    v = safe_float(value, 0.0)
     return v if v > 0 else None
 
 

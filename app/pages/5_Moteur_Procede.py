@@ -42,6 +42,12 @@ from engine.report_params import (  # noqa: E402
     NOMINAL_TEMP_PROFILE_C,
     build_report_from_flat_params,
 )
+from app_mode import (  # noqa: E402
+    demo_badge_html,
+    demo_mode_toggle,
+    material_label,
+)
+from AgentIndustrial_v1.core.coercion import safe_float, safe_int  # noqa: E402
 
 st.set_page_config(page_title="Moteur Procédé — Rondol", layout="wide")
 
@@ -166,10 +172,15 @@ st.session_state.setdefault("side_feeder_zone", SIDE_FEEDER_DISABLED_ZONE)
 st.session_state.setdefault("mp_demo_profile", False)
 
 shared_config: list[int] = st.session_state["screw_config"]
-screw_rpm = float(st.session_state["screw_rpm"])
-feed_g_per_min = float(st.session_state["feeder_g_per_min"])
-bulk_density = float(st.session_state["bulk_density"])
-side_feeder_zone = int(st.session_state["side_feeder_zone"])
+screw_rpm = safe_float(st.session_state.get("screw_rpm", 120.0), 120.0, 1.0, 3000.0)
+feed_g_per_min = safe_float(st.session_state.get("feeder_g_per_min", 30.0), 30.0, 0.0, 2000.0)
+bulk_density = safe_float(st.session_state.get("bulk_density", 0.55), 0.55, 0.0001, 10.0)
+side_feeder_zone = safe_int(st.session_state.get("side_feeder_zone", SIDE_FEEDER_DISABLED_ZONE),
+                            SIDE_FEEDER_DISABLED_ZONE, 0, 8)
+
+# Mode client (défaut) vs démonstration — pilote l'affichage des matières.
+with st.sidebar:
+    demo_mode = demo_mode_toggle(st)
 
 # État dérivé : profil procédé vide (tip exclu) ? démo page-local active ?
 profile_empty = count_user_elements(shared_config) == 0.0
@@ -349,10 +360,14 @@ with st.container(border=True):
               warn=report.overflow_main_feeder),
         _chip("Overflow side", "oui" if report.overflow_side_feeder else "non",
               warn=report.overflow_side_feeder),
-        _chip("Feeder 1", report.feeder1_material),
+        # Matière : « Non renseigné » en mode client (aucune saisie matière
+        # réelle n'existe encore) ; nom chimique nominal + badge DEMO en démo.
+        _chip("Feeder 1",
+              f"{material_label(report.feeder1_material, demo_mode)} {demo_badge_html()}"
+              if demo_mode else material_label(report.feeder1_material, demo_mode)),
     ]
-    if report.feeder2_material:
-        _chips.append(_chip("Feeder 2", report.feeder2_material))
+    if demo_mode and report.feeder2_material:
+        _chips.append(_chip("Feeder 2", f"{report.feeder2_material} {demo_badge_html()}"))
     st.html(f'<div class="mp-chips">{"".join(_chips)}</div>')
 
 # ── Évaluation indicative du remplissage (lecture du fill_factor, FR-11) ──────
@@ -407,7 +422,8 @@ for z in report.zones:
         "γ̇ moyen": z.mean_shear_rate_s,
         "γ̇ max": z.max_shear_rate_s,
         "T max": z.max_temperature_c,
-        "Matière dominante": z.dominant_material or "—",
+        # Mode client : pas de matière chimique inventée → « Non renseigné ».
+        "Matière dominante": material_label(z.dominant_material, demo_mode),
         "Résidence": z.residence_time_s,
     })
 st.dataframe(
@@ -459,12 +475,27 @@ else:
 # ── Encart hypothèses ────────────────────────────────────────────────────────
 st.divider()
 with st.expander("ℹ️ Hypothèses, limites et statut du modèle", expanded=True):
+    if demo_mode:
+        _mat_section = (
+            f"**Matières (DÉMONSTRATION — nominales, non calibrées)**\n"
+            f"- Feeder 1 = `{report.feeder1_material}` ; feeder 2 = "
+            f"`{report.feeder2_material or '—'}` (side feeder uniquement si activé).\n"
+            f"- ⚠️ Valeurs de **démonstration** : presets nominaux, pas la matière "
+            f"d'un run réel. Désactivez le mode démonstration pour le mode client."
+        )
+    else:
+        _mat_section = (
+            "**Matière**\n"
+            "- **Non renseigné** : aucune saisie matière dédiée n'existe encore "
+            "dans l'interface. Le couple / la SME / le remplissage sont calculés à "
+            "partir de la **géométrie de vis** et des **paramètres procédé** "
+            "(vitesse, débit, densité bulk), sans hypothèse de chimie spécifique.\n"
+            "- Aucun nom de matière n'est affiché tant qu'aucune saisie matière "
+            "réelle n'a été effectuée."
+        )
     st.markdown(
         f"""
-**Matières (nominales, non calibrées)**
-- Feeder 1 = `{report.feeder1_material}` ; feeder 2 = `{report.feeder2_material or "—"}`
-  (LATP injecté uniquement si le side feeder est activé).
-- Rhéologies issues de presets **nominaux** (LFP/LATP) — à recaler sur essais réels.
+{_mat_section}
 
 **Modèle de couple (E4)**
 - `M_node = η · γ̇² · V_filled / (2π·N)` — modèle **uniforme transparent**.

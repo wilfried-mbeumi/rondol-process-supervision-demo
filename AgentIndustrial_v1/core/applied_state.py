@@ -32,6 +32,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Mapping, MutableMapping
 
+from .coercion import safe_float, safe_int
 from .feeders import FeederSpec, new_feeder_bank
 from .process import DEFAULT_ZONE_TARGETS_C, ProcessState, default_zone_target
 
@@ -87,15 +88,15 @@ def _feeder_to_dict(f: FeederSpec) -> dict[str, Any]:
 
 def _feeder_from_dict(d: Mapping[str, Any]) -> FeederSpec:
     return FeederSpec(
-        feeder_id=int(d["feeder_id"]),
+        feeder_id=safe_int(d.get("feeder_id", 1), 1, 1, 5),
         enabled=bool(d.get("enabled", False)),
         label=str(d.get("label", "")),
         material_id=str(d.get("material_id", "granules")),
         position=str(d.get("position", "Z0")),
         speed_rpm=d.get("speed_rpm"),
-        mass_flow_g_per_min=float(d.get("mass_flow_g_per_min", 0.0)),
-        density_g_per_cm3=float(d.get("density_g_per_cm3", 0.55)),
-        thermal_expansion_per_K=float(d.get("thermal_expansion_per_K", 5e-5)),
+        mass_flow_g_per_min=safe_float(d.get("mass_flow_g_per_min", 0.0), 0.0, 0.0, 2000.0),
+        density_g_per_cm3=safe_float(d.get("density_g_per_cm3", 0.55), 0.55, 0.0001, 10.0),
+        thermal_expansion_per_K=safe_float(d.get("thermal_expansion_per_K", 5e-5), 5e-5, 0.0, 1.0),
         polymer_name=str(d.get("polymer_name", "")),
         t_degradation_C=d.get("t_degradation_C"),
         tga_onset_C=d.get("tga_onset_C"),
@@ -128,16 +129,16 @@ def hydrate_state(snapshot: AppliedSnapshot) -> ProcessState:
     )
     state = ProcessState(
         screw_config=copy.deepcopy(snapshot.screw_config),
-        screw_rpm=float(snapshot.screw_rpm),
+        screw_rpm=safe_float(snapshot.screw_rpm, 120.0, 1.0, 3000.0),
         feeders=feeders,
     )
     if snapshot.zone_temps_C:
         for k, v in snapshot.zone_temps_C.items():
-            state.zone_temps_C[k] = float(v)
+            state.zone_temps_C[k] = safe_float(v, default_zone_target(k), 0.0, 400.0)
     # Compléter les zones manquantes (rétro-compat avec anciens snapshots).
     for zk in DEFAULT_ZONE_TARGETS_C:
         state.zone_temps_C.setdefault(zk, default_zone_target(zk))
-    state.n_die_zones = int(snapshot.n_die_zones)
+    state.n_die_zones = safe_int(snapshot.n_die_zones, 1, 1, 4)
     state.v2.torque_pct = snapshot.torque_pct
     state.v2.pressure_die_bar = snapshot.pressure_die_bar
     return state

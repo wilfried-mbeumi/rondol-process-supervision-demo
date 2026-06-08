@@ -358,8 +358,11 @@ st.html(
     f'</div>'
 )
 
-# ── En-tête : 6 colonnes fixes ────────────────────────────────────────────────
-col_logo, col_title, col_r1, col_r2, col_r3, col_r4 = st.columns([1, 3, 1, 1, 1, 1])
+# ── En-tête : 5 colonnes fixes ────────────────────────────────────────────────
+# La « durée de run » (ex. 26.5 min) a été RETIRÉE : c'était une métadonnée du
+# dataset ML de démonstration (run_duration_min), pas un temps procédé validé
+# recalculé depuis la configuration opérateur (exigence manager 2026-06-08).
+col_logo, col_title, col_r1, col_r3, col_r4 = st.columns([1, 3, 1, 1, 1])
 with col_logo:
     if _LOGO_EXISTS:
         st.image(str(LOGO_PATH), width=90)
@@ -369,9 +372,22 @@ with col_title:
     st.markdown(f"**{t('home.header.title')}**")
     st.caption(t("home.header.caption"))
 col_r1.metric(t("m.run"), f"#{selected_run}")
-col_r2.metric(t("m.duration"), f"{run_dur:.1f} min")
 col_r3.metric(t("m.window"), f"{win_idx}/{n_windows}")
 col_r4.metric(t("m.time"), win_str)
+
+# ── Bandeau provenance : ces indicateurs viennent du dataset ML d'essais ───────
+# (score stabilité, P(stable), capteurs) — DONNÉE DE DÉMONSTRATION, pas un run
+# opérateur live. Marquage explicite exigé (séparation demo / config opérateur).
+st.html(
+    '<div style="display:flex;align-items:center;gap:0.5rem;background:rgba(124,58,237,0.10);'
+    'border:1px solid rgba(124,58,237,0.35);border-radius:0.4rem;padding:0.4rem 0.7rem;'
+    'margin:0.3rem 0;color:#C4B5FD;font-size:0.82rem;">'
+    '<span style="background:#7C3AED;color:#fff;font-weight:700;font-size:0.6rem;'
+    'letter-spacing:0.06em;padding:0.05rem 0.4rem;border-radius:0.25rem;">DEMO</span>'
+    '<span>Indicateurs issus du <b>dataset ML d\'essais (avril 2026)</b> — '
+    'donnée de démonstration, non représentative d\'un run opérateur live.</span>'
+    '</div>'
+)
 
 # ── Statut procédé ────────────────────────────────────────────────────────────
 # st.html() : composant React identique à chaque render, React ne reconcilie

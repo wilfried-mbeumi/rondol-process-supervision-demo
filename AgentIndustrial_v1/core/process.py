@@ -64,8 +64,10 @@ def default_zone_target(key: str) -> float:
 FF_TARGET_LOW: float = 0.30
 FF_TARGET_HIGH: float = 0.55
 
-# SME — Specific Mechanical Energy. Seuil de dégradation typique en
-# compounding polymère/cathode SSB : ~ 0.4 kWh/kg (au-delà → risque dégradation).
+# SME — Specific Mechanical Energy (énergie mécanique spécifique, kWh/kg).
+# Seuils PROCÉDÉ configurés (ordre de grandeur compounding fin) : au-delà du
+# seuil critique, sollicitation thermomécanique excessive. Ce sont des seuils
+# de PROCÉDÉ, PAS un critère lié à une matière/additif particulier (ex. CNT).
 SME_WARNING_KWH_PER_KG: float = 0.30
 SME_CRITICAL_KWH_PER_KG: float = 0.40
 

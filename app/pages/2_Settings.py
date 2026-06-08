@@ -73,6 +73,7 @@ from AgentIndustrial_v1.core.editing_state import (  # noqa: E402
     project_shared_keys,
     seed_editing_keys,
 )
+from AgentIndustrial_v1.core.coercion import safe_int  # noqa: E402
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
 from rondol_i18n import language_selector, t  # noqa: E402
@@ -411,7 +412,7 @@ with col_left:
             else t("settings.die_zone_fmt", n=n),
             key="n_die_zones",
         )
-    _ndie = int(st.session_state["n_die_zones"])
+    _ndie = safe_int(st.session_state.get("n_die_zones", 1), 1, 1, 4)
     _die_keys = ["die", "die2", "die3", "die4"][:_ndie]
     with _d2:
         _die_cols = st.columns(4)

@@ -298,11 +298,12 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
         return [Alert(
             code="SME_CRITICAL",
             severity=SEVERITY_CRITICAL,
-            title="SME au-delà du seuil de dégradation",
+            title="SME au-delà du seuil procédé",
             description=(
-                f"SME={sme:.2f} kWh/kg > {SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg "
-                f"(seuil dégradation typique cathode/anode SSB). "
-                f"Risque rupture chaînes polymères / décomposition active."
+                f"SME élevée : énergie mécanique spécifique {sme:.2f} kWh/kg "
+                f"supérieure au seuil procédé configuré "
+                f"({SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg). Sollicitation "
+                f"thermomécanique excessive de la matière transformée."
             ),
             evidence=f"SME={sme:.2f} kWh/kg",
             target="Global vis",
@@ -313,7 +314,8 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
             severity=SEVERITY_WARNING,
             title="SME élevé",
             description=(
-                f"SME={sme:.2f} kWh/kg > seuil de vigilance "
+                f"SME élevée : énergie mécanique spécifique {sme:.2f} kWh/kg "
+                f"supérieure au seuil de vigilance "
                 f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg. Surveiller la stabilité "
                 f"thermique et la dispersion en sortie."
             ),
