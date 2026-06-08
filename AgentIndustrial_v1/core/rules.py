@@ -98,8 +98,8 @@ def _feeder_label(f: FeederSpec) -> str:
 def _rule_feeder_position(state: ProcessState) -> list[Alert]:
     """R1 — Emplacement feeder cohérent avec la matière.
 
-    Un gaz/scCO₂ ne s'injecte pas avant la zone de fusion. Une poudre active
-    Li ne va pas à la filière. Vérifie chaque feeder actif contre
+    Un gaz/scCO₂ ne s'injecte pas avant la zone de fusion. Une poudre solide
+    ne va pas à la filière. Vérifie chaque feeder actif contre
     MaterialType.allowed_positions.
     """
     out: list[Alert] = []
@@ -143,7 +143,7 @@ def _rule_thermal_compat(state: ProcessState) -> list[Alert]:
                     f"T_{f.position} = {t_zone:.0f} °C dépasse la borne haute "
                     f"sûre de la matière « {f.material.label_fr} » "
                     f"({t_max:.0f} °C). Risque de dégradation thermique / "
-                    f"flash boiling (liquides) / décomposition (cathode Li)."
+                    f"flash boiling (liquides) / décomposition de la matière."
                 ),
                 evidence=f"T={t_zone:.0f} °C · T_max={t_max:.0f} °C",
                 target=f"Feeder #{f.feeder_id}",
@@ -290,7 +290,7 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
 
 
 def _rule_sme(state: ProcessState) -> list[Alert]:
-    """R5 — Specific Mechanical Energy trop élevé (dégradation cathode)."""
+    """R5 — Specific Mechanical Energy trop élevé (seuil procédé)."""
     sme = state.kpis.sme_kwh_per_kg
     if sme <= 0.0:
         return []
@@ -349,7 +349,7 @@ def _rule_residence_time(state: ProcessState) -> list[Alert]:
             title="Temps de résidence trop long",
             description=(
                 f"RT={rt:.1f} s > {RT_MAX_S:.0f} s. Sur-cisaillement et "
-                f"sur-chauffe possibles, notamment en cathode SSB."
+                f"sur-chauffe possibles, notamment pour les matières thermosensibles."
             ),
             evidence=f"RT={rt:.1f} s",
             target="Global vis",
@@ -438,8 +438,8 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                     f"{hot.t_est_C:.0f} °C (consigne {hot.t_target_C:.0f} °C, "
                     f"+{hot.dT_C:.0f} °C par dissipation visqueuse). Besoin de "
                     f"refroidissement {hot.cooling_demand_pct:.0f} %. Risque de "
-                    f"dégradation cathode/liant et de bouchage en sortie de "
-                    f"plateau de mélange."
+                    f"dégradation thermique de la matière et de bouchage en sortie "
+                    f"de plateau de mélange."
                 ),
                 evidence=f"T_{hot_name}≈{hot.t_est_C:.0f} °C · ΔT=+{hot.dT_C:.0f} °C",
                 target=f"Zone {hot_name}",
@@ -535,8 +535,8 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                         f"La matière « {f.material.label_fr} » (feeder #{f.feeder_id}, "
                         f"injectée en {f.position}) traverse {worst_zone} où T "
                         f"estimée ≈ {worst_t:.0f} °C > borne effective "
-                        f"{t_max:.0f} °C{tga_note}. Dégradation de la poudre "
-                        f"active probable — l'échauffement procédé réel "
+                        f"{t_max:.0f} °C{tga_note}. Dégradation de la matière "
+                        f"probable — l'échauffement procédé réel "
                         f"dépasse la limite matière, pas seulement la consigne."
                     ),
                     evidence=f"T_{worst_zone}≈{worst_t:.0f} °C · T_max={t_max:.0f} °C",
