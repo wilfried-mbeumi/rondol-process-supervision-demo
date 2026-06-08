@@ -50,6 +50,11 @@ def g_per_h_to_g_per_s(flow_g_per_h: float) -> float:
     return flow_g_per_h / 3600.0
 
 
+def g_per_h_to_g_per_min(flow_g_per_h: float) -> float:
+    """g/h → g/min (étalonnage feeder : 300 g/h = 5 g/min)."""
+    return flow_g_per_h / 60.0
+
+
 def g_per_s_to_kg_per_h(flow_g_per_s: float) -> float:
     """g/s → kg/h (base SME : ṁ en kg/h, cf. screw_adapter L132)."""
     return flow_g_per_s * 3.6

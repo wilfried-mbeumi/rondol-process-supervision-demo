@@ -73,6 +73,9 @@ from screw_render import (  # noqa: E402
 # i18n — sélecteur de langue + traduction du chrome (B1).
 from rondol_i18n import language_selector, t  # noqa: E402
 
+# Étalonnage feeder (RPM × coeff → débit réel) — bloc partagé.
+from feeder_ui import render_feeder_calibration  # noqa: E402
+
 st.set_page_config(page_title=t("page.profile.title"), layout="wide")
 
 # ---------------------------------------------------------------------------
@@ -158,10 +161,16 @@ with st.sidebar:
         t("profile.sidebar.rpm"), min_value=1.0, max_value=3000.0,
         value=float(st.session_state["screw_rpm"]), step=10.0, key="sb_rpm",
     )
-    st.session_state["feeder_g_per_min"] = st.number_input(
-        t("profile.sidebar.feed"), min_value=0.1, max_value=1000.0,
-        value=float(st.session_state["feeder_g_per_min"]), step=1.0, key="sb_feed",
-    )
+    # Débit feeder via ÉTALONNAGE (RPM × coeff g/h/RPM). Si étalonné, écrit le
+    # débit effectif (plafonné max machine) dans feeder_g_per_min. Sinon, repli
+    # de saisie directe (clairement étiqueté hors étalonnage).
+    _ff_calib = render_feeder_calibration(st, st.sidebar)
+    if not _ff_calib.calibrated:
+        st.session_state["feeder_g_per_min"] = st.number_input(
+            t("profile.sidebar.feed") + " — saisie directe (hors étalonnage)",
+            min_value=0.0, max_value=1000.0,
+            value=float(st.session_state["feeder_g_per_min"]), step=1.0, key="sb_feed",
+        )
     st.session_state["bulk_density"] = st.number_input(
         t("profile.sidebar.dens"), min_value=0.05, max_value=5.0,
         value=float(st.session_state["bulk_density"]), step=0.05, key="sb_dens",

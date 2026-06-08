@@ -173,7 +173,8 @@ st.session_state.setdefault("bulk_density", 0.55)
 st.session_state.setdefault("side_feeder_zone", SIDE_FEEDER_DISABLED_ZONE)
 st.session_state.setdefault("ff_target_low", 30)
 st.session_state.setdefault("ff_target_high", 55)
-st.session_state.setdefault("target_screw_count", 30)
+# Défaut Rondol validé manager : 40 éléments (choix 25/30/40 conservé).
+st.session_state.setdefault("target_screw_count", 40)
 
 # ===========================================================================
 # COUCHE D'ÉDITION — propriété unique : les clés widget session_state.
@@ -829,9 +830,9 @@ with st.expander(t("settings.expander.advanced"), expanded=False):
             t("settings.adv.ff_target"), 0, 100, (_ff_low, _ff_high), 5, key="sl_ff_target",
         )
     with q2:
-        _curr_count = int(st.session_state["target_screw_count"])
+        _curr_count = safe_int(st.session_state.get("target_screw_count", 40), 40)
         if _curr_count not in (25, 30, 40):
-            _curr_count = 30
+            _curr_count = 40  # défaut Rondol
         st.session_state["target_screw_count"] = st.radio(
             t("settings.adv.screw_target"), [25, 30, 40],
             index=[25, 30, 40].index(_curr_count),
