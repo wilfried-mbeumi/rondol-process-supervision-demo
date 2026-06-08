@@ -338,44 +338,68 @@ st.html(
     + "</div>"
 )
 
+# ── Avertissement : débit NON calculable si feeder non étalonné ──────────────
+# Exigence manager : ne JAMAIS présenter « 0 » comme une vérité procédé quand le
+# coefficient d'étalonnage feeder est absent. Les indicateurs dépendant du débit
+# affichent « Non calculable » (aucun débit par défaut inventé).
+if not feed_available:
+    st.warning(
+        "**Débit réel non calculable : coefficient d'étalonnage feeder à "
+        "renseigner.** Les indicateurs dépendant du débit (couple, SME, "
+        "résidence, remplissage, débit massique, débit sortie) sont affichés "
+        "« Non calculable » — aucun débit par défaut n'est inventé. Renseignez "
+        "RPM feeder + coefficient g/h/RPM dans **Profile**.",
+        icon="⚠️",
+    )
+
+
+def _nc(s: str) -> str:
+    """Valeur affichée si le débit est calculable, sinon « Non calculable ».
+
+    Empêche d'afficher un « 0 » trompeur comme vérité procédé quand le feeder
+    n'est pas étalonné (le débit réel est inconnu, pas nul).
+    """
+    return s if feed_available else "Non calculable"
+
+
 # ── KPIs principaux (carte) ──────────────────────────────────────────────────
 _section("Indicateurs principaux", "valeurs estimées · modèle nominal (non calibré)")
 with st.container(border=True):
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric(
-        "Couple total", f"{report.total_torque_nm:.3f} N·m",
+        "Couple total", _nc(f"{report.total_torque_nm:.3f} N·m"),
         help="Estimé (modèle E4) : M = η·γ̇²·V_rempli / (2π·N), sommé sur la vis. "
              "Confiance : nominale (presets matière non calibrés).",
     )
     k2.metric(
-        "SME totale", f"{report.total_sme_kwh_per_kg:.3f} kWh/kg",
+        "SME totale", _nc(f"{report.total_sme_kwh_per_kg:.3f} kWh/kg"),
         help="Énergie mécanique spécifique estimée : P_dissipée / débit massique, "
              "avec P = 2π·N·couple. Confiance : nominale.",
     )
     k3.metric(
-        "Résidence totale", f"{report.residence_time_total_s:.1f} s",
+        "Résidence totale", _nc(f"{report.residence_time_total_s:.1f} s"),
         help="Temps de séjour moyen estimé (volume vis rempli / débit). Indicatif.",
     )
     k4.metric(
-        "Remplissage moyen", f"{report.fill_factor_average * 100:.0f} %",
+        "Remplissage moyen", _nc(f"{report.fill_factor_average * 100:.0f} %"),
         help="Taux de remplissage moyen des positions de vis (fill factor calculé).",
     )
     k5.metric(
         "Cisaillement max", f"{report.max_shear_rate_s:.0f} s⁻¹",
-        help="Taux de cisaillement maximal estimé le long de la vis.",
+        help="Taux de cisaillement maximal estimé (rpm × géométrie, indépendant du débit).",
     )
 
 # ── État machine / graph (carte + chips) ─────────────────────────────────────
 _section("État machine / graph")
 with st.container(border=True):
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Puissance dissipée", f"{report.total_power_w:.1f} W")
-    m2.metric("Débit massique", f"{report.mass_flow_kg_per_h:.2f} kg/h")
-    m3.metric("Débit sortie (pointe)", f"{report.output_vol_flow_cm3_s:.2f} cm³/s")
+    m1.metric("Puissance dissipée", _nc(f"{report.total_power_w:.1f} W"))
+    m2.metric("Débit massique", _nc(f"{report.mass_flow_kg_per_h:.2f} kg/h"))
+    m3.metric("Débit sortie (pointe)", _nc(f"{report.output_vol_flow_cm3_s:.2f} cm³/s"))
     m4.metric(
         "Remplissage crête",
-        f"{report.peak_fill_factor * 100:.0f} %",
-        f"position #{report.peak_fill_position:02d}",
+        _nc(f"{report.peak_fill_factor * 100:.0f} %"),
+        (f"position #{report.peak_fill_position:02d}" if feed_available else None),
     )
     _chips = [
         _chip("Vitesse vis", f"{report.screw_rpm:.0f} tr/min"),
@@ -397,16 +421,25 @@ with st.container(border=True):
 # AUCUNE nouvelle équation : simple interprétation par paliers du fill_factor
 # déjà calculé par la couche moteur. Wording volontairement prudent.
 _section("Évaluation du remplissage", "indicative — lecture du fill_factor calculé")
-_fill_label, _fill_sev, _fill_msg = _fill_assessment(report)
-st.html(_badge(f"● {_fill_label}", _FILL_BADGE_KIND.get(_fill_label, "neutral")))
-_banner = st.warning if _fill_sev == "warning" else st.info
-_banner(
-    f"**{_fill_label}** — {_fill_msg}\n\n"
-    f"*Évaluation indicative, basée sur le fill_factor calculé "
-    f"(moyen {report.fill_factor_average * 100:.0f} %, crête "
-    f"{report.peak_fill_factor * 100:.0f} %) — à confirmer sur essai réel.*",
-    icon="🟢" if _fill_sev == "info" else "🟠",
-)
+if not feed_available:
+    # Pas de débit étalonné → le fill factor n'est pas calculable : on n'émet
+    # AUCUN verdict (« Sous-rempli » sur un 0 serait trompeur).
+    st.info(
+        "Remplissage **non calculable** — coefficient d'étalonnage feeder à "
+        "renseigner (le fill factor dépend du débit réel).",
+        icon="ℹ️",
+    )
+else:
+    _fill_label, _fill_sev, _fill_msg = _fill_assessment(report)
+    st.html(_badge(f"● {_fill_label}", _FILL_BADGE_KIND.get(_fill_label, "neutral")))
+    _banner = st.warning if _fill_sev == "warning" else st.info
+    _banner(
+        f"**{_fill_label}** — {_fill_msg}\n\n"
+        f"*Évaluation indicative, basée sur le fill_factor calculé "
+        f"(moyen {report.fill_factor_average * 100:.0f} %, crête "
+        f"{report.peak_fill_factor * 100:.0f} %) — à confirmer sur essai réel.*",
+        icon="🟢" if _fill_sev == "info" else "🟠",
+    )
 
 # ── Statut équations différées E6 / E7 (cartes + badge « À venir ») ───────────
 _section("Équations à venir", "non calculées")

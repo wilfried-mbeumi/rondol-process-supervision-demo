@@ -484,6 +484,17 @@ _screw_rpm = _op_mi["screw_rpm"]
 _screw_feed = _op_mi["feed_g_per_min"]
 _screw_dens = _op_mi["bulk_density"]
 
+# Repli feeder non étalonné : ne pas présenter un débit/FF à 0 comme une vérité
+# procédé. On avertit explicitement (aucun débit par défaut inventé).
+if not _op_mi["feed_available"]:
+    st.warning(
+        "**Débit réel non calculable : coefficient d'étalonnage feeder à "
+        "renseigner.** Les indicateurs dépendant du débit ne sont pas une vérité "
+        "procédé tant que l'étalonnage (RPM feeder × g/h/RPM) n'est pas saisi "
+        "dans **Profile**. Aucun débit par défaut n'est utilisé.",
+        icon="⚠️",
+    )
+
 _count_rec = screw_recommend_count(
     _screw_cfg, _screw_rpm, _screw_feed, _screw_dens,
     base_type_fn=screw_base_type,
