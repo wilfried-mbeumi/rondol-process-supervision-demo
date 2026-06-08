@@ -51,6 +51,12 @@ from feeder_ui import (  # noqa: E402
     current_feeder_flow,
     ensure_feeder_defaults,
 )
+from calc_audit import (  # noqa: E402
+    MACHINE_MAX_CAPACITY_KEY,
+    fill_factor_validation_status,
+    flow_taxonomy_rows,
+    formula_status_label,
+)
 from screw_logic import (  # noqa: E402
     MAIN_FEEDER_POSITION as _MAIN_POS,
     _params_from_hmi,
@@ -116,6 +122,9 @@ header[data-testid="stHeader"]{background:transparent!important;height:0!importa
 """)
 
 RONDOL_GREEN = "#4CAF50"
+ACC = "#4ADE80"   # vert (confirmé)
+WARN = "#FBBF24"  # ambre (avec hypothèses)
+CRIT = "#F87171"  # rouge (non validé)
 
 
 # ---------------------------------------------------------------------------
@@ -510,12 +519,17 @@ with st.container(border=True):
     _n_elem = count_user_elements(shared_config)
     _rpm_full = screw_rpm * _ff_main if _ff_main > 0 else 0.0  # rpm où FF≈100 %
 
-    _PLC = "Formule PLC validée (Network 7)"
+    # Statuts honnêtes : la chaîne FF (capacité, V_libre/tour, FF) dépend de
+    # valeurs DB automate non confirmées ET de la correction manager ×2 → on
+    # n'écrit PAS « validé PLC » sur ces lignes.
+    _PLC = "Formule PLC validée (Network 7)"          # formule PURE sans constante à confirmer
+    _PLC_ASSUM = formula_status_label()                # formule PLC + constantes à confirmer
     _PLC_DB = "Constante PLC — valeurs DB à confirmer"
     _MGR = "Correction manager (hors PLC d'origine)"
     _MGR_LIM = "Limite manager — à valider"
     _IN = "Saisie"
     _CALC = "Calculé"
+    _ff_status = fill_factor_validation_status(feed_known=feeder_flow.calibrated)
 
     if feeder_flow.calibrated:
         _dem = f"{feeder_flow.requested_g_h:.1f}"
@@ -544,32 +558,49 @@ with st.container(border=True):
         ("V libre / tour (main)", f"{_v_byrev_main:.4f}", "cm³/tour", "CALCULATED",
          "V_libre × Factor_FreeByRev (PLC L0033)", _PLC_DB),
         ("Capacité volumique (main)", f"{_cap_main:.4f}", "cm³/s", "CALCULATED",
-         "N × V_libre/tour (PLC L0057)", _PLC),
+         "N × V_libre/tour (PLC L0057)", _PLC_ASSUM),
         ("Volume libre utile (2 vis)", f"{_free_vol_2screws:.2f}", "cm³", "CALCULATED",
          "76.1756 − 2×occupé/vis", _MGR),
         ("Nombre d'éléments", f"{_n_elem:.0f}", "—", "USER_INPUT", "—", _IN),
         ("Fill factor (main)", f"{_ff_main * 100:.1f}", "%", "CALCULATED",
-         "Q_vol ÷ capacité (PLC L0060)", _PLC),
+         "Q_vol ÷ capacité (PLC L0060)", _PLC_ASSUM),
         ("Remplissage moyen (rapport)", f"{report.fill_factor_average * 100:.1f}", "%", "CALCULATED",
-         "moyenne FF (PLC L0153)", _PLC),
+         "moyenne FF (PLC L0153)", _PLC_ASSUM),
         ("Temps de résidence total", f"{report.residence_time_total_s:.1f}", "s", "CALCULATED",
-         "Σ V_libre/VolFlow (PLC L0144)", _PLC),
+         "Σ V_libre/VolFlow (PLC L0144)", _PLC_ASSUM),
     ]
     st.dataframe(
         pd.DataFrame(_rows, columns=["Variable", "Valeur", "Unité", "Source", "Formule", "Statut"]),
         use_container_width=True, hide_index=True,
     )
 
-    # Explication chiffrée du « pourquoi 26 % » + condition FF→100 %.
+    # Statut HONNÊTE du résultat FF + clarification du périmètre du débit.
+    _status_color = {"CALCULATED_CONFIRMED": ACC,
+                     "CALCULATED_WITH_ASSUMPTIONS": WARN,
+                     "NOT_VALIDATED": CRIT}.get(_ff_status, WARN)
+    st.html(
+        f'<div style="background:rgba(251,191,36,.08);border:1px solid {_status_color};'
+        f'border-radius:.4rem;padding:.4rem .7rem;margin:.3rem 0;font-size:.84rem;color:#E5E7EB;">'
+        f'<b style="color:{_status_color};">Statut du résultat fill factor : {_ff_status}</b> — '
+        f'le fill factor affiché est calculé sur le <b>débit feeder effectif utilisé par le '
+        f'modèle</b>, <b>pas</b> sur la capacité machine globale ni sur le débit sortie filière.'
+        f'</div>'
+    )
+
+    # Explication chiffrée du « pourquoi 26 % » (présentée comme cohérente avec
+    # les hypothèses, PAS comme vérité métier définitive) + condition FF→100 %.
     if feeder_flow.calibrated and _cap_main > 0:
         st.info(
-            f"**Pourquoi FF = {_ff_main * 100:.0f} % ?** Au main feeder, "
-            f"`Q_vol = {_qvol:.3f} cm³/s` alimenté contre une `capacité = "
-            f"{_cap_main:.3f} cm³/s` de convoyage → `FF = {_qvol:.3f}/{_cap_main:.3f} "
-            f"= {_ff_main * 100:.0f} %`. C'est **normal en bivis *starve-fed*** "
-            f"(capacité > débit). **FF → 100 %** seulement si la capacité descend "
-            f"au niveau du débit : baisser la vitesse vis vers **≈ {_rpm_full:.0f} tr/min** "
-            f"(à débit constant), augmenter le débit, ou augmenter la densité.",
+            f"**Pourquoi FF = {_ff_main * 100:.0f} % ?** *Résultat cohérent avec les "
+            f"paramètres actuels (débit {feeder_flow.effective_g_h:.0f} g/h, densité "
+            f"{bulk_density:.2f}, {screw_rpm:.0f} rpm, capacité vis issue PLC/DB à "
+            f"confirmer).* Au main feeder, `Q_vol = {_qvol:.3f} cm³/s` alimenté contre "
+            f"une `capacité = {_cap_main:.3f} cm³/s` → `FF = {_ff_main * 100:.0f} %`. "
+            f"Cohérent avec une bivis *starve-fed* (capacité > débit). **FF → 100 %** si "
+            f"la capacité descend au niveau du débit : baisser la vis vers "
+            f"**≈ {_rpm_full:.0f} tr/min**, augmenter le débit, ou augmenter la densité. "
+            f"⚠️ Tant que les constantes DB vis / le ×2 bivis ne sont pas validés Rondol, "
+            f"ce % reste **calculé avec hypothèses**, non une vérité procédé définitive.",
             icon="🧮",
         )
     elif not feeder_flow.calibrated:
@@ -581,13 +612,38 @@ with st.container(border=True):
             icon="⚠️",
         )
 
+    # ── Distinction explicite des débits (jamais confondus) ──────────────────
+    st.markdown("**Débits — ne pas confondre :**")
+    _mach_cap = safe_float(st.session_state.get(MACHINE_MAX_CAPACITY_KEY, 0.0), 0.0, 0.0, 1e6)
+    st.number_input(
+        "Capacité machine déclarée (g/h) — référence, n'écrase PAS le débit feeder",
+        min_value=0.0, max_value=100000.0, step=50.0, key=MACHINE_MAX_CAPACITY_KEY,
+        help="Optionnel. Le manager évoque ≈ 1 kg/h (1000 g/h). 0 = non renseigné. "
+             "Sert de référence/contrainte, jamais de débit de calcul.",
+    )
+    _output_g_h = report.output_vol_flow_cm3_s * bulk_density * 3600.0
+    _flow_rows = flow_taxonomy_rows(
+        feed_effective_g_h=(feeder_flow.effective_g_h if feeder_flow.calibrated else None),
+        machine_max_capacity_g_h=(_mach_cap if _mach_cap > 0 else None),
+        output_flow_g_h=_output_g_h,
+    )
+    st.dataframe(
+        pd.DataFrame(_flow_rows, columns=["variable", "valeur", "unite", "source",
+                                          "statut", "used_in_ff", "commentaire"])
+        .rename(columns={"variable": "Variable", "valeur": "Valeur", "unite": "Unité",
+                         "source": "Source", "statut": "Statut validation",
+                         "used_in_ff": "Utilisée dans FF ?", "commentaire": "Commentaire métier"}),
+        use_container_width=True, hide_index=True,
+    )
+
     st.caption(
         "Statuts : *Formule PLC validée* = vérifiée sur la source automate Rondol "
-        "(2-CALCULS.pdf, Network 7). *Constante PLC — valeurs DB à confirmer* = "
-        "formule PLC mais valeurs par élément issues du bloc de données automate "
-        "(non re-vérifiées ici). *Correction manager (hors PLC)* = ajout bivis ×2 "
-        "validé manager, absent du PLC d'origine. *Limite manager — à valider* = "
-        "plafond 300 g/h indiqué par le manager, à confirmer Rondol."
+        "(2-CALCULS.pdf, Network 7), sans constante à confirmer. *Formule PLC "
+        "utilisée — constantes partiellement à confirmer* = formule PLC mais "
+        "dépend de valeurs DB automate (DataScrewElmt) et/ou de la correction "
+        "manager ×2 (bivis, hors PLC d'origine). *CALCULATED_WITH_ASSUMPTIONS* = "
+        "résultat cohérent mais soumis à ces hypothèses. *Limite manager — à valider* "
+        "= plafond 300 g/h indiqué manager, à confirmer Rondol."
     )
 
 # ── Encart hypothèses ────────────────────────────────────────────────────────
