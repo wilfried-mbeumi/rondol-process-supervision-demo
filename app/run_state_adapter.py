@@ -23,6 +23,7 @@ from AgentIndustrial_v1.core.current_run_state import (
     CALCULATED,
     CurrentRunState,
     build_current_run_state,
+    is_demo_state,
 )
 
 
@@ -57,6 +58,34 @@ def project_to_legacy(crs: CurrentRunState, session: MutableMapping[str, Any]) -
     if (crs.feed_rate.source == CALCULATED and ff is not None
             and getattr(ff, "effective_g_min", None) is not None):
         session["feeder_g_per_min"] = float(ff.effective_g_min)
+
+
+def build_moteur_inputs_from_current_run_state(crs: CurrentRunState) -> dict[str, Any]:
+    """Dérive les paramètres « plats » du Moteur Procédé depuis current_run_state.
+
+    Le moteur (`build_report_from_flat_params`) reste un MOTEUR ENVELOPPÉ : il
+    reçoit des paramètres plats, mais ceux-ci proviennent EXCLUSIVEMENT de
+    current_run_state (jamais d'une lecture legacy directe côté page).
+
+    Règle métier (manager P3.3, cas 5) : sans étalonnage feeder exploitable, le
+    débit réel est NON calculable → `feed_available=False` et `feed_g_per_min=0`
+    (on n'invente pas de débit ; la page affiche « coefficient à renseigner »).
+    """
+    pp = crs.process_parameters
+    feeder_flow = crs.feeder_calibration.value  # FeederFlow (même si non étalonné)
+    feed_available = crs.feed_rate.source == CALCULATED and crs.feed_rate.value is not None
+    feed_g_per_min = (float(crs.feed_rate.value) / 60.0) if feed_available else 0.0
+
+    return {
+        "config": list(crs.screw_profile.value or []),
+        "screw_rpm": float(pp["screw_rpm"].value),
+        "bulk_density": float(pp["bulk_density"].value),
+        "side_feeder_zone": int(pp["side_feeder_zone"].value),
+        "feed_g_per_min": feed_g_per_min,
+        "feed_available": feed_available,
+        "feeder_flow": feeder_flow,
+        "demo_mode": is_demo_state(crs),
+    }
 
 
 def sync_legacy_projection(session: MutableMapping[str, Any]) -> CurrentRunState:

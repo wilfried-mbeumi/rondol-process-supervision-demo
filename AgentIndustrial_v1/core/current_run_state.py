@@ -185,8 +185,11 @@ def _feeder_fields(session: Mapping[str, Any]) -> tuple[Field, Field]:
     ff: FeederFlow = resolve_feeder_flow(rpm, calib_raw if calib_raw > 0.0 else None)
 
     if not ff.calibrated:
+        # On conserve l'objet FeederFlow comme valeur (il porte rpm + max
+        # machine, utiles à l'affichage), mais la SOURCE reste NOT_AVAILABLE :
+        # le débit réel n'est pas calculable sans coefficient d'étalonnage.
         calib_field = Field(
-            value=None, unit="g/h/RPM", source=NOT_AVAILABLE,
+            value=ff, unit="g/h/RPM", source=NOT_AVAILABLE,
             validation_status=NOT_VALIDATED,
             comment="Coefficient d'étalonnage feeder non renseigné.",
         )
@@ -269,6 +272,12 @@ def build_current_run_state(session: Mapping[str, Any]) -> CurrentRunState:
     _target = safe_int(_get(session, _TARGET_COUNT_KEY, _DEFAULT_TARGET_COUNT),
                        _DEFAULT_TARGET_COUNT, 1, 200)
     _sf_en = bool(state.feeders[1].enabled) if len(state.feeders) > 1 else False
+    # Zone side feeder (entier 0=désactivé, 1..8) dérivée de la position feeder #2.
+    _sf_zone = 0
+    if _sf_en and len(state.feeders) > 1:
+        _pos = str(getattr(state.feeders[1], "position", "") or "")
+        if _pos.startswith("Z") and _pos[1:].isdigit():
+            _sf_zone = int(_pos[1:])
 
     process_parameters: dict[str, Field] = {
         "screw_rpm": Field(_rpm, "tr/min",
@@ -281,6 +290,8 @@ def build_current_run_state(session: Mapping[str, Any]) -> CurrentRunState:
                                       _param_provenance(_target, _DEFAULT_TARGET_COUNT), NOT_APPLICABLE),
         "side_feeder_enabled": Field(_sf_en, "",
                                      USER_INPUT if _sf_en else DEFAULT_CONFIG, NOT_APPLICABLE),
+        "side_feeder_zone": Field(_sf_zone, "",
+                                  USER_INPUT if _sf_zone > 0 else DEFAULT_CONFIG, NOT_APPLICABLE),
     }
 
     demo_flags = {"demo_mode": bool(_get(session, _DEMO_MODE_KEY, False))}

@@ -32,7 +32,6 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 from screw_logic import (  # noqa: E402
-    SIDE_FEEDER_DISABLED_ZONE,
     add_elements_atomic,
     count_user_elements,
     new_empty_configuration,
@@ -47,10 +46,6 @@ from app_mode import (  # noqa: E402
     demo_mode_toggle,
     material_label,
 )
-from feeder_ui import (  # noqa: E402
-    current_feeder_flow,
-    ensure_feeder_defaults,
-)
 from calc_audit import (  # noqa: E402
     MACHINE_MAX_CAPACITY_KEY,
     fill_factor_validation_status,
@@ -63,7 +58,13 @@ from screw_logic import (  # noqa: E402
     compute_process_state as _compute_ps,
     free_volume as _free_volume,
 )
-from AgentIndustrial_v1.core.coercion import safe_float, safe_int  # noqa: E402
+from AgentIndustrial_v1.core.coercion import safe_float  # noqa: E402
+# P3.3 : Moteur Procédé lit la source de vérité current_run_state (jamais les
+# clés legacy plates directement).
+from run_state_adapter import (  # noqa: E402
+    build as build_crs,
+    build_moteur_inputs_from_current_run_state,
+)
 
 st.set_page_config(page_title="Moteur Procédé — Rondol", layout="wide")
 
@@ -179,36 +180,30 @@ def _default_config() -> list[int]:
     return cfg
 
 
-# NB : on N'INJECTE PLUS de profil par défaut en silence. La clé partagée est
-# seulement défaultée à une config vide (tip seul) — état neutre, identique aux
-# autres pages — et l'éventuel profil de démonstration reste page-local.
-st.session_state.setdefault("screw_config", new_empty_configuration())
-st.session_state.setdefault("screw_rpm", 120.0)
-st.session_state.setdefault("feeder_g_per_min", 30.0)
-st.session_state.setdefault("bulk_density", 0.55)
-st.session_state.setdefault("side_feeder_zone", SIDE_FEEDER_DISABLED_ZONE)
 # Flag PAGE-LOCAL (préfixe mp_) : ne touche PAS l'état partagé screw_config.
 st.session_state.setdefault("mp_demo_profile", False)
 
-shared_config: list[int] = st.session_state["screw_config"]
-screw_rpm = safe_float(st.session_state.get("screw_rpm", 120.0), 120.0, 1.0, 3000.0)
-bulk_density = safe_float(st.session_state.get("bulk_density", 0.55), 0.55, 0.0001, 10.0)
-
-# Débit feeder via étalonnage (RPM × coeff). Si étalonné, le débit EFFECTIF
-# (plafonné au max machine) est la source de vérité du calcul. Sinon, repli
-# sur la valeur directe legacy (clairement signalé dans l'audit ci-dessous).
-ensure_feeder_defaults(st.session_state)
-feeder_flow = current_feeder_flow(st.session_state)
-if feeder_flow.calibrated:
-    feed_g_per_min = float(feeder_flow.effective_g_min or 0.0)
-else:
-    feed_g_per_min = safe_float(st.session_state.get("feeder_g_per_min", 30.0), 30.0, 0.0, 2000.0)
-side_feeder_zone = safe_int(st.session_state.get("side_feeder_zone", SIDE_FEEDER_DISABLED_ZONE),
-                            SIDE_FEEDER_DISABLED_ZONE, 0, 8)
-
-# Mode client (défaut) vs démonstration — pilote l'affichage des matières.
+# ── Mode démonstration : contrôle UI (le toggle écrit la clé session) ────────
 with st.sidebar:
-    demo_mode = demo_mode_toggle(st)
+    demo_mode_toggle(st)
+
+# ===========================================================================
+# SOURCE DE VÉRITÉ UNIQUE — current_run_state (P3.3)
+# ===========================================================================
+# La page NE lit plus AUCUNE valeur métier directement depuis st.session_state
+# brut ni depuis les clés legacy plates. Tout vient d'un CurrentRunState validé,
+# puis des paramètres plats DÉRIVÉS (adapter), consommés par le moteur enveloppé.
+_crs = build_crs(st.session_state)
+_mi = build_moteur_inputs_from_current_run_state(_crs)
+
+shared_config: list[int] = _mi["config"]
+screw_rpm = _mi["screw_rpm"]
+bulk_density = _mi["bulk_density"]
+side_feeder_zone = _mi["side_feeder_zone"]
+feeder_flow = _mi["feeder_flow"]
+feed_g_per_min = _mi["feed_g_per_min"]      # 0.0 si débit réel non calculable
+feed_available = _mi["feed_available"]
+demo_mode = _mi["demo_mode"]
 
 # État dérivé : profil procédé vide (tip exclu) ? démo page-local active ?
 profile_empty = count_user_elements(shared_config) == 0.0
