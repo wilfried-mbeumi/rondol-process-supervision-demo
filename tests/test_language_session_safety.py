@@ -112,3 +112,35 @@ def test_ui_translated_values_never_enter_business_state():
     state = state_from_session(session)
     assert isinstance(state.n_die_zones, int) and 1 <= state.n_die_zones <= 4
     assert state.feeders[1].enabled is False
+
+
+# ---------------------------------------------------------------------------
+# 5 — page Settings réelle : valeur selectbox polluée ne crashe pas la création
+#     du widget (Streamlit lèverait « is not in list » sinon).
+# ---------------------------------------------------------------------------
+try:
+    from streamlit.testing.v1 import AppTest  # type: ignore
+    _HAS_APPTEST = True
+except Exception:  # pragma: no cover
+    _HAS_APPTEST = False
+
+_SETTINGS = str(ROOT / "app" / "pages" / "2_Settings.py")
+
+
+@pytest.mark.skipif(not _HAS_APPTEST, reason="streamlit.testing indisponible")
+@pytest.mark.parametrize("bad", ["2.0", "", "deux", 9, 0])
+def test_settings_loads_with_polluted_n_die_zones(bad):
+    at = AppTest.from_file(_SETTINGS)
+    at.session_state["n_die_zones"] = bad
+    at.run(timeout=60)
+    assert not at.exception, [str(e.value) for e in at.exception]
+    # Normalisée dans le domaine valide du selectbox.
+    assert at.session_state["n_die_zones"] in (1, 2, 3, 4)
+
+
+@pytest.mark.skipif(not _HAS_APPTEST, reason="streamlit.testing indisponible")
+def test_settings_loads_in_english():
+    at = AppTest.from_file(_SETTINGS)
+    at.session_state["ui_lang"] = "en"
+    at.run(timeout=60)
+    assert not at.exception, [str(e.value) for e in at.exception]

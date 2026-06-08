@@ -195,6 +195,16 @@ st.session_state.setdefault("target_screw_count", 30)
 seed_editing_keys(st.session_state)
 state: ProcessState = build_state_from_widgets(st.session_state)
 
+# Garde anti-crash widget : certains widgets sont restreints à une liste
+# d'options (selectbox n_die_zones ∈ {1..4}). Si la session contient une valeur
+# polluée/mal typée (ex. "2.0", libellé traduit) héritée d'une version antérieure,
+# Streamlit lèverait « is not in list » À LA CRÉATION du widget — avant même nos
+# lectures coercées. On normalise donc la clé widget dans son domaine valide ici,
+# une fois, avant tout rendu de widget (cf. crash « changement de langue »).
+st.session_state["n_die_zones"] = safe_int(
+    st.session_state.get("n_die_zones", 1), 1, 1, 4
+)
+
 
 # ===========================================================================
 # Header HMI vert (cf. photo référence)
