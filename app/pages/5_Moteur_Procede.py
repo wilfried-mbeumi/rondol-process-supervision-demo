@@ -664,6 +664,43 @@ with st.container(border=True):
         use_container_width=True, hide_index=True,
     )
 
+    # ── Détail PAR FEEDER (multi-feeder) : débit + statut + contribution ──────
+    _multi = _mi.get("multi_feeder")
+    if _multi is not None and _multi.lines:
+        st.markdown("**Détail par feeder :**")
+        _total = _multi.total_g_h or 0.0
+        _STAT_FR = {"OK": "OK", "CALIBRATION_MISSING": "Non étalonné", "DISABLED": "Désactivé"}
+        _feeder_rows = []
+        for _ln in _multi.lines:
+            _gh = _ln.flow_g_h
+            _val = "Non calculable" if _gh is None else f"{_gh:.0f}"
+            if _ln.status == "OK" and _total > 0:
+                _contrib = f"{100.0 * (_gh or 0.0) / _total:.0f} %"
+            elif _ln.status == "DISABLED":
+                _contrib = "—"
+            else:
+                _contrib = "exclu (non étalonné)"
+            _feeder_rows.append({
+                "Feeder": f"#{_ln.feeder_id}",
+                "Label": _ln.label,
+                "Statut": _STAT_FR.get(_ln.status, _ln.status),
+                "Débit (g/h)": _val,
+                "Contribution au total": _contrib,
+            })
+        st.dataframe(
+            pd.DataFrame(_feeder_rows), use_container_width=True, hide_index=True,
+        )
+        if _multi.total_calculable:
+            _tot_msg = f"Débit total feeders : **{_multi.total_g_h:.0f} g/h** ({_multi.total_g_min:.2f} g/min)"
+            if _multi.has_uncalibrated_active:
+                st.warning(_tot_msg + " — ⚠️ **incomplet** : un feeder actif n'est pas "
+                           "étalonné (exclu du total).", icon="⚠️")
+            else:
+                st.caption(_tot_msg)
+        else:
+            st.warning("Débit total feeders **non calculable** : aucun feeder étalonné.",
+                       icon="⚠️")
+
     st.caption(
         "Statuts : *Formule PLC validée* = vérifiée sur la source automate Rondol "
         "(2-CALCULS.pdf, Network 7), sans constante à confirmer. *Formule PLC "

@@ -85,6 +85,8 @@ def build_moteur_inputs_from_current_run_state(crs: CurrentRunState) -> dict[str
         "feed_available": feed_available,
         "feeder_flow": feeder_flow,
         "demo_mode": is_demo_state(crs),
+        # Banc multi-feeder (débit par feeder + total) pour l'audit Moteur.
+        "multi_feeder": crs.feeders,
     }
 
 

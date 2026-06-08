@@ -77,6 +77,8 @@ from AgentIndustrial_v1.core.coercion import safe_int  # noqa: E402
 
 # P3.2 : source de vérité current_run_state + projection legacy (sens unique).
 from run_state_adapter import sync_legacy_projection  # noqa: E402
+# Étalonnage multi-feeder (RPM × coeff → débit) — bloc Settings.
+from feeder_ui import render_multi_feeder_calibration  # noqa: E402
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
 from rondol_i18n import language_selector, t  # noqa: E402
@@ -530,6 +532,11 @@ with col_left:
                 key=f"fd_pos_{fid}", disabled=not _enabled,
                 label_visibility="collapsed",
             )
+
+    # ─── Bloc 2bis : ÉTALONNAGE FEEDERS (multi-feeder : RPM × coeff → débit) ──
+    with st.expander("⚙️ Étalonnage feeders — RPM × coefficient g/h/RPM → débit réel",
+                     expanded=False):
+        render_multi_feeder_calibration(st, state.feeders)
 
     # ─── Bloc 3 : SME / Mass Flow par feeder + global ─────────────────────
     st.html(

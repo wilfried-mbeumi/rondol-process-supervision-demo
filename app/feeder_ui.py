@@ -21,6 +21,14 @@ from physics.feeder_flow import (
     FeederFlow,
     resolve_feeder_flow,
 )
+from physics.multi_feeder import (
+    STATUS_CALIBRATION_MISSING,
+    STATUS_DISABLED,
+    STATUS_OK,
+    FeederCalibration,
+    MultiFeederResult,
+    resolve_multi_feeder,
+)
 from AgentIndustrial_v1.core.coercion import safe_float
 
 # Clés session (USER_INPUT).
@@ -86,6 +94,121 @@ def feeder_audit_rows(
         qvol = (ff.effective_g_s or 0.0) / density_g_cm3
         add("Débit volumique (ṁ/ρ)", f"{qvol:.4f} cm³/s", CALCULATED)
     return rows
+
+
+# ---------------------------------------------------------------------------
+# Multi-feeder : clés par feeder + résolution + rendu Settings
+# ---------------------------------------------------------------------------
+def feedcal_rpm_key(feeder_id: int) -> str:
+    """Clé RPM d'un feeder (feeder #1 = clé legacy, migration propre)."""
+    return FEEDER_RPM_KEY if feeder_id == 1 else f"feedcal_rpm_{feeder_id}"
+
+
+def feedcal_coeff_key(feeder_id: int) -> str:
+    """Clé coefficient g/h/RPM d'un feeder (feeder #1 = clé legacy)."""
+    return FEEDER_CALIB_KEY if feeder_id == 1 else f"feedcal_coeff_{feeder_id}"
+
+
+def multi_feeder_from_session(session: Mapping[str, Any], feeders) -> MultiFeederResult:
+    """Construit le banc multi-feeder résolu depuis la session + le banc feeders.
+
+    `feeders` = itérable de FeederSpec (feeder_id / enabled / label / polymer_name).
+    Feeder #1 migre depuis les clés legacy. Aucune matière inventée.
+    """
+    cals: list[FeederCalibration] = []
+    for f in feeders:
+        fid = int(f.feeder_id)
+        rpm_default = 30.0 if fid == 1 else 0.0
+        rpm = safe_float(session.get(feedcal_rpm_key(fid), rpm_default)
+                         if hasattr(session, "get") else rpm_default,
+                         rpm_default, 0.0, 100000.0)
+        coeff_raw = safe_float(session.get(feedcal_coeff_key(fid), 0.0)
+                               if hasattr(session, "get") else 0.0,
+                               0.0, 0.0, 100000.0)
+        poly = (getattr(f, "polymer_name", "") or "").strip()
+        cals.append(FeederCalibration(
+            feeder_id=fid, label=(f.label or f"Feeder {fid}"),
+            enabled=bool(getattr(f, "enabled", False)), rpm=rpm,
+            coeff_g_h_per_rpm=(coeff_raw if coeff_raw > 0.0 else None),
+            material_label=poly,
+            material_source=(USER_INPUT if poly else NOT_AVAILABLE),
+        ))
+    return resolve_multi_feeder(cals)
+
+
+_STATUS_LABEL = {
+    STATUS_OK: "OK",
+    STATUS_CALIBRATION_MISSING: "Non étalonné",
+    STATUS_DISABLED: "Désactivé",
+}
+
+
+def render_multi_feeder_calibration(st_module, feeders, container=None) -> MultiFeederResult:
+    """Bloc Settings « Étalonnage feeders » : RPM + coefficient par feeder.
+
+    Rend, pour chaque feeder du banc, RPM + coefficient g/h/RPM (clés live ;
+    feeder #1 = clés legacy). Affiche débit individuel + statut + total + un
+    avertissement si un feeder actif n'est pas étalonné. Retourne le banc résolu.
+    """
+    c = container if container is not None else st_module
+    ss = st_module.session_state
+    feeders = list(feeders)
+
+    # Semis des clés (feeder #1 via defaults legacy ; autres à 0 = non renseigné).
+    ensure_feeder_defaults(ss)
+    for f in feeders:
+        fid = int(f.feeder_id)
+        if fid != 1:
+            if feedcal_rpm_key(fid) not in ss:
+                ss[feedcal_rpm_key(fid)] = 0.0
+            if feedcal_coeff_key(fid) not in ss:
+                ss[feedcal_coeff_key(fid)] = 0.0
+
+    c.caption(
+        "Chaque feeder : RPM × coefficient g/h/RPM → débit propre. "
+        "Coefficient 0 = non étalonné → débit non calculable (jamais inventé)."
+    )
+    for f in feeders:
+        fid = int(f.feeder_id)
+        enabled = bool(getattr(f, "enabled", False))
+        label = f.label or f"Feeder {fid}"
+        cc1, cc2, cc3 = c.columns([1.4, 1.0, 1.0])
+        cc1.markdown(f"**#{fid} · {label}** " + ("· actif" if enabled else "· désactivé"))
+        cc2.number_input(
+            f"RPM #{fid}", min_value=0.0, max_value=100000.0, step=1.0,
+            key=feedcal_rpm_key(fid), disabled=not enabled,
+        )
+        cc3.number_input(
+            f"Coeff g/h/RPM #{fid}", min_value=0.0, max_value=100000.0, step=0.5,
+            key=feedcal_coeff_key(fid), disabled=not enabled,
+        )
+
+    multi = multi_feeder_from_session(ss, feeders)
+    for line in multi.lines:
+        if line.status == STATUS_OK:
+            c.caption(
+                f"#{line.feeder_id} {line.label} : **{line.flow_g_h:.0f} g/h** = "
+                f"{line.flow_g_min:.2f} g/min · statut OK"
+            )
+        elif line.status == STATUS_CALIBRATION_MISSING:
+            c.caption(f"#{line.feeder_id} {line.label} : débit **Non calculable** · "
+                      f"statut Non étalonné")
+        # désactivé : silencieux (0)
+
+    if multi.total_calculable:
+        total_msg = f"**Débit total : {multi.total_g_h:.0f} g/h** ({multi.total_g_min:.2f} g/min)"
+        if multi.has_uncalibrated_active:
+            c.warning(total_msg + " — ⚠️ total **incomplet** : un feeder actif n'est "
+                      "pas étalonné (exclu du total).", icon="⚠️")
+        else:
+            c.success(total_msg)
+    else:
+        c.warning(
+            "Débit total **non calculable** : aucun feeder étalonné. "
+            "Renseignez RPM + coefficient g/h/RPM pour au moins un feeder actif.",
+            icon="⚠️",
+        )
+    return multi
 
 
 def render_feeder_calibration(st_module, container=None) -> FeederFlow:

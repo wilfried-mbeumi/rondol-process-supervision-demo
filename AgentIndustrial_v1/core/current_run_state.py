@@ -37,6 +37,11 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from physics.feeder_flow import FeederFlow, resolve_feeder_flow  # noqa: E402
+from physics.multi_feeder import (  # noqa: E402
+    FeederCalibration,
+    MultiFeederResult,
+    resolve_multi_feeder,
+)
 
 from .applied_state import get_applied
 from .coercion import safe_float, safe_int
@@ -123,6 +128,8 @@ class CurrentRunState:
     assumptions: tuple[str, ...] = ()
     validation_status: str = NOT_VALIDATED
     demo_flags: dict[str, bool] = field(default_factory=dict)
+    # Banc multi-feeder résolu (débit par feeder + total) — None si non construit.
+    feeders: MultiFeederResult | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -178,43 +185,70 @@ def _material_field(state: ProcessState) -> Field:
     )
 
 
-def _feeder_fields(session: Mapping[str, Any]) -> tuple[Field, Field]:
-    """(feeder_calibration, feed_rate) — délègue au socle pur feeder_flow."""
-    rpm = safe_float(_get(session, _FEEDER_RPM_KEY, 30.0), 30.0, 0.0, 100000.0)
-    calib_raw = safe_float(_get(session, _FEEDER_CALIB_KEY, 0.0), 0.0, 0.0, 100000.0)
-    ff: FeederFlow = resolve_feeder_flow(rpm, calib_raw if calib_raw > 0.0 else None)
+def _feeder_calibrations(session: Mapping[str, Any], state: ProcessState) -> list[FeederCalibration]:
+    """Construit les entrées d'étalonnage MULTI-feeder depuis session + feeders.
 
-    if not ff.calibrated:
-        # On conserve l'objet FeederFlow comme valeur (il porte rpm + max
-        # machine, utiles à l'affichage), mais la SOURCE reste NOT_AVAILABLE :
-        # le débit réel n'est pas calculable sans coefficient d'étalonnage.
-        calib_field = Field(
-            value=ff, unit="g/h/RPM", source=NOT_AVAILABLE,
-            validation_status=NOT_VALIDATED,
-            comment="Coefficient d'étalonnage feeder non renseigné.",
-        )
-        feed_field = Field(
-            value=None, unit="g/h", source=NOT_AVAILABLE,
-            validation_status=NOT_VALIDATED,
-            comment="Débit réel non calculable sans étalonnage.",
-        )
-        return calib_field, feed_field
+    Migration legacy : le feeder #1 réutilise les clés historiques
+    (`feeder_rpm` / `feeder_calib_g_h_per_rpm`). Les feeders #2..N utilisent
+    `feedcal_rpm_{id}` / `feedcal_coeff_{id}`. enabled / label / matière saisie
+    proviennent du banc FeederSpec (Settings). Aucune matière inventée.
+    """
+    cals: list[FeederCalibration] = []
+    for f in state.feeders:
+        fid = int(f.feeder_id)
+        if fid == 1:
+            rpm = safe_float(_get(session, _FEEDER_RPM_KEY, 30.0), 30.0, 0.0, 100000.0)
+            coeff_raw = safe_float(_get(session, _FEEDER_CALIB_KEY, 0.0), 0.0, 0.0, 100000.0)
+        else:
+            rpm = safe_float(_get(session, f"feedcal_rpm_{fid}", 0.0), 0.0, 0.0, 100000.0)
+            coeff_raw = safe_float(_get(session, f"feedcal_coeff_{fid}", 0.0), 0.0, 0.0, 100000.0)
+        poly = (getattr(f, "polymer_name", "") or "").strip()
+        cals.append(FeederCalibration(
+            feeder_id=fid,
+            label=(f.label or f"Feeder {fid}"),
+            enabled=bool(getattr(f, "enabled", False)),
+            rpm=rpm,
+            coeff_g_h_per_rpm=(coeff_raw if coeff_raw > 0.0 else None),
+            material_label=poly,
+            material_source=(USER_INPUT if poly else NOT_AVAILABLE),
+        ))
+    return cals
 
-    calib_field = Field(
-        value=ff, unit="g/h/RPM", source=USER_INPUT,
-        validation_status=NOT_APPLICABLE,
-        comment="Étalonnage externe (RPM × coefficient).",
-    )
-    feed_comment = (
-        "Débit effectif plafonné au max machine." if ff.clamped
-        else "Débit effectif (RPM × coefficient)."
-    )
-    feed_field = Field(
-        value=ff.effective_g_h, unit="g/h", source=CALCULATED,
-        validation_status=CALCULATED_WITH_ASSUMPTIONS,
-        comment=feed_comment + " Dépend du coefficient d'étalonnage externe.",
-    )
-    return calib_field, feed_field
+
+def _feeder_fields(session: Mapping[str, Any], state: ProcessState
+                   ) -> tuple[Field, Field, MultiFeederResult]:
+    """(feeder_calibration[feeder #1, compat], feed_rate[TOTAL multi], banc).
+
+    feed_rate = débit TOTAL des feeders calculables (somme des OK). Non
+    calculable si aucun feeder OK. feeder_calibration reste le feeder #1 (compat
+    avec l'étalonnage simple Profile).
+    """
+    multi = resolve_multi_feeder(_feeder_calibrations(session, state))
+
+    # Feeder #1 (compat affichage étalonnage simple).
+    line1 = next((l for l in multi.lines if l.feeder_id == 1), None)
+    ff1: FeederFlow = line1.flow if line1 is not None else resolve_feeder_flow(0.0, None)
+    if ff1.calibrated:
+        calib_field = Field(value=ff1, unit="g/h/RPM", source=USER_INPUT,
+                            validation_status=NOT_APPLICABLE,
+                            comment="Étalonnage externe feeder #1 (RPM × coefficient).")
+    else:
+        calib_field = Field(value=ff1, unit="g/h/RPM", source=NOT_AVAILABLE,
+                            validation_status=NOT_VALIDATED,
+                            comment="Coefficient d'étalonnage feeder #1 non renseigné.")
+
+    # Débit TOTAL (somme des feeders OK).
+    if multi.total_calculable:
+        note = (" Total incomplet : un feeder actif n'est pas étalonné."
+                if multi.has_uncalibrated_active else "")
+        feed_field = Field(value=multi.total_g_h, unit="g/h", source=CALCULATED,
+                           validation_status=CALCULATED_WITH_ASSUMPTIONS,
+                           comment="Débit total = somme des feeders étalonnés." + note)
+    else:
+        feed_field = Field(value=None, unit="g/h", source=NOT_AVAILABLE,
+                           validation_status=NOT_VALIDATED,
+                           comment="Débit total non calculable : aucun feeder étalonné.")
+    return calib_field, feed_field, multi
 
 
 # ---------------------------------------------------------------------------
@@ -235,7 +269,7 @@ def build_current_run_state(session: Mapping[str, Any]) -> CurrentRunState:
     profile_known = (kpis.n_elements or 0.0) > 0.0
     profile_src = USER_INPUT if profile_known else DEFAULT_CONFIG
 
-    calib_field, feed_field = _feeder_fields(session)
+    calib_field, feed_field, multi_feeders = _feeder_fields(session, state)
 
     out_status = _outputs_status()
     calculated_outputs: dict[str, Field] = {
@@ -319,6 +353,7 @@ def build_current_run_state(session: Mapping[str, Any]) -> CurrentRunState:
         assumptions=_assumptions(),
         validation_status=out_status,
         demo_flags=demo_flags,
+        feeders=multi_feeders,
     )
 
 
