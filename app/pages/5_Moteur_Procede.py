@@ -65,6 +65,7 @@ from run_state_adapter import (  # noqa: E402
     build as build_crs,
     build_moteur_inputs_from_current_run_state,
 )
+from operator_store import restore_operator_state  # noqa: E402
 
 st.set_page_config(page_title="Moteur Procédé — Rondol", layout="wide")
 
@@ -179,6 +180,10 @@ def _default_config() -> list[int]:
     add_elements_atomic(cfg, 1, 5)   # convoyage
     return cfg
 
+
+# Restaure la config opérateur centrale (store/disque) AVANT toute lecture —
+# survie navigation Profile→Moteur + refresh navigateur.
+restore_operator_state(st.session_state)
 
 # Flag PAGE-LOCAL (préfixe mp_) : ne touche PAS l'état partagé screw_config.
 st.session_state.setdefault("mp_demo_profile", False)

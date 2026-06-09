@@ -48,6 +48,10 @@ if str(APP) not in sys.path:
 import history_store  # noqa: E402
 # P3.4 : marquage DEMO ML (séparation essais ML / historique procédé réel).
 from demo_ml_run import demo_ml_banner_html  # noqa: E402
+# Store opérateur central (cohérence inter-pages).
+from operator_store import restore_operator_state  # noqa: E402
+
+restore_operator_state(st.session_state)
 
 DATASET_PATH = ROOT / "data" / "features" / "dataset_ml_w60.csv"
 THRESHOLD = 80

@@ -28,6 +28,10 @@ if str(APP) not in sys.path:
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
 from rondol_i18n import language_selector, t  # noqa: E402
+# Store opérateur central (cohérence inter-pages ; cette page reste ML/demo).
+from operator_store import restore_operator_state  # noqa: E402
+
+restore_operator_state(st.session_state)
 
 MODEL_PATH   = ROOT / "models" / "SVM_w60.joblib"
 DATASET_PATH = ROOT / "data" / "features" / "dataset_ml_w60.csv"

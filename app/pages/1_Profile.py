@@ -79,7 +79,14 @@ from feeder_ui import render_feeder_calibration  # noqa: E402
 # P3.2 : source de vérité current_run_state + projection legacy (sens unique).
 from run_state_adapter import sync_legacy_projection  # noqa: E402
 
+# Store opérateur central persistant (survie navigation / langue / refresh).
+from operator_store import capture_operator_state, restore_operator_state  # noqa: E402
+
 st.set_page_config(page_title=t("page.profile.title"), layout="wide")
+
+# Restaure les valeurs métier saisies (depuis le store central / disque) AVANT
+# d'instancier les widgets — survie navigation multipage + refresh navigateur.
+restore_operator_state(st.session_state)
 
 # ---------------------------------------------------------------------------
 # CSS global stable (st.html, pas de unsafe_allow_html)
@@ -1141,4 +1148,11 @@ st.caption(t("profile.cap.residence", rpm=f"{rpm:.0f}", feed=f"{feed:.1f}",
 try:
     sync_legacy_projection(st.session_state)
 except Exception:  # noqa: BLE001 — la projection legacy ne doit pas casser l'UI
+    pass
+
+# Sauvegarde centrale persistante de toute la config opérateur saisie (session +
+# disque) → relue par toutes les pages, survit à la navigation et au refresh.
+try:
+    capture_operator_state(st.session_state)
+except Exception:  # noqa: BLE001 — la persistance ne doit jamais casser l'UI
     pass

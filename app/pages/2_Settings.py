@@ -79,6 +79,8 @@ from AgentIndustrial_v1.core.coercion import safe_int  # noqa: E402
 from run_state_adapter import sync_legacy_projection  # noqa: E402
 # Étalonnage multi-feeder (RPM × coeff → débit) — bloc Settings.
 from feeder_ui import render_multi_feeder_calibration  # noqa: E402
+# Store opérateur central persistant (survie navigation / langue / refresh).
+from operator_store import capture_operator_state, restore_operator_state  # noqa: E402
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
 from rondol_i18n import language_selector, t  # noqa: E402
@@ -163,6 +165,10 @@ language_selector()
 # ===========================================================================
 # Session defaults — clés partagées avec Profile / Home (à NE PAS casser)
 # ===========================================================================
+# Restaure la config opérateur centrale AVANT les défauts/widgets (survie
+# navigation multipage + refresh) — n'écrase jamais une valeur déjà présente.
+restore_operator_state(st.session_state)
+
 st.session_state.setdefault("th_stable", 80)
 st.session_state.setdefault("th_critical", 65)
 st.session_state.setdefault("th_proba_stable", 0.70)
@@ -978,3 +984,10 @@ Cible métier : détection instabilité thermique procédé SSB""",
 # des sources concurrentes : elles dérivent de `state` (clés widget). Lues par
 # Profile et par le panneau de recommandation vis de Supervision (hors snapshot).
 project_shared_keys(st.session_state, state)
+
+# Sauvegarde centrale persistante de la config opérateur (session + disque) —
+# relue par toutes les pages, survit à la navigation et au refresh navigateur.
+try:
+    capture_operator_state(st.session_state)
+except Exception:  # noqa: BLE001 — la persistance ne doit jamais casser l'UI
+    pass

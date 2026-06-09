@@ -56,6 +56,7 @@ from run_state_adapter import (  # noqa: E402
     build as build_crs,
     build_moteur_inputs_from_current_run_state,
 )
+from operator_store import restore_operator_state  # noqa: E402
 from AgentIndustrial_v1.core.rules import evaluate as agent_evaluate  # noqa: E402
 from AgentIndustrial_v1.core.recommendations import (  # noqa: E402
     build_recommendations as agent_build_recos,
@@ -470,6 +471,9 @@ else:
 # Lit la configuration vis depuis session_state (partagée avec Profile).
 # Si absente (utilisateur n'a pas encore visité Profile), on initialise à vide
 # pour garder un comportement déterministe et un DOM stable.
+# Restaure la config opérateur centrale (store/disque) avant lecture.
+restore_operator_state(st.session_state)
+
 if "screw_config" not in st.session_state:
     st.session_state["screw_config"] = screw_new_empty()
 
