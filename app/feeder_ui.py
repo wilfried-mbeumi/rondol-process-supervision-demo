@@ -182,7 +182,13 @@ def render_multi_feeder_calibration(st_module, feeders, container=None) -> Multi
     Rend, pour chaque feeder du banc, RPM + coefficient g/h/RPM (clés live ;
     feeder #1 = clés legacy). Affiche débit individuel + statut + total + un
     avertissement si un feeder actif n'est pas étalonné. Retourne le banc résolu.
+
+    Tous les libellés passent par le catalogue i18n (`rondol_i18n`) pour
+    survivre au changement FR/EN (exigence Phase 6 manager 2026-06-09).
     """
+    # Import local pour éviter les cycles (feeder_ui chargé tôt par Profile).
+    from rondol_i18n import t  # noqa: PLC0415
+
     c = container if container is not None else st_module
     ss = st_module.session_state
     feeders = list(feeders)
@@ -197,22 +203,22 @@ def render_multi_feeder_calibration(st_module, feeders, container=None) -> Multi
             if feedcal_coeff_key(fid) not in ss:
                 ss[feedcal_coeff_key(fid)] = 0.0
 
-    c.caption(
-        "Chaque feeder : RPM × coefficient g/h/RPM → débit propre. "
-        "Coefficient 0 = non étalonné → débit non calculable (jamais inventé)."
-    )
+    c.caption(t("feedcal.caption"))
     for f in feeders:
         fid = int(f.feeder_id)
         enabled = bool(getattr(f, "enabled", False))
         label = f.label or f"Feeder {fid}"
         cc1, cc2, cc3 = c.columns([1.4, 1.0, 1.0])
-        cc1.markdown(f"**#{fid} · {label}** " + ("· actif" if enabled else "· désactivé"))
+        _status = t("feedcal.active") if enabled else t("feedcal.disabled")
+        cc1.markdown(f"**#{fid} · {label}** · {_status}")
         cc2.number_input(
-            f"RPM #{fid}", min_value=0.0, max_value=100000.0, step=1.0,
+            t("feedcal.rpm_label", fid=fid),
+            min_value=0.0, max_value=100000.0, step=1.0,
             key=feedcal_rpm_key(fid), disabled=not enabled,
         )
         cc3.number_input(
-            f"Coeff g/h/RPM #{fid}", min_value=0.0, max_value=100000.0, step=0.5,
+            t("feedcal.coeff_label", fid=fid),
+            min_value=0.0, max_value=100000.0, step=0.5,
             key=feedcal_coeff_key(fid), disabled=not enabled,
         )
 
@@ -222,28 +228,26 @@ def render_multi_feeder_calibration(st_module, feeders, container=None) -> Multi
     multi = multi_feeder_from_session(ss, feeders)
     for line in multi.lines:
         if line.status == STATUS_OK:
-            c.caption(
-                f"#{line.feeder_id} {line.label} : **{line.flow_g_h:.0f} g/h** = "
-                f"{line.flow_g_min:.2f} g/min · statut OK"
-            )
+            c.caption(t(
+                "feedcal.line_ok",
+                fid=line.feeder_id, lbl=line.label,
+                gh=f"{line.flow_g_h:.0f}", gmin=f"{line.flow_g_min:.2f}",
+            ))
         elif line.status == STATUS_CALIBRATION_MISSING:
-            c.caption(f"#{line.feeder_id} {line.label} : débit **Non calculable** · "
-                      f"statut Non étalonné")
+            c.caption(t("feedcal.line_missing", fid=line.feeder_id, lbl=line.label))
         # désactivé : silencieux (0)
 
     if multi.total_calculable:
-        total_msg = f"**Débit total : {multi.total_g_h:.0f} g/h** ({multi.total_g_min:.2f} g/min)"
+        total_msg = t(
+            "feedcal.total_ok",
+            gh=f"{multi.total_g_h:.0f}", gmin=f"{multi.total_g_min:.2f}",
+        )
         if multi.has_uncalibrated_active:
-            c.warning(total_msg + " — ⚠️ total **incomplet** : un feeder actif n'est "
-                      "pas étalonné (exclu du total).", icon="⚠️")
+            c.warning(total_msg + " — " + t("feedcal.total_incomplete"), icon="⚠️")
         else:
             c.success(total_msg)
     else:
-        c.warning(
-            "Débit total **non calculable** : aucun feeder étalonné. "
-            "Renseignez RPM + coefficient g/h/RPM pour au moins un feeder actif.",
-            icon="⚠️",
-        )
+        c.warning(t("feedcal.total_none"), icon="⚠️")
     return multi
 
 
@@ -254,22 +258,28 @@ def render_feeder_calibration(st_module, container=None) -> FeederFlow:
     (g/min) dans `feeder_g_per_min` — la clé consommée par toute la chaîne de
     calcul existante (fill factor, résidence, moteur procédé, recos). Sinon, ne
     touche pas `feeder_g_per_min` (le débit réel reste « non calculable »).
+
+    i18n FR/EN via `rondol_i18n` (Phase 6 manager 2026-06-09).
     """
+    from rondol_i18n import t  # noqa: PLC0415
+
     c = container if container is not None else st_module
     ensure_feeder_defaults(st_module.session_state)
 
-    c.caption("⚙️ Étalonnage feeder — **étalonnage externe requis**")
+    c.caption(t("feedcal.profile_caption"))
     c.number_input(
-        "RPM feeder", min_value=0.0, max_value=100000.0, step=1.0,
+        t("feedcal.rpm_simple"),
+        min_value=0.0, max_value=100000.0, step=1.0,
         key=FEEDER_RPM_KEY,
     )
     c.number_input(
-        "Coefficient (g/h par RPM)", min_value=0.0, max_value=100000.0, step=0.5,
+        t("feedcal.coeff_simple"),
+        min_value=0.0, max_value=100000.0, step=0.5,
         key=FEEDER_CALIB_KEY,
-        help=(
-            f"À mesurer par étalonnage externe du feeder. Exemple Maël : "
-            f"{EXAMPLE_CALIBRATION_G_H_PER_RPM:.0f} g/h/RPM (30 RPM → 300 g/h). "
-            f"0 = non renseigné → débit réel non calculable."
+        help=t(
+            "feedcal.coeff_help",
+            coeff=f"{EXAMPLE_CALIBRATION_G_H_PER_RPM:.0f}",
+            max_gh=f"{MAX_FEEDER_FLOW_G_H:.0f}",
         ),
     )
 
@@ -279,26 +289,30 @@ def render_feeder_calibration(st_module, container=None) -> FeederFlow:
     ff = current_feeder_flow(st_module.session_state)
 
     if not ff.calibrated:
-        c.warning("Débit réel non calculable — coefficient feeder à renseigner.", icon="⚠️")
+        c.warning(t("feedcal.not_calibrated"), icon="⚠️")
         return ff
 
     # Étalonné → propage le débit EFFECTIF à la chaîne de calcul existante.
     st_module.session_state["feeder_g_per_min"] = float(ff.effective_g_min or 0.0)
 
-    eq = (
-        f"{ff.feeder_rpm:.0f} RPM × {ff.calibration_g_h_per_rpm:.0f} g/h/RPM = "
-        f"{ff.requested_g_h:.0f} g/h"
-    )
     if ff.clamped:
         c.warning(
-            f"Débit demandé {ff.requested_g_h:.0f} g/h > max machine "
-            f"{ff.max_machine_g_h:.0f} g/h : **plafonné à {ff.effective_g_h:.0f} g/h** "
-            f"({ff.effective_g_min:.2f} g/min) pour le calcul.",
+            t(
+                "feedcal.clamped",
+                req=f"{ff.requested_g_h:.0f}",
+                max_gh=f"{ff.max_machine_g_h:.0f}",
+                eff=f"{ff.effective_g_h:.0f}",
+                eff_min=f"{ff.effective_g_min:.2f}",
+            ),
             icon="⚠️",
         )
     else:
-        c.caption(
-            f"✓ {eq} = {ff.effective_g_min:.2f} g/min "
-            f"({ff.effective_g_s:.4f} g/s)"
-        )
+        c.caption(t(
+            "feedcal.ok",
+            rpm=f"{ff.feeder_rpm:.0f}",
+            coeff=f"{ff.calibration_g_h_per_rpm:.0f}",
+            req=f"{ff.requested_g_h:.0f}",
+            eff_min=f"{ff.effective_g_min:.2f}",
+            eff_s=f"{ff.effective_g_s:.4f}",
+        ))
     return ff

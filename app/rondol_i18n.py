@@ -337,6 +337,14 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "settings.n_die_zones": {"fr": "NOMBRE DE ZONES DIE", "en": "NUMBER OF DIE ZONES"},
     "settings.die_zone_fmt": {"fr": "{n} zone die", "en": "{n} die zone"},
     "settings.die_zone_fmt_plural": {"fr": "{n} zones die", "en": "{n} die zones"},
+    # Manager 2026-06-09 : option « pas de filière » (calculs filière → N/A).
+    "settings.die_zone_fmt_zero": {"fr": "0 zone filière", "en": "0 die zone"},
+    "settings.die_zone_absent": {
+        "fr": "Filière 0 zone · aucune consigne die requise — calculs filière "
+              "non applicables (Non applicable / Not applicable).",
+        "en": "Die 0 zone · no die setpoint required — die-dependent "
+              "calculations not applicable.",
+    },
     "settings.feeder.label": {"fr": "Label", "en": "Label"},
     "settings.feeder.type": {"fr": "Type", "en": "Type"},
     "settings.feeder.pos": {"fr": "Pos", "en": "Pos"},
@@ -344,6 +352,136 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
                                     "en": "Enable/disable feeder {fid}"},
     "settings.feeder.dens_help": {"fr": "Bulk density g/cm³", "en": "Bulk density g/cm³"},
     "settings.feeder.alpha_help": {"fr": "Thermal expansion 1/K", "en": "Thermal expansion 1/K"},
+    # Phase 4 — unités visibles dans les labels (pas seulement tooltip).
+    "settings.feeder.dens_label": {
+        "fr": "Densité bulk (g/cm³)",
+        "en": "Bulk density (g/cm³)",
+    },
+    "settings.feeder.alpha_label": {
+        "fr": "Dilatation thermique (1/K)",
+        "en": "Thermal expansion (1/K)",
+    },
+    "settings.feeder.flow_unit": {"fr": "g/min", "en": "g/min"},
+    # Phase 5 — températures rouges : « estimé » au lieu de « réel ».
+    "settings.t_estimated_short": {"fr": "estimé", "en": "estimated"},
+    "settings.t_estimated_tooltip": {
+        "fr": "Température théorique estimée avant compensation cooling machine. "
+              "Ce n'est PAS une mesure capteur.",
+        "en": "Estimated theoretical temperature before machine cooling "
+              "compensation. This is NOT a sensor measurement.",
+    },
+    # Phase 10 — Bandeau « Analyse indicative » sur Supervision quand aucun
+    # snapshot validé n'existe ou que la vis est vide.
+    "home.profile_indicative.title": {
+        "fr": "**Analyse indicative — données incomplètes.**",
+        "en": "**Indicative analysis — incomplete data.**",
+    },
+    "home.profile_indicative.body": {
+        "fr": "Aucun profil enregistré (cliquez **Enregistrer** dans "
+              "**Paramètres IA & feeders**) ou aucun élément placé sur la vis "
+              "(page **Profile**). Le commentaire ci-dessous reflète les "
+              "défauts, pas un profil opérateur validé.",
+        "en": "No saved profile (click **Save** in **AI & feeders settings**) "
+              "or no element placed on the screw (page **Profile**). The "
+              "comment below reflects defaults, not a validated operator profile.",
+    },
+    # Phase 11 — Historique : sections composition matière par feeder + zones.
+    "historique.comp_title": {
+        "fr": "Composition matière par feeder (figée au commit)",
+        "en": "Per-feeder material composition (frozen at commit)",
+    },
+    "historique.comp_absent": {
+        "fr": "Composition matière par feeder : non renseignée pour ce procédé "
+              "(aucun feeder activé avec composition saisie).",
+        "en": "Per-feeder material composition: not entered for this run "
+              "(no enabled feeder has a composition).",
+    },
+    "historique.comp_col.feeder": {"fr": "Feeder", "en": "Feeder"},
+    "historique.comp_col.label": {"fr": "Label", "en": "Label"},
+    "historique.comp_col.position": {"fr": "Position", "en": "Position"},
+    "historique.comp_col.composition": {"fr": "Composition", "en": "Composition"},
+    "historique.comp_col.flow": {"fr": "Débit (g/min)", "en": "Flow (g/min)"},
+    "historique.comp_col.density": {"fr": "ρ (g/cm³)", "en": "ρ (g/cm³)"},
+    "historique.comp_col.tdeg": {"fr": "T° dégradation (°C)", "en": "Degradation T° (°C)"},
+    "historique.comp_not_entered": {"fr": "Non renseigné", "en": "Not entered"},
+    # Phase 6 — Étalonnage feeders (Settings expander + bloc Profile sidebar)
+    "settings.expander.feedcal": {
+        "fr": "⚙️ Étalonnage feeders — RPM × coefficient g/h/RPM → débit réel",
+        "en": "⚙️ Feeder calibration — RPM × g/h/RPM coefficient → real flow rate",
+    },
+    "feedcal.caption": {
+        "fr": "Chaque feeder : RPM × coefficient g/h/RPM → débit propre. "
+              "Coefficient 0 = non étalonné → débit non calculable (jamais inventé).",
+        "en": "Each feeder: RPM × g/h/RPM coefficient → own flow rate. "
+              "Coefficient 0 = uncalibrated → flow not computable (never guessed).",
+    },
+    "feedcal.active": {"fr": "actif", "en": "active"},
+    "feedcal.disabled": {"fr": "désactivé", "en": "disabled"},
+    "feedcal.rpm_label": {"fr": "RPM #{fid}", "en": "RPM #{fid}"},
+    "feedcal.coeff_label": {
+        "fr": "Coefficient g/h/RPM #{fid}",
+        "en": "Coefficient g/h/RPM #{fid}",
+    },
+    "feedcal.line_ok": {
+        "fr": "#{fid} {lbl} : **{gh} g/h** = {gmin} g/min · statut OK",
+        "en": "#{fid} {lbl}: **{gh} g/h** = {gmin} g/min · status OK",
+    },
+    "feedcal.line_missing": {
+        "fr": "#{fid} {lbl} : débit **Non calculable** · statut Non étalonné",
+        "en": "#{fid} {lbl}: flow **Not computable** · status Not calibrated",
+    },
+    "feedcal.total_ok": {
+        "fr": "**Débit total : {gh} g/h** ({gmin} g/min)",
+        "en": "**Total flow rate: {gh} g/h** ({gmin} g/min)",
+    },
+    "feedcal.total_incomplete": {
+        "fr": "⚠️ total **incomplet** : un feeder actif n'est pas étalonné "
+              "(exclu du total).",
+        "en": "⚠️ total **incomplete**: an active feeder is not calibrated "
+              "(excluded from total).",
+    },
+    "feedcal.total_none": {
+        "fr": "Débit total **non calculable** : aucun feeder étalonné. "
+              "Renseignez RPM + coefficient g/h/RPM pour au moins un feeder actif.",
+        "en": "Total flow **not computable**: no calibrated feeder. Enter "
+              "RPM + g/h/RPM coefficient for at least one active feeder.",
+    },
+    # Bloc Profile sidebar (feeder #1 seul)
+    "feedcal.profile_caption": {
+        "fr": "⚙️ Étalonnage feeder — **étalonnage externe requis**",
+        "en": "⚙️ Feeder calibration — **external calibration required**",
+    },
+    "feedcal.rpm_simple": {"fr": "RPM feeder", "en": "Feeder RPM"},
+    "feedcal.coeff_simple": {
+        "fr": "Coefficient (g/h par RPM)",
+        "en": "Coefficient (g/h per RPM)",
+    },
+    "feedcal.coeff_help": {
+        "fr": "À mesurer par étalonnage externe du feeder. Exemple manager "
+              "2026-06-09 : {coeff} g/h/RPM (30 RPM → 510 g/h = 8,5 g/min). "
+              "Limite haute machine : {max_gh} g/h. 0 = non renseigné → débit "
+              "réel non calculable.",
+        "en": "Measured by external feeder calibration. Manager example "
+              "2026-06-09: {coeff} g/h/RPM (30 RPM → 510 g/h = 8.5 g/min). "
+              "Machine upper limit: {max_gh} g/h. 0 = unset → real flow not "
+              "computable.",
+    },
+    "feedcal.not_calibrated": {
+        "fr": "Débit réel non calculable — coefficient feeder à renseigner.",
+        "en": "Real flow not computable — feeder coefficient required.",
+    },
+    "feedcal.clamped": {
+        "fr": "Débit demandé {req} g/h > max machine {max_gh} g/h : "
+              "**plafonné à {eff} g/h** ({eff_min} g/min) pour le calcul.",
+        "en": "Requested flow {req} g/h > machine max {max_gh} g/h: "
+              "**capped at {eff} g/h** ({eff_min} g/min) for the computation.",
+    },
+    "feedcal.ok": {
+        "fr": "✓ {rpm} RPM × {coeff} g/h/RPM = {req} g/h = {eff_min} g/min "
+              "({eff_s} g/s)",
+        "en": "✓ {rpm} RPM × {coeff} g/h/RPM = {req} g/h = {eff_min} g/min "
+              "({eff_s} g/s)",
+    },
     "settings.expander.matprops": {
         "fr": "▼ Propriétés matière étendues par feeder "
               "(polymère, T° dégradation, ATG/TGA, viscosité)",

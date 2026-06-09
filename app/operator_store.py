@@ -43,7 +43,24 @@ _BASE_KEYS = (
 _MULTI_KEYS = tuple(
     f"feedcal_{kind}_{fid}" for fid in range(2, 6) for kind in ("rpm", "coeff")
 )
-OPERATOR_KEYS: tuple[str, ...] = _BASE_KEYS + _MULTI_KEYS
+# Consignes thermiques Z1..Z8 + jusqu'à 4 zones DIE (n_die_zones ∈ [0..4]).
+_THERMAL_KEYS = (
+    "th_Z1", "th_Z2", "th_Z3", "th_Z4", "th_Z5", "th_Z6", "th_Z7", "th_Z8",
+    "th_die", "th_die2", "th_die3", "th_die4",
+)
+# Banc feeders Settings #1..#5 : activation, label, matière, ρ, α, position,
+# débit g/min, composition (polymère + T° dégradation / TGA / viscosité / Tm / Tg).
+# Capturer ces clés permet à la composition matière par feeder de survivre à la
+# navigation et au refresh (exigence Phase 9).
+_FEEDER_SETTINGS_KEYS = tuple(
+    f"fd_{kind}_{fid}"
+    for fid in range(1, 6)
+    for kind in ("en", "lbl", "mat", "dens", "alpha", "pos", "flow",
+                 "poly", "tdeg", "tga", "visc", "tmelt", "tglass")
+)
+OPERATOR_KEYS: tuple[str, ...] = (
+    _BASE_KEYS + _MULTI_KEYS + _THERMAL_KEYS + _FEEDER_SETTINGS_KEYS
+)
 
 _ENV_PATH = "RONDOL_RUN_STATE_PATH"
 _DEFAULT_PATH = Path(__file__).resolve().parent.parent / "data" / "run_state" / "current_run_state.json"

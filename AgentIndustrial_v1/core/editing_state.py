@@ -179,7 +179,7 @@ def build_state_from_widgets(session: MutableMapping[str, Any]) -> ProcessState:
             default_zone_target(zk), 0.0, 400.0,
         )
     state.n_die_zones = safe_int(
-        _safe_get(session, N_DIE_KEY, state.n_die_zones), state.n_die_zones, 1, 4
+        _safe_get(session, N_DIE_KEY, state.n_die_zones), state.n_die_zones, 0, 4
     )
     state.v2.torque_pct = _none_if_zero(_safe_get(session, TORQUE_KEY))
     state.v2.pressure_die_bar = _none_if_zero(_safe_get(session, PRESSURE_KEY))

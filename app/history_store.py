@@ -148,8 +148,56 @@ def flat_params_from_snapshot(snapshot: Any) -> dict[str, Any]:
     }
 
 
+def _feeder_composition_block(feeders: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Capture la composition matière par feeder (Phase 9 manager 2026-06-09).
+
+    Pour chaque feeder ACTIVÉ (enabled=True) du banc, on stocke :
+      - feeder_id, label, position, material_id (identifiant matière physique
+        sérialisé dans AppliedSnapshot) ;
+      - composition CHIMIQUE renseignée par l'opérateur (`polymer_name`) ;
+      - propriétés thermiques étendues si saisies (T_dég, TGA, viscosité, Tm, Tg) ;
+      - débit + densité bulk au moment du commit.
+
+    Règles strictes (manager 2026-06-09 / review adversariale) :
+      - si `polymer_name` est vide : composition = None (pas de chaîne en dur
+        type « Non renseigné » ; l'UI traduit None via i18n). L'historique
+        reflète ce que l'opérateur a réellement saisi — jamais « LFP » par défaut.
+      - aucun champ « state » fantôme : `state`/phase matière n'est PAS sérialisé
+        dans AppliedSnapshot._feeder_to_dict. L'utiliser ici renverrait toujours
+        une valeur démo par défaut, ce qui violerait « aucune valeur démo/défaut
+        injectée silencieusement » (review adversariale 2026-06-09 — corrigé).
+    """
+    out: list[dict[str, Any]] = []
+    for f in feeders or []:
+        if not f.get("enabled"):
+            continue
+        poly = str(f.get("polymer_name", "") or "").strip()
+        out.append({
+            "feeder_id": int(f.get("feeder_id", 0) or 0),
+            "label": str(f.get("label", "") or ""),
+            "position": str(f.get("position", "") or ""),
+            "material_id": f.get("material_id"),
+            "composition": poly if poly else None,
+            "composition_source": ("USER_INPUT" if poly else "NOT_AVAILABLE"),
+            "mass_flow_g_per_min": float(f.get("mass_flow_g_per_min") or 0.0),
+            "bulk_density_g_per_cm3": float(f.get("density_g_per_cm3") or 0.0),
+            "thermal_expansion_per_K": float(f.get("thermal_expansion_per_K") or 0.0),
+            "t_degradation_C": f.get("t_degradation_C"),
+            "tga_onset_C": f.get("tga_onset_C"),
+            "viscosity_pa_s": f.get("viscosity_pa_s"),
+            "t_melt_C": f.get("t_melt_C"),
+            "t_glass_C": f.get("t_glass_C"),
+        })
+    return out
+
+
 def _config_block(snapshot: Any) -> dict[str, Any]:
-    """Bloc « config utile » lisible — uniquement des champs réellement stockés."""
+    """Bloc « config utile » lisible — uniquement des champs réellement stockés.
+
+    Phase 9 manager 2026-06-09 : ajoute la composition par feeder activée
+    (`feeders_composition`), pour qu'un run LFP/LATP/PVDF mixé soit traçable
+    à l'audit. Aucune matière n'est inventée si vide.
+    """
     feeders = list(getattr(snapshot, "feeders", []) or [])
     main = feeders[0] if feeders else {}
     enabled = [f for f in feeders if f.get("enabled")]
@@ -165,6 +213,8 @@ def _config_block(snapshot: Any) -> dict[str, Any]:
             float(main.get("mass_flow_g_per_min", 0.0)) if main else None
         ),
         "matiere_principale": (main.get("material_id") if main else None),
+        # Phase 9 : composition complète par feeder activé (jamais inventée).
+        "feeders_composition": _feeder_composition_block(feeders),
         "zones_die": int(getattr(snapshot, "n_die_zones", 0) or 0),
         "temps_consigne_C": {
             k: float(v) for k, v in dict(getattr(snapshot, "zone_temps_C", {}) or {}).items()

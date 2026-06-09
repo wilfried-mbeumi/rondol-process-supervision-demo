@@ -8,16 +8,19 @@ mais une **vitesse feeder (RPM)** + un **coefficient d'étalonnage externe**
     débit_g_min = débit_g_h / 60
     débit_g_s   = débit_g_h / 3600
 
-Exemple Maël : 30 RPM × 10 g/h/RPM = 300 g/h = 5 g/min = 0,0833 g/s.
+Exemples :
+  - 30 RPM × 17 g/h/RPM = 510 g/h = 8,5 g/min (exemple manager 2026-06-09).
+  - 100 RPM × 25 g/h/RPM = 2500 g/h (limite haute machine).
 
 Règles strictes :
-  - le coefficient 10 g/h/RPM N'EST PAS une vérité universelle : il doit être
+  - le coefficient g/h/RPM N'EST PAS une vérité universelle : il doit être
     SAISI. Sans coefficient → débit réel NON calculable (on ne devine pas).
-  - la machine est limitée à `MAX_FEEDER_FLOW_G_H` (= 300 g/h). Au-delà, le
-    débit EFFECTIF (utilisé dans les calculs) est plafonné, mais le débit
-    DEMANDÉ est conservé pour l'affichage + un avertissement (jamais de
-    plafonnement silencieux).
-  - constante centralisée : aucun « 300 » ni « 10 » épars dans le code.
+  - la machine est limitée à `MAX_FEEDER_FLOW_G_H` (= 2500 g/h, validation
+    manager 2026-06-09 — élargi par rapport à l'ancien plafond 300 g/h). Au-delà
+    de cette borne, le débit EFFECTIF (utilisé dans les calculs) est plafonné,
+    mais le débit DEMANDÉ est conservé pour l'affichage + un avertissement
+    (jamais de plafonnement silencieux).
+  - constante centralisée : aucun « 2500 » épars dans le code.
 
 Module PUR : aucune dépendance Streamlit / disque.
 """
@@ -31,13 +34,16 @@ from physics.conversions import (
     g_per_h_to_g_per_s,
 )
 
-# Débit maximum machine validé (g/h) — exigence manager. Centralisé ici.
-MAX_FEEDER_FLOW_G_H: float = 300.0
+# Débit maximum machine validé (g/h) — exigence manager 2026-06-09. Centralisé
+# ici. Ancien plafond (300 g/h) levé : le nouvel outil étalonné permet des
+# valeurs plus précises ; la limite réelle de la machine est ~2500 g/h.
+MAX_FEEDER_FLOW_G_H: float = 2500.0
 
-# Coefficient d'étalonnage d'EXEMPLE/démonstration (g/h par RPM) — exemple Maël
-# (30 RPM → 300 g/h). N'EST PAS une vérité : sert uniquement de valeur de démo
-# pré-remplie quand on l'expose explicitement comme « exemple ».
-EXAMPLE_CALIBRATION_G_H_PER_RPM: float = 10.0
+# Coefficient d'étalonnage d'EXEMPLE/démonstration (g/h par RPM) — exemple
+# manager 2026-06-09 (30 RPM × 17 = 510 g/h). N'EST PAS une vérité : sert
+# uniquement de valeur de démo pré-remplie quand on l'expose explicitement
+# comme « exemple ».
+EXAMPLE_CALIBRATION_G_H_PER_RPM: float = 17.0
 
 
 @dataclass(frozen=True)

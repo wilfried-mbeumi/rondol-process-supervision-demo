@@ -713,7 +713,7 @@ with st.container(border=True):
         "dépend de valeurs DB automate (DataScrewElmt) et/ou de la correction "
         "manager ×2 (bivis, hors PLC d'origine). *CALCULATED_WITH_ASSUMPTIONS* = "
         "résultat cohérent mais soumis à ces hypothèses. *Limite manager — à valider* "
-        "= plafond 300 g/h indiqué manager, à confirmer Rondol."
+        "= plafond 2500 g/h (manager 2026-06-09, ancien 300 g/h levé)."
     )
 
 # ── Encart hypothèses ────────────────────────────────────────────────────────

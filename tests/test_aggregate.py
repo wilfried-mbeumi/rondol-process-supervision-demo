@@ -38,15 +38,26 @@ def _graph():
 
 
 def test_residence_sum_matches_process_state():
-    """Σ zones == total machine == ProcessState.residence_time_total."""
+    """Σ zones == total machine == ProcessState × correction RPM manager.
+
+    Manager 2026-06-09 : le total exposé par la couche moteur est le total
+    Network 7 multiplié par le facteur rpm_ref/screw_rpm (cf. screw_logic.
+    _residence_rpm_correction). La PLC interne reste inchangée — seul le
+    total exposé à l'UI est ajusté.
+    """
     g = _graph()
     m = aggregate_machine(g)
     sum_zones = sum(z.residence_time_s for z in m.zones)
     assert abs(sum_zones - m.residence_time_total_s) < 1e-9
-    assert abs(m.residence_time_total_s - g.process_state.residence_time_total) < 1e-12
-    # Et chaque zone est littéralement le total de zone Network 7.
+    # Facteur correctif manager rpm_ref/screw_rpm.
+    from screw_logic import _residence_rpm_correction
+    factor = _residence_rpm_correction(g.params.screw_rpm)
+    expected_total = g.process_state.residence_time_total * factor
+    assert abs(m.residence_time_total_s - expected_total) < 1e-12
+    # Et chaque zone est le total Network 7 × facteur RPM.
     for z in range(N_ZONES):
-        assert m.zones[z].residence_time_s == g.process_state.residence_time_zone[z]
+        expected = g.process_state.residence_time_zone[z] * factor
+        assert abs(m.zones[z].residence_time_s - expected) < 1e-12
 
 
 def test_machine_reuses_process_state_scalars():

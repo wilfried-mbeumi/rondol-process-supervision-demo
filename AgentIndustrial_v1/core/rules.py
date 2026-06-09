@@ -359,7 +359,12 @@ def _rule_residence_time(state: ProcessState) -> list[Alert]:
 
 def _rule_die_temp_monotony(state: ProcessState) -> list[Alert]:
     """R7 — Profil thermique cohérent : la filière ne doit pas être plus
-    chaude que le plateau de mélange (Z5/Z6) en compounding standard."""
+    chaude que le plateau de mélange (Z5/Z6) en compounding standard.
+
+    Manager 2026-06-09 : n_die_zones=0 → règle inapplicable (aucune filière).
+    """
+    if int(getattr(state, "n_die_zones", 1)) == 0:
+        return []
     t_die = state.zone_temps_C.get("die", None)
     t_z5 = state.zone_temps_C.get("Z5", None)
     if t_die is None or t_z5 is None:
@@ -641,44 +646,51 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
             target=f"Zone {zb}",
         ))
 
-    # --- Filière trop froide ---------------------------------------------
+    # --- Blocs SPÉCIFIQUES filière (die) ---------------------------------
+    # Manager 2026-06-09 : n_die_zones=0 (filière absente) → on saute UNIQUEMENT
+    # les contrôles propres à la filière (die trop froide / rampe die), MAIS PAS
+    # le contrôle de compatibilité matière en aval, qui reste applicable même
+    # sans filière (la matière transite toujours par Z1..Z8).
     die_t = state.die_temps_C
-    die_mean = sum(die_t) / len(die_t)
-    t_z8 = seq[-1]
-    if die_mean < t_z8 - 40.0:
-        out.append(Alert(
-            code="DIE_TOO_COLD",
-            severity=SEVERITY_CRITICAL,
-            title="Filière trop froide",
-            description=(
-                f"T_die moyenne {die_mean:.0f} °C < T_Z8 {t_z8:.0f} °C "
-                f"− 40 °C. Figeage en tête de filière : pic de pression, "
-                f"surcouple et arrêt sécurité probables."
-            ),
-            evidence=f"T_die≈{die_mean:.0f} °C · T_Z8={t_z8:.0f} °C",
-            target="Die",
-        ))
+    if die_t:
+        # --- Filière trop froide -----------------------------------------
+        die_mean = sum(die_t) / len(die_t)
+        t_z8 = seq[-1]
+        if die_mean < t_z8 - 40.0:
+            out.append(Alert(
+                code="DIE_TOO_COLD",
+                severity=SEVERITY_CRITICAL,
+                title="Filière trop froide",
+                description=(
+                    f"T_die moyenne {die_mean:.0f} °C < T_Z8 {t_z8:.0f} °C "
+                    f"− 40 °C. Figeage en tête de filière : pic de pression, "
+                    f"surcouple et arrêt sécurité probables."
+                ),
+                evidence=f"T_die≈{die_mean:.0f} °C · T_Z8={t_z8:.0f} °C",
+                target="Die",
+            ))
 
-    # --- Profil die incohérent (rampe non décroissante) ------------------
-    if state.n_die_zones >= 2:
-        for i in range(len(die_t) - 1):
-            if die_t[i + 1] > die_t[i] + 5.0:
-                out.append(Alert(
-                    code="DIE_PROFILE_INCOHERENT",
-                    severity=SEVERITY_WARNING,
-                    title="Profil die non décroissant",
-                    description=(
-                        f"Zone die {i + 2} ({die_t[i + 1]:.0f} °C) plus chaude "
-                        f"que la zone die {i + 1} ({die_t[i]:.0f} °C). Le "
-                        f"refroidissement de mise en forme doit être monotone "
-                        f"décroissant vers la sortie."
-                    ),
-                    evidence=f"die{i + 1}={die_t[i]:.0f} → die{i + 2}={die_t[i + 1]:.0f} °C",
-                    target="Die",
-                ))
-                break
+        # --- Profil die incohérent (rampe non décroissante) --------------
+        if state.n_die_zones >= 2:
+            for i in range(len(die_t) - 1):
+                if die_t[i + 1] > die_t[i] + 5.0:
+                    out.append(Alert(
+                        code="DIE_PROFILE_INCOHERENT",
+                        severity=SEVERITY_WARNING,
+                        title="Profil die non décroissant",
+                        description=(
+                            f"Zone die {i + 2} ({die_t[i + 1]:.0f} °C) plus chaude "
+                            f"que la zone die {i + 1} ({die_t[i]:.0f} °C). Le "
+                            f"refroidissement de mise en forme doit être monotone "
+                            f"décroissant vers la sortie."
+                        ),
+                        evidence=f"die{i + 1}={die_t[i]:.0f} → die{i + 2}={die_t[i + 1]:.0f} °C",
+                        target="Die",
+                    ))
+                    break
 
     # --- Consigne incompatible avec la matière le long du trajet ---------
+    # (Applicable AVEC ou SANS filière — ne pas sauter sur n_die_zones=0.)
     transit_zones = list(PROCESS_ZONE_ORDER) + state.die_keys
     for f in active_feeders(state.feeders):
         start = POSITION_TO_LEGACY_ZONE.get(f.position, 0)

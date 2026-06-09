@@ -43,8 +43,12 @@ DIE_KEYS: tuple[str, ...] = ("die", "die2", "die3", "die4")
 
 
 def active_die_keys(n_die_zones: int) -> list[str]:
-    """Clés des zones die réellement actives (1..4)."""
-    n = max(1, min(4, int(n_die_zones)))
+    """Clés des zones die réellement actives (0..4).
+
+    Manager 2026-06-09 : 0 zone die autorisé (filière absente). Retourne une
+    liste vide dans ce cas — les consommateurs gèrent « pas de filière ».
+    """
+    n = max(0, min(4, int(n_die_zones)))
     return list(DIE_KEYS[:n])
 
 

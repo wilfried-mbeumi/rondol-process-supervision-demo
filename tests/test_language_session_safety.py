@@ -39,15 +39,17 @@ _BAD_NUMERIC = ["", None, "2.0", 2.0, "abc", "Nombre de zones die", [], {}]
 def test_n_die_zones_empty_none_string_float_int(bad):
     session: dict = {"n_die_zones": bad}
     # Ne doit PAS lever (chaîne historique du crash).
+    # Manager 2026-06-09 : domaine élargi à [0, 4] (0 = filière absente).
     state = state_from_session(session)
-    assert 1 <= state.n_die_zones <= 4
+    assert 0 <= state.n_die_zones <= 4
     seed_editing_keys(session)            # 2e point de crash (Settings ligne 194)
     rebuilt = build_state_from_widgets(session)
-    assert 1 <= rebuilt.n_die_zones <= 4
+    assert 0 <= rebuilt.n_die_zones <= 4
 
 
 def test_n_die_zones_safe_cast_valid_values():
-    for v, expected in [(1, 1), (2, 2), (4, 4), ("3", 3), (3.0, 3), (9, 4), (0, 1)]:
+    # Manager 2026-06-09 : 0 désormais valide (filière absente), borne haute 4.
+    for v, expected in [(0, 0), (1, 1), (2, 2), (4, 4), ("3", 3), (3.0, 3), (9, 4)]:
         state = state_from_session({"n_die_zones": v})
         assert state.n_die_zones == expected, (v, state.n_die_zones)
 
@@ -128,14 +130,15 @@ _SETTINGS = str(ROOT / "app" / "pages" / "2_Settings.py")
 
 
 @pytest.mark.skipif(not _HAS_APPTEST, reason="streamlit.testing indisponible")
-@pytest.mark.parametrize("bad", ["2.0", "", "deux", 9, 0])
+@pytest.mark.parametrize("bad", ["2.0", "", "deux", 9, -1])
 def test_settings_loads_with_polluted_n_die_zones(bad):
     at = AppTest.from_file(_SETTINGS)
     at.session_state["n_die_zones"] = bad
     at.run(timeout=60)
     assert not at.exception, [str(e.value) for e in at.exception]
-    # Normalisée dans le domaine valide du selectbox.
-    assert at.session_state["n_die_zones"] in (1, 2, 3, 4)
+    # Normalisée dans le domaine valide du selectbox (manager 2026-06-09 :
+    # 0 désormais inclus = filière absente).
+    assert at.session_state["n_die_zones"] in (0, 1, 2, 3, 4)
 
 
 @pytest.mark.skipif(not _HAS_APPTEST, reason="streamlit.testing indisponible")

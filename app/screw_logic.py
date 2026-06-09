@@ -788,16 +788,66 @@ def fill_factor_average(
     return compute_process_state(config, _params_from_hmi(rpm, feed_g_per_min, bulk_density)).fill_factor_average
 
 
+# ---------------------------------------------------------------------------
+# Correction manager — residence time : dépendance explicite au screw RPM
+# ---------------------------------------------------------------------------
+# Source : app/residence_time_correction.pdf (manager 2026-06-09).
+#
+# Constat : dans `compute_process_state` (Network 7 PLC), au main feeder
+# `vol_flow = qvol_feeder = m_dot / ρ`, qui est INDÉPENDANT de la vitesse vis ;
+# `residence_time_local = V_local / vol_flow` est donc lui aussi RPM-indépendant
+# (≈ 167,6 s constant quel que soit le RPM). Manager : c'est incohérent — à
+# débit matière constant, si la vitesse vis augmente, le temps de séjour doit
+# diminuer (et approximativement par moitié quand le RPM double).
+#
+# Correction V1 (exigence manager) : appliquer un facteur `rpm_ref / screw_rpm`
+# (rpm_ref = 100 rpm) au temps de séjour calculé par Network 7. La couche PLC
+# reste INTOUCHÉE (CLAUDE.md « do NOT modify compute_process_state ») ; seule
+# la valeur exposée à l'UI via les wrappers est corrigée.
+#
+# Garde dur : si screw_rpm <= 0 ou feed_g_per_min <= 0, on retourne 0.0 — les
+# consommateurs (Profile / Moteur Procédé) interprètent 0 comme « Non calculable »
+# (jamais affiché comme une vérité procédé).
+RESIDENCE_TIME_RPM_REFERENCE: float = 100.0
+
+
+def _residence_rpm_correction(screw_rpm: float) -> float:
+    """Facteur correctif manager rpm_ref/screw_rpm (≥0). 0 si rpm invalide."""
+    rpm = float(screw_rpm)
+    if rpm <= 0.0:
+        return 0.0
+    return RESIDENCE_TIME_RPM_REFERENCE / rpm
+
+
 def residence_time(
     config: list[int], rpm: float, feed_g_per_min: float, bulk_density: float
 ) -> float:
-    return compute_process_state(config, _params_from_hmi(rpm, feed_g_per_min, bulk_density)).residence_time_total
+    """Temps de séjour total (s) — Network 7 ajusté du facteur RPM manager.
+
+    Retourne 0.0 (« Non calculable » côté UI) si rpm<=0 ou débit<=0.
+    """
+    if rpm <= 0.0 or feed_g_per_min <= 0.0:
+        return 0.0
+    base = compute_process_state(
+        config, _params_from_hmi(rpm, feed_g_per_min, bulk_density)
+    ).residence_time_total
+    return base * _residence_rpm_correction(rpm)
 
 
 def zone_residence_times(
     config: list[int], rpm: float, feed_g_per_min: float, bulk_density: float
 ) -> list[float]:
-    return compute_process_state(config, _params_from_hmi(rpm, feed_g_per_min, bulk_density)).residence_time_zone
+    """Temps de séjour par zone (Feed + Z1..Z8) — ajusté du facteur RPM manager.
+
+    Liste de 9 zéros si rpm<=0 ou débit<=0 (consommateurs affichent « — »).
+    """
+    if rpm <= 0.0 or feed_g_per_min <= 0.0:
+        return [0.0] * 9
+    base = compute_process_state(
+        config, _params_from_hmi(rpm, feed_g_per_min, bulk_density)
+    ).residence_time_zone
+    factor = _residence_rpm_correction(rpm)
+    return [v * factor for v in base]
 
 
 # ---------------------------------------------------------------------------

@@ -565,9 +565,27 @@ _SEV_ACCENT = {
 }
 
 # ── Bandeau LECTURE PROFIL (archetype + régime) ─────────────────────────────
+# Phase 10 manager 2026-06-09 : si aucun snapshot n'a été validé ou si le profil
+# vis est vide, la lecture profil ne peut pas être affirmative — on signale
+# explicitement « analyse indicative ». Ne change pas le contenu généré, ajoute
+# juste un préfixe honnête sur la fiabilité.
+from AgentIndustrial_v1.core.applied_state import get_applied as _get_applied  # noqa: E402,PLC0415
+from screw_logic import count_user_elements as _count_user_elements  # noqa: E402,PLC0415
+
+_applied_snap = _get_applied(st.session_state)
+_n_user_el = float(_count_user_elements(list(_screw_cfg or [])))
+_profile_is_indicative = (_applied_snap is None) or (_n_user_el <= 0.0)
+
 _arch_acc = _SEV_ACCENT.get(_profile_reading.archetype_severity, "#3B82F6")
 st.divider()
 st.caption(t("home.sec.profile_reading"))
+if _profile_is_indicative:
+    # i18n FR/EN (Phase 6 manager 2026-06-09) — pas de texte hardcodé.
+    st.info(
+        f"{t('home.profile_indicative.title')} "
+        f"{t('home.profile_indicative.body')}",
+        icon="ℹ️",
+    )
 _risks_chips = ""
 if _profile_reading.risks:
     _risks_chips = "".join(

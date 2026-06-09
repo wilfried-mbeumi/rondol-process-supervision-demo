@@ -50,6 +50,8 @@ import history_store  # noqa: E402
 from demo_ml_run import demo_ml_banner_html  # noqa: E402
 # Store opérateur central (cohérence inter-pages).
 from operator_store import restore_operator_state  # noqa: E402
+# i18n FR/EN (Phase 6 manager 2026-06-09) — Historique doit aussi être traduit.
+from rondol_i18n import t  # noqa: E402
 
 restore_operator_state(st.session_state)
 
@@ -249,6 +251,37 @@ else:
         )
         _sel = _options[_idx]
         with st.container(border=True):
+            # Phase 9 manager 2026-06-09 — Composition matière par feeder
+            # capturée au commit. Si vide → « Non renseigné » (jamais inventé).
+            # i18n FR/EN (toutes les chaînes passent par rondol_i18n).
+            # Colonne « État » retirée : le champ `state` n'est PAS sérialisé
+            # dans AppliedSnapshot._feeder_to_dict (review adversariale 2026-06-09)
+            # → afficher une valeur fantôme par défaut violerait la règle
+            # « aucune valeur démo/défaut injectée silencieusement ».
+            _comp = (_sel.get("config", {}) or {}).get("feeders_composition") or []
+            if _comp:
+                st.markdown("##### " + t("historique.comp_title"))
+                _not_entered = t("historique.comp_not_entered")
+                _cdf = pd.DataFrame([
+                    {
+                        t("historique.comp_col.feeder"): f"#{c.get('feeder_id', '?')}",
+                        t("historique.comp_col.label"): c.get("label") or "—",
+                        t("historique.comp_col.position"): c.get("position") or "—",
+                        t("historique.comp_col.composition"):
+                            c.get("composition") or _not_entered,
+                        t("historique.comp_col.flow"):
+                            _fmt_num(c.get("mass_flow_g_per_min"), 2),
+                        t("historique.comp_col.density"):
+                            _fmt_num(c.get("bulk_density_g_per_cm3"), 3),
+                        t("historique.comp_col.tdeg"):
+                            _fmt_num(c.get("t_degradation_C"), 0),
+                    }
+                    for c in _comp
+                ])
+                st.dataframe(_cdf, use_container_width=True, hide_index=True)
+            else:
+                st.caption(t("historique.comp_absent"))
+
             _zones = _sel.get("zones")
             if _zones:
                 st.markdown("##### Agrégats par zone (figés au commit)")

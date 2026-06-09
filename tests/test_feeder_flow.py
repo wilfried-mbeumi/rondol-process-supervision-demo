@@ -59,25 +59,41 @@ def test_feeder_calibration_30_rpm_300_g_h():
     assert ff.clamped is False
 
 
-def test_feeder_calibration_50_rpm_500_g_h():
-    # 50 RPM × 10 = 500 g/h DEMANDÉ, mais machine plafonnée à 300 g/h.
+def test_feeder_calibration_50_rpm_500_g_h_not_clamped():
+    # 50 RPM × 10 = 500 g/h DEMANDÉ — sous le nouveau plafond 2500 g/h, donc
+    # JAMAIS plafonné. (Avant manager 2026-06-09 le plafond était 300 g/h.)
     ff = resolve_feeder_flow(50.0, 10.0)
-    assert abs(ff.requested_g_h - 500.0) < TOL          # demandé conservé
-    assert abs(ff.effective_g_h - MAX_FEEDER_FLOW_G_H) < TOL  # effectif plafonné
-    assert ff.clamped is True
+    assert abs(ff.requested_g_h - 500.0) < TOL
+    assert abs(ff.effective_g_h - 500.0) < TOL
+    assert ff.clamped is False
 
 
 # ---------------------------------------------------------------------------
-# Clamp machine (jamais silencieux)
+# Clamp machine (jamais silencieux) — borne 2500 g/h manager 2026-06-09
 # ---------------------------------------------------------------------------
-def test_feeder_flow_clamped_above_300_g_h():
-    ff = resolve_feeder_flow(80.0, 10.0)  # 800 g/h demandé
+def test_feeder_flow_clamped_above_max_machine_flow():
+    # 300 RPM × 10 = 3000 g/h > 2500 → plafonné.
+    ff = resolve_feeder_flow(300.0, 10.0)
     assert ff.clamped is True
-    assert abs(ff.effective_g_h - 300.0) < TOL
-    assert abs(ff.effective_g_min - 5.0) < TOL
+    assert abs(ff.effective_g_h - MAX_FEEDER_FLOW_G_H) < TOL
 
 
-def test_feeder_flow_not_clamped_below_300_g_h():
+def test_feeder_flow_not_clamped_at_2500_limit():
+    # Exactement à la limite : 100 RPM × 25 = 2500 g/h → NON plafonné.
+    ff = resolve_feeder_flow(100.0, 25.0)
+    assert ff.clamped is False
+    assert abs(ff.effective_g_h - MAX_FEEDER_FLOW_G_H) < TOL
+
+
+def test_feeder_flow_not_clamped_at_510_g_h():
+    # Exemple manager 2026-06-09 : 30 RPM × 17 = 510 g/h, accepté.
+    ff = resolve_feeder_flow(30.0, 17.0)
+    assert ff.clamped is False
+    assert abs(ff.effective_g_h - 510.0) < TOL
+    assert abs(ff.effective_g_min - 8.5) < TOL
+
+
+def test_feeder_flow_not_clamped_below_max():
     ff = resolve_feeder_flow(18.0, 10.0)  # 180 g/h = 3 g/min
     assert ff.clamped is False
     assert abs(ff.effective_g_h - 180.0) < TOL
@@ -85,9 +101,10 @@ def test_feeder_flow_not_clamped_below_300_g_h():
 
 
 def test_requested_flow_is_preserved_for_display():
-    ff = resolve_feeder_flow(80.0, 10.0)
-    assert abs(ff.requested_g_h - 800.0) < TOL  # affichage = valeur demandée
-    assert abs(ff.effective_g_h - 300.0) < TOL  # calcul = valeur plafonnée
+    # 400 RPM × 10 = 4000 g/h demandé > 2500 plafond.
+    ff = resolve_feeder_flow(400.0, 10.0)
+    assert abs(ff.requested_g_h - 4000.0) < TOL                # affichage = demandé
+    assert abs(ff.effective_g_h - MAX_FEEDER_FLOW_G_H) < TOL   # calcul = plafonné
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +121,7 @@ def test_no_real_mass_flow_without_feeder_calibration(calib):
 
 
 # ---------------------------------------------------------------------------
-# Anti-hardcode : 10 g/h/RPM et 300 g/h ne sont pas des vérités épars
+# Anti-hardcode : le coefficient et le plafond sont des constantes, pas épars
 # ---------------------------------------------------------------------------
 def test_no_hardcoded_10_g_h_per_rpm_as_universal_truth():
     # Le coefficient est un PARAMÈTRE : un autre coefficient donne un autre débit.
@@ -115,7 +132,10 @@ def test_no_hardcoded_10_g_h_per_rpm_as_universal_truth():
 
 
 def test_max_feeder_flow_is_centralized_constant():
-    # Le plafond machine est une constante nommée, pas un littéral épars.
-    assert MAX_FEEDER_FLOW_G_H == 300.0
+    # Le plafond machine est une constante nommée, valeur 2500 g/h depuis
+    # manager 2026-06-09 (ancienne 300 g/h levée). Pas de littéral épars
+    # dans resolve_feeder_flow.
+    assert MAX_FEEDER_FLOW_G_H == 2500.0
     src = inspect.getsource(resolve_feeder_flow)
+    assert "2500" not in src, "literal 2500 dans resolve_feeder_flow — utiliser la constante"
     assert "300" not in src, "literal 300 dans resolve_feeder_flow — utiliser la constante"

@@ -57,13 +57,15 @@ def test_effective_flow_used_in_residence_time():
 
 
 def test_clamped_flow_used_above_machine_max():
+    from physics.feeder_flow import MAX_FEEDER_FLOW_G_H
     cfg = _cfg()
-    # 80 RPM × 10 = 800 g/h demandé → effectif plafonné 300 g/h = 5 g/min.
-    ff = resolve_feeder_flow(80.0, 10.0)
+    # 300 RPM × 10 = 3000 g/h demandé > 2500 g/h → effectif plafonné à
+    # MAX_FEEDER_FLOW_G_H (manager 2026-06-09).
+    ff = resolve_feeder_flow(300.0, 10.0)
     assert ff.clamped is True
     fill_effective = fill_factor_average(cfg, 100.0, ff.effective_g_min, RHO)
-    fill_at_5 = fill_factor_average(cfg, 100.0, 5.0, RHO)
-    assert abs(fill_effective - fill_at_5) < 1e-9  # calcul borné, pas 800 g/h
+    fill_at_max = fill_factor_average(cfg, 100.0, MAX_FEEDER_FLOW_G_H / 60.0, RHO)
+    assert abs(fill_effective - fill_at_max) < 1e-9  # calcul borné
 
 
 def test_manager_scenario_300gh_100rpm_40elements():

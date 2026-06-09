@@ -208,13 +208,14 @@ seed_editing_keys(st.session_state)
 state: ProcessState = build_state_from_widgets(st.session_state)
 
 # Garde anti-crash widget : certains widgets sont restreints à une liste
-# d'options (selectbox n_die_zones ∈ {1..4}). Si la session contient une valeur
+# d'options (selectbox n_die_zones ∈ {0..4}). Si la session contient une valeur
 # polluée/mal typée (ex. "2.0", libellé traduit) héritée d'une version antérieure,
 # Streamlit lèverait « is not in list » À LA CRÉATION du widget — avant même nos
 # lectures coercées. On normalise donc la clé widget dans son domaine valide ici,
 # une fois, avant tout rendu de widget (cf. crash « changement de langue »).
+# Manager 2026-06-09 : 0 zone die (filière absente) autorisé en plus de 1..4.
 st.session_state["n_die_zones"] = safe_int(
-    st.session_state.get("n_die_zones", 1), 1, 1, 4
+    st.session_state.get("n_die_zones", 1), 1, 0, 4
 )
 
 
@@ -424,24 +425,34 @@ with col_left:
         _gcol = CRIT if _grad > 70 else (WARN if _grad > 45 else SUB)
         _gtxt = f"Δ{_grad:+.0f}" if _i > 0 else "entrée"
         with _c:
+            # Manager 2026-06-09 : ces valeurs sont des estimations théoriques
+            # avant compensation cooling, PAS des températures mesurées capteur.
+            # Wording explicite « estimé » / « estimated » + tooltip.
+            _t_lbl = t("settings.t_estimated_short")
             st.html(
                 f'<div style="text-align:center;font-family:Consolas,monospace;'
-                f'font-size:0.62rem;line-height:1.25;">'
+                f'font-size:0.62rem;line-height:1.25;" '
+                f'title="{t("settings.t_estimated_tooltip")}">'
                 f'<div>{dot} <span style="color:{_STATUS_COLOR[zt.status]};">'
-                f'{zt.t_est_C:.0f}°C réel</span></div>'
+                f'{zt.t_est_C:.0f}°C {_t_lbl}</span></div>'
                 f'<div style="color:{_gcol};">{_gtxt}</div></div>'
             )
 
-    # Nombre de zones die + consignes die dynamiques
+    # Nombre de zones die + consignes die dynamiques.
+    # Manager 2026-06-09 : 0 = filière absente (aucun champ DIE requis,
+    # calculs filière-dépendants → « Non applicable »).
     _d1, _d2 = st.columns([1.1, 3.0])
     with _d1:
         st.selectbox(
-            t("settings.n_die_zones"), options=[1, 2, 3, 4],
-            format_func=lambda n: t("settings.die_zone_fmt_plural", n=n) if n > 1
-            else t("settings.die_zone_fmt", n=n),
+            t("settings.n_die_zones"), options=[0, 1, 2, 3, 4],
+            format_func=lambda n: (
+                t("settings.die_zone_fmt_zero") if n == 0
+                else (t("settings.die_zone_fmt_plural", n=n) if n > 1
+                      else t("settings.die_zone_fmt", n=n))
+            ),
             key="n_die_zones",
         )
-    _ndie = safe_int(st.session_state.get("n_die_zones", 1), 1, 1, 4)
+    _ndie = safe_int(st.session_state.get("n_die_zones", 1), 1, 0, 4)
     _die_keys = ["die", "die2", "die3", "die4"][:_ndie]
     with _d2:
         _die_cols = st.columns(4)
@@ -457,23 +468,32 @@ with col_left:
                         f'<div style="color:{SLOT};font-size:0.62rem;'
                         f'text-align:center;padding-top:1.4rem;">die {_j + 1}<br>—</div>'
                     )
-    _die_vals = [
-        float(st.session_state.get(f"th_{k}", default_zone_target(k)))
-        for k in _die_keys
-    ]
-    _die_ok = all(
-        _die_vals[i + 1] <= _die_vals[i] + 5.0 for i in range(len(_die_vals) - 1)
-    )
-    _die_c = ACC if _die_ok else WARN
-    st.html(
-        f'<div style="font-family:Consolas,monospace;font-size:0.66rem;'
-        f'color:{_die_c};padding:0.15rem 0.3rem;">'
-        f'Filière {_ndie} zone(s) · '
-        + " → ".join(f"{v:.0f}°C" for v in _die_vals)
-        + (' · ✓ rampe décroissante' if _die_ok
-           else ' · ⚠ profil die non décroissant (cf. alertes IA)')
-        + '</div>'
-    )
+    if _ndie == 0:
+        # Pas de filière → aucun champ DIE actif, aucune validation gradient.
+        st.html(
+            f'<div style="font-family:Consolas,monospace;font-size:0.66rem;'
+            f'color:{SUB};padding:0.15rem 0.3rem;">'
+            f'{t("settings.die_zone_absent")}'
+            f'</div>'
+        )
+    else:
+        _die_vals = [
+            float(st.session_state.get(f"th_{k}", default_zone_target(k)))
+            for k in _die_keys
+        ]
+        _die_ok = all(
+            _die_vals[i + 1] <= _die_vals[i] + 5.0 for i in range(len(_die_vals) - 1)
+        )
+        _die_c = ACC if _die_ok else WARN
+        st.html(
+            f'<div style="font-family:Consolas,monospace;font-size:0.66rem;'
+            f'color:{_die_c};padding:0.15rem 0.3rem;">'
+            f'Filière {_ndie} zone(s) · '
+            + " → ".join(f"{v:.0f}°C" for v in _die_vals)
+            + (' · ✓ rampe décroissante' if _die_ok
+               else ' · ⚠ profil die non décroissant (cf. alertes IA)')
+            + '</div>'
+        )
 
     # ─── Bloc 2 : Feeders Material (1..5) — type, ρ, α, position ──────────
     st.html(
@@ -517,19 +537,22 @@ with col_left:
                 disabled=not _enabled, label_visibility="collapsed",
             )
         with dens_col:
+            # Label visible avec unité (manager 2026-06-09 : pas seulement tooltip).
             st.number_input(
-                "ρ", min_value=0.0001, max_value=10.0,
+                t("settings.feeder.dens_label"),
+                min_value=0.0001, max_value=10.0,
                 step=0.05, format="%.3f",
                 key=f"fd_dens_{fid}",
-                disabled=not _enabled, label_visibility="collapsed",
+                disabled=not _enabled,
                 help=t("settings.feeder.dens_help"),
             )
         with alpha_col:
             st.number_input(
-                "α", min_value=0.0, max_value=1.0e-1,
+                t("settings.feeder.alpha_label"),
+                min_value=0.0, max_value=1.0e-1,
                 step=1.0e-5, format="%.6f",
                 key=f"fd_alpha_{fid}",
-                disabled=not _enabled, label_visibility="collapsed",
+                disabled=not _enabled,
                 help=t("settings.feeder.alpha_help"),
             )
         with pos_col:
@@ -540,8 +563,7 @@ with col_left:
             )
 
     # ─── Bloc 2bis : ÉTALONNAGE FEEDERS (multi-feeder : RPM × coeff → débit) ──
-    with st.expander("⚙️ Étalonnage feeders — RPM × coefficient g/h/RPM → débit réel",
-                     expanded=False):
+    with st.expander(t("settings.expander.feedcal"), expanded=False):
         render_multi_feeder_calibration(st, state.feeders)
 
     # ─── Bloc 3 : SME / Mass Flow par feeder + global ─────────────────────
@@ -557,8 +579,10 @@ with col_left:
     flow_cols = st.columns(6)
     for i, f in enumerate(state.feeders):
         with flow_cols[i]:
+            # Unité explicite dans le label visible (manager 2026-06-09).
             st.number_input(
-                f"#{f.feeder_id} g/min", min_value=0.0, max_value=2000.0,
+                f"#{f.feeder_id} {t('settings.feeder.flow_unit')}",
+                min_value=0.0, max_value=2000.0,
                 step=1.0, key=f"fd_flow_{f.feeder_id}",
                 disabled=not bool(st.session_state[f"fd_en_{f.feeder_id}"]),
             )

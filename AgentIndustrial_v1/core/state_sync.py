@@ -69,7 +69,7 @@ def _legacy_state_from_session(session: Mapping[str, Any]) -> ProcessState:
             default_zone_target(zk), 0.0, 400.0,
         )
     state.n_die_zones = safe_int(
-        _safe_get(session, "n_die_zones", state.n_die_zones), state.n_die_zones, 1, 4
+        _safe_get(session, "n_die_zones", state.n_die_zones), state.n_die_zones, 0, 4
     )
     return state
 

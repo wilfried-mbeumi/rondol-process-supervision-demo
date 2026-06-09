@@ -111,17 +111,36 @@ class MachineState:
     zones: tuple[ZoneState, ...]
 
 
+def _rpm_correction(screw_rpm: float) -> float:
+    """Facteur correctif manager rpm_ref/screw_rpm appliqué aux temps de séjour.
+
+    Source : `screw_logic.residence_time` (manager 2026-06-09). On le réimporte
+    ici pour conserver la cohérence des valeurs entre Profile / Moteur Procédé /
+    Historique — toute valeur de temps de séjour exposée à l'UI passe par
+    cette correction.
+    """
+    from screw_logic import _residence_rpm_correction  # noqa: PLC0415
+    return _residence_rpm_correction(screw_rpm)
+
+
 def aggregate_zone(graph: ExtrusionGraph, zone: int) -> ZoneState:
-    """Agrège les nœuds d'une zone. residence_time_s RÉUTILISÉ de ProcessState."""
+    """Agrège les nœuds d'une zone. residence_time_s RÉUTILISÉ de ProcessState.
+
+    Le temps de séjour de zone est ensuite multiplié par le facteur RPM
+    manager (rpm_ref/screw_rpm) pour rester cohérent avec les wrappers UI.
+    """
     nodes = graph.nodes_in_zone(zone)
     fills = [n.fill_factor for n in nodes]
     shears = [n.shear_rate_s for n in nodes]
     temps = [n.temperature_c for n in nodes]
+    base_rt = graph.process_state.residence_time_zone[zone]
+    factor = _rpm_correction(graph.params.screw_rpm)
     return ZoneState(
         zone=zone,
         n_nodes=len(nodes),
-        # RÉUTILISATION stricte du total de zone Network 7 (pas de re-somme).
-        residence_time_s=graph.process_state.residence_time_zone[zone],
+        # RÉUTILISATION stricte du total de zone Network 7 + correction RPM
+        # manager 2026-06-09 (rpm_ref/screw_rpm). Si rpm<=0 → facteur 0.0.
+        residence_time_s=base_rt * factor,
         mean_fill_factor=clamp_volume_fraction(_finite_mean(fills)),
         max_fill_factor=clamp_volume_fraction(_finite_max(fills)),
         max_shear_rate_s=_finite_max(shears),
@@ -132,7 +151,11 @@ def aggregate_zone(graph: ExtrusionGraph, zone: int) -> ZoneState:
 
 
 def aggregate_machine(graph: ExtrusionGraph) -> MachineState:
-    """Agrège le graph en MachineState. Totaux procédé RÉUTILISÉS de ProcessState."""
+    """Agrège le graph en MachineState. Totaux procédé RÉUTILISÉS de ProcessState.
+
+    Le temps de séjour TOTAL reçoit la même correction manager rpm_ref/screw_rpm
+    que les zones — garantit la cohérence Profile/Moteur/Historique.
+    """
     st = graph.process_state
     zones = tuple(aggregate_zone(graph, z) for z in range(N_ZONES))
 
@@ -143,10 +166,12 @@ def aggregate_machine(graph: ExtrusionGraph) -> MachineState:
             peak_ff, peak_pos = n.fill_factor, n.position
 
     max_shear = _finite_max([n.shear_rate_s for n in graph])
+    factor = _rpm_correction(graph.params.screw_rpm)
 
     return MachineState(
         # --- RÉUTILISATION ProcessState (anti-divergence) ---
-        residence_time_total_s=st.residence_time_total,
+        # Correction RPM manager appliquée au TOTAL (cohérence wrappers UI).
+        residence_time_total_s=st.residence_time_total * factor,
         fill_factor_average=st.fill_factor_average,
         overflow_main_feeder=st.overflow_main_feeder,
         overflow_side_feeder=st.overflow_side_feeder,

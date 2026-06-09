@@ -138,7 +138,7 @@ def hydrate_state(snapshot: AppliedSnapshot) -> ProcessState:
     # Compléter les zones manquantes (rétro-compat avec anciens snapshots).
     for zk in DEFAULT_ZONE_TARGETS_C:
         state.zone_temps_C.setdefault(zk, default_zone_target(zk))
-    state.n_die_zones = safe_int(snapshot.n_die_zones, 1, 1, 4)
+    state.n_die_zones = safe_int(snapshot.n_die_zones, 1, 0, 4)
     state.v2.torque_pct = snapshot.torque_pct
     state.v2.pressure_die_bar = snapshot.pressure_die_bar
     return state

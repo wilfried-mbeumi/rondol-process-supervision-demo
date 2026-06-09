@@ -242,3 +242,118 @@ def test_append_recovers_from_corrupt(tmp_path):
     p.write_text("garbage", encoding="utf-8")
     assert append_run(make_record(FakeSnapshot(), FakeReport()), p) is True
     assert len(load_runs(p)) == 1
+
+
+# ===========================================================================
+#  Phase 9 manager 2026-06-09 — composition matière par feeder
+# ===========================================================================
+from history_store import _feeder_composition_block  # noqa: E402
+
+
+def test_feeder_composition_only_enabled():
+    """Seuls les feeders activés apparaissent dans la composition (Phase 9)."""
+    feeders = [
+        {"feeder_id": 1, "enabled": True, "label": "Main",
+         "position": "Z0", "polymer_name": "LFP",
+         "mass_flow_g_per_min": 30.0, "density_g_per_cm3": 0.55},
+        {"feeder_id": 2, "enabled": False, "label": "Side",
+         "position": "Z3", "polymer_name": "LATP",
+         "mass_flow_g_per_min": 10.0, "density_g_per_cm3": 0.55},
+    ]
+    comp = _feeder_composition_block(feeders)
+    assert len(comp) == 1
+    assert comp[0]["feeder_id"] == 1
+    assert comp[0]["composition"] == "LFP"
+    assert comp[0]["composition_source"] == "USER_INPUT"
+
+
+def test_feeder_composition_empty_polymer_stores_none_not_string():
+    """Polymer non renseigné → composition = None (jamais 'LFP' ni chaîne en
+    dur 'Non renseigné' qui violerait l'i18n et la règle anti-démo)."""
+    feeders = [{
+        "feeder_id": 1, "enabled": True, "label": "Main", "position": "Z0",
+        "polymer_name": "",   # vide
+        "mass_flow_g_per_min": 30.0, "density_g_per_cm3": 0.55,
+    }]
+    comp = _feeder_composition_block(feeders)
+    assert comp[0]["composition"] is None
+    assert comp[0]["composition_source"] == "NOT_AVAILABLE"
+
+
+def test_feeder_composition_no_phantom_state_field():
+    """Régression review adversariale 2026-06-09 : le champ 'state' n'existe
+    pas dans AppliedSnapshot._feeder_to_dict — le composition_block NE DOIT
+    PAS inventer une valeur démo « powder »."""
+    feeders = [{
+        "feeder_id": 1, "enabled": True, "label": "Main", "position": "Z0",
+        "polymer_name": "PVDF", "mass_flow_g_per_min": 5.0,
+        "density_g_per_cm3": 0.55,
+    }]
+    comp = _feeder_composition_block(feeders)
+    # « state » ne doit PAS être présent dans la sortie (aucune valeur par
+    # défaut inventée). material_id reste là car réellement sérialisé.
+    assert "state" not in comp[0]
+    assert "material_id" in comp[0]
+
+
+def test_feeder_composition_thermal_fields_preserved():
+    """Les T° matière étendues (T_dég, TGA, viscosité, Tm, Tg) sont préservées
+    telles quelles — None si non saisies."""
+    feeders = [{
+        "feeder_id": 1, "enabled": True, "label": "PVDF",
+        "position": "Z0", "polymer_name": "PVDF",
+        "mass_flow_g_per_min": 5.0, "density_g_per_cm3": 1.78,
+        "t_degradation_C": 280.0, "tga_onset_C": 380.0,
+        "viscosity_pa_s": 1200.0, "t_melt_C": 175.0, "t_glass_C": -35.0,
+    }]
+    comp = _feeder_composition_block(feeders)[0]
+    assert comp["t_degradation_C"] == 280.0
+    assert comp["tga_onset_C"] == 380.0
+    assert comp["viscosity_pa_s"] == 1200.0
+    assert comp["t_melt_C"] == 175.0
+    assert comp["t_glass_C"] == -35.0
+
+
+def test_feeder_composition_thermal_fields_none_if_absent():
+    """Aucune valeur thermique inventée si l'opérateur n'a rien saisi."""
+    feeders = [{
+        "feeder_id": 1, "enabled": True, "position": "Z0",
+        "polymer_name": "", "mass_flow_g_per_min": 0.0,
+        "density_g_per_cm3": 0.55,
+    }]
+    comp = _feeder_composition_block(feeders)[0]
+    for k in ("t_degradation_C", "tga_onset_C", "viscosity_pa_s",
+              "t_melt_C", "t_glass_C"):
+        assert comp[k] is None, f"{k} doit rester None (jamais inventé)"
+
+
+def test_feeder_composition_empty_list_when_no_feeders():
+    assert _feeder_composition_block([]) == []
+    assert _feeder_composition_block(None) == []
+
+
+def test_make_record_includes_composition_block():
+    """L'intégration make_record doit injecter feeders_composition dans config."""
+    rec = make_record(FakeSnapshot(), FakeReport())
+    comp = rec["config"]["feeders_composition"]
+    # FakeSnapshot a 1 feeder actif (LFP) + 1 inactif (LATP)
+    assert len(comp) == 1
+    assert comp[0]["material_id"] == "LFP"
+
+
+def test_fingerprint_stable_regardless_of_composition_block():
+    """L'empreinte (anti-doublon) ne doit PAS dépendre du bloc composition
+    enrichi : sinon deux clics « Enregistrer » identiques créeraient un
+    doublon dès qu'un champ thermique optionnel diffère, ou pire l'anti-
+    doublon serait cassé après la Phase 9 (compute_fingerprint inclut
+    déjà material_id/enabled/position/débit/densité — c'est suffisant)."""
+    snap1 = FakeSnapshot()
+    snap2 = FakeSnapshot()
+    # Mêmes feeders (mêmes champs métier clés) → même empreinte.
+    fp1 = compute_fingerprint(
+        snap1.screw_config, snap1.screw_rpm, snap1.feeders, snap1.zone_temps_C,
+    )
+    fp2 = compute_fingerprint(
+        snap2.screw_config, snap2.screw_rpm, snap2.feeders, snap2.zone_temps_C,
+    )
+    assert fp1 == fp2
