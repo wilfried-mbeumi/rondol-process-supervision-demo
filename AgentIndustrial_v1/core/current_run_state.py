@@ -144,6 +144,20 @@ def _get(session: Mapping[str, Any], key: str, default: Any = None) -> Any:
     return default
 
 
+# Suffixe des clés d'étalonnage PERSISTANTES (miroir nav-safe, cf. feeder_ui).
+# Streamlit purge les clés de widget non montées en navigation multipage : la
+# lecture d'étalonnage doit retomber sur le miroir persistant.
+_PERSIST_SUFFIX = "__persist"
+
+
+def _calib_get(session: Mapping[str, Any], widget_key: str, default: float) -> float:
+    """Lecture nav-safe d'une clé d'étalonnage : widget → persistant → défaut."""
+    v = _get(session, widget_key, None)
+    if v is None:
+        v = _get(session, widget_key + _PERSIST_SUFFIX, None)
+    return safe_float(v, default, 0.0, 100000.0) if v is not None else default
+
+
 def _outputs_status() -> str:
     """Statut des sorties de la chaîne fill factor selon l'état des constantes."""
     if DB_CONSTANTS_CONFIRMED and not BIVIS_CORRECTION_IS_MANAGER:
@@ -197,11 +211,11 @@ def _feeder_calibrations(session: Mapping[str, Any], state: ProcessState) -> lis
     for f in state.feeders:
         fid = int(f.feeder_id)
         if fid == 1:
-            rpm = safe_float(_get(session, _FEEDER_RPM_KEY, 30.0), 30.0, 0.0, 100000.0)
-            coeff_raw = safe_float(_get(session, _FEEDER_CALIB_KEY, 0.0), 0.0, 0.0, 100000.0)
+            rpm = _calib_get(session, _FEEDER_RPM_KEY, 30.0)
+            coeff_raw = _calib_get(session, _FEEDER_CALIB_KEY, 0.0)
         else:
-            rpm = safe_float(_get(session, f"feedcal_rpm_{fid}", 0.0), 0.0, 0.0, 100000.0)
-            coeff_raw = safe_float(_get(session, f"feedcal_coeff_{fid}", 0.0), 0.0, 0.0, 100000.0)
+            rpm = _calib_get(session, f"feedcal_rpm_{fid}", 0.0)
+            coeff_raw = _calib_get(session, f"feedcal_coeff_{fid}", 0.0)
         poly = (getattr(f, "polymer_name", "") or "").strip()
         cals.append(FeederCalibration(
             feeder_id=fid,

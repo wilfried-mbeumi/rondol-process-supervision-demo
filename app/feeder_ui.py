@@ -35,6 +35,45 @@ from AgentIndustrial_v1.core.coercion import safe_float
 FEEDER_RPM_KEY = "feeder_rpm"
 FEEDER_CALIB_KEY = "feeder_calib_g_h_per_rpm"  # 0.0 = non renseigné
 
+# Streamlit multipage purge les clés de WIDGET non montées lors d'une navigation.
+# L'étalonnage saisi sur Profile serait donc perdu sur Moteur Procédé. On le
+# MIROITE dans des clés PERSISTANTES (non liées à un widget) qui survivent à la
+# navigation. Lecture nav-safe = widget si présent, sinon miroir persistant.
+_PERSIST_SUFFIX = "__persist"
+
+
+def _persist_one(session: MutableMapping[str, Any], key: str) -> None:
+    try:
+        if key in session:
+            session[key + _PERSIST_SUFFIX] = session[key]
+    except Exception:  # pragma: no cover - proxy hors contexte
+        pass
+
+
+def mirror_calibration_to_persistent(
+    session: MutableMapping[str, Any], feeder_ids=range(1, 6),
+) -> None:
+    """Copie les clés d'étalonnage WIDGET → clés PERSISTANTES (survie navigation)."""
+    _persist_one(session, FEEDER_RPM_KEY)
+    _persist_one(session, FEEDER_CALIB_KEY)
+    for fid in feeder_ids:
+        if fid != 1:
+            _persist_one(session, f"feedcal_rpm_{fid}")
+            _persist_one(session, f"feedcal_coeff_{fid}")
+
+
+def calib_read(session: Mapping[str, Any], widget_key: str, default: float) -> float:
+    """Lecture nav-safe d'une clé d'étalonnage : widget → persistant → défaut."""
+    try:
+        if widget_key in session:
+            return safe_float(session[widget_key], default, 0.0, 100000.0)
+        pk = widget_key + _PERSIST_SUFFIX
+        if pk in session:
+            return safe_float(session[pk], default, 0.0, 100000.0)
+    except Exception:  # pragma: no cover
+        pass
+    return default
+
 # Provenance canonique (exigence « source de vérité »).
 USER_INPUT = "USER_INPUT"
 DEFAULT_CONFIG = "DEFAULT_CONFIG"
@@ -51,11 +90,9 @@ def ensure_feeder_defaults(session: MutableMapping[str, Any]) -> None:
 
 
 def current_feeder_flow(session: Mapping[str, Any]) -> FeederFlow:
-    """Résout le débit réel depuis les clés session (coercition robuste)."""
-    rpm = safe_float(session.get(FEEDER_RPM_KEY, 30.0) if hasattr(session, "get")
-                     else 30.0, 30.0, 0.0, 100000.0)
-    calib_raw = safe_float(session.get(FEEDER_CALIB_KEY, 0.0) if hasattr(session, "get")
-                           else 0.0, 0.0, 0.0, 100000.0)
+    """Résout le débit réel depuis les clés session (lecture nav-safe)."""
+    rpm = calib_read(session, FEEDER_RPM_KEY, 30.0)
+    calib_raw = calib_read(session, FEEDER_CALIB_KEY, 0.0)
     calib = calib_raw if calib_raw > 0.0 else None
     return resolve_feeder_flow(rpm, calib)
 
@@ -119,12 +156,8 @@ def multi_feeder_from_session(session: Mapping[str, Any], feeders) -> MultiFeede
     for f in feeders:
         fid = int(f.feeder_id)
         rpm_default = 30.0 if fid == 1 else 0.0
-        rpm = safe_float(session.get(feedcal_rpm_key(fid), rpm_default)
-                         if hasattr(session, "get") else rpm_default,
-                         rpm_default, 0.0, 100000.0)
-        coeff_raw = safe_float(session.get(feedcal_coeff_key(fid), 0.0)
-                               if hasattr(session, "get") else 0.0,
-                               0.0, 0.0, 100000.0)
+        rpm = calib_read(session, feedcal_rpm_key(fid), rpm_default)
+        coeff_raw = calib_read(session, feedcal_coeff_key(fid), 0.0)
         poly = (getattr(f, "polymer_name", "") or "").strip()
         cals.append(FeederCalibration(
             feeder_id=fid, label=(f.label or f"Feeder {fid}"),
@@ -183,6 +216,9 @@ def render_multi_feeder_calibration(st_module, feeders, container=None) -> Multi
             key=feedcal_coeff_key(fid), disabled=not enabled,
         )
 
+    # Persiste l'étalonnage saisi (survie navigation multipage).
+    mirror_calibration_to_persistent(ss, [int(f.feeder_id) for f in feeders])
+
     multi = multi_feeder_from_session(ss, feeders)
     for line in multi.lines:
         if line.status == STATUS_OK:
@@ -236,6 +272,9 @@ def render_feeder_calibration(st_module, container=None) -> FeederFlow:
             f"0 = non renseigné → débit réel non calculable."
         ),
     )
+
+    # Persiste l'étalonnage feeder #1 (survie navigation multipage Profile→Moteur).
+    mirror_calibration_to_persistent(st_module.session_state, [1])
 
     ff = current_feeder_flow(st_module.session_state)
 
