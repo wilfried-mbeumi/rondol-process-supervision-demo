@@ -551,6 +551,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "settings.adv.screw_target": {"fr": "Config vis cible (L/D)", "en": "Target screw config (L/D)"},
     "settings.adv.elements_fmt": {"fr": "{v} éléments", "en": "{v} elements"},
     "settings.adv.sf_zone": {"fr": "Side feeder zone", "en": "Side feeder zone"},
+    "settings.adv.sf_disabled": {"fr": "Désactivé", "en": "Disabled"},
     "settings.adv.sf_caption": {
         "fr": "{z} — piloté par le Feeder #2 (grille Feeders). "
               "Activez/positionnez le feeder #2 pour changer la zone side feed.",

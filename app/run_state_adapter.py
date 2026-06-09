@@ -33,30 +33,40 @@ def build(session: MutableMapping[str, Any]) -> CurrentRunState:
 
 
 def project_to_legacy(crs: CurrentRunState, session: MutableMapping[str, Any]) -> None:
-    """Initialise les clés legacy depuis l'état canonique (sens UNIQUE).
+    """Projette l'état canonique vers les clés legacy partagées.
 
-    RÈGLE INVARIANTE manager 2026-06-09 (correctif Pb #2) :
-    **n'écrit JAMAIS une clé déjà présente en session**.
+    SÉMANTIQUE ASYMÉTRIQUE (manager 2026-06-09, deux correctifs combinés) :
 
-    Avant ce correctif, project_to_legacy écrasait `screw_config`, `screw_rpm`,
-    `bulk_density` et `feeder_g_per_min` à chaque rerun. Comme Profile appelle
-    `sync_legacy_projection` à la fin de chaque rerun, toute édition de la vis
-    (boutons +1/+4/−1) était systématiquement annulée par le snapshot
-    précédent au rerun suivant — l'utilisateur croyait ne plus pouvoir
-    modifier après une sauvegarde. Repro pure-Python : snapshot=5 éléments,
-    +2 par l'utilisateur → session=7 → project_to_legacy → session=5.
+    1. **Saisies UTILISATEUR** (`screw_config`, `screw_rpm`, `bulk_density`)
+       → **setdefault-only** : n'écrit JAMAIS si la clé est déjà en session.
+       Justification (Pb #2) : Profile édite ces clés via ses widgets.
+       Si project_to_legacy écrasait à chaque rerun avec le snapshot validé,
+       toute édition utilisateur entre deux reruns (boutons +1/+4/−1 sur la
+       vis, modification de RPM ou densité) était silencieusement annulée.
+       Repro pure-Python : snapshot=5 éléments, +2 par l'utilisateur →
+       session=7 → project_to_legacy → session=5.
 
-    Sémantique correcte : project_to_legacy initialise les clés ABSENTES
-    (premier boot / refresh navigateur / session purgée par navigation
-    multipage). Les pages de SAISIE (Profile, Settings) gardent l'exclusivité
-    sur les écritures de leurs clés (via leurs widgets et `project_shared_keys`
-    côté Settings après commit).
+    2. **Grandeur DÉRIVÉE** (`feeder_g_per_min` quand l'étalonnage feeder est
+       calibré) → **écrase TOUJOURS** : la valeur est calculée depuis
+       RPM × coefficient, pas saisie. Elle doit primer sur toute valeur
+       ancienne. Justification (BUG 1 du retour terrain) : si une ancienne
+       valeur `feeder_g_per_min=30` traînait en session (restaurée du miroir
+       disque opérateur), setdefault-only la conservait silencieusement, et
+       le débit étalonné 4.17 g/min n'était pas propagé à Profile/Supervision
+       (Moteur Procédé reste OK car il lit `crs.feed_rate` directement).
+       Repro pure-Python prouvée.
 
-    Cohérent avec `restore_operator_state` (même règle d'idempotence) et avec
-    `seed_editing_keys` (même règle : ne touche pas les clés présentes).
+       Si l'étalonnage feeder n'est PAS calibré (coeff=0), la clé legacy
+       `feeder_g_per_min` reste setdefault-only (mode hors étalonnage, saisie
+       SME directe pilote).
+
+    Cohérent avec `restore_operator_state` et `seed_editing_keys` pour les
+    saisies. Cohérent avec `project_shared_keys` côté Settings (qui écrit
+    aussi depuis state édité) pour la grandeur dérivée.
     """
     pp = crs.process_parameters
 
+    # --- Saisies utilisateur : setdefault-only (Pb #2) ---
     if ("screw_rpm" not in session
             and "screw_rpm" in pp and pp["screw_rpm"].value is not None):
         session["screw_rpm"] = float(pp["screw_rpm"].value)
@@ -68,12 +78,21 @@ def project_to_legacy(crs: CurrentRunState, session: MutableMapping[str, Any]) -
     if "screw_config" not in session and crs.screw_profile.value is not None:
         session["screw_config"] = list(crs.screw_profile.value)
 
-    # Débit legacy (g/min) UNIQUEMENT si la clé est absente ET si le débit
-    # réel est calculable (étalonnage feeder présent). Sinon on ne touche pas.
-    if "feeder_g_per_min" not in session:
-        ff = crs.feeder_calibration.value
-        if (crs.feed_rate.source == CALCULATED and ff is not None
-                and getattr(ff, "effective_g_min", None) is not None):
+    # --- Grandeur dérivée : étalonnage calibré ÉCRASE TOUJOURS (BUG 1) ---
+    ff = crs.feeder_calibration.value
+    _calibrated = (
+        crs.feed_rate.source == CALCULATED
+        and ff is not None
+        and getattr(ff, "effective_g_min", None) is not None
+    )
+    if _calibrated:
+        # Étalonnage exploitable → écrase systématiquement la valeur legacy
+        # (la grandeur dérivée prime sur toute valeur ancienne saisie/restaurée).
+        session["feeder_g_per_min"] = float(ff.effective_g_min)
+    else:
+        # Mode hors étalonnage → setdefault-only (saisie SME directe pilote).
+        if "feeder_g_per_min" not in session and ff is not None and getattr(
+                ff, "effective_g_min", None) is not None:
             session["feeder_g_per_min"] = float(ff.effective_g_min)
 
 

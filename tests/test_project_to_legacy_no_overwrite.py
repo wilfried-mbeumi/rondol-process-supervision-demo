@@ -110,21 +110,47 @@ def test_project_to_legacy_does_not_overwrite_bulk_density():
     assert sess["bulk_density"] == 0.80
 
 
-def test_project_to_legacy_does_not_overwrite_feeder_g_per_min_when_calibrated():
-    """Même contrat pour feeder_g_per_min, même quand l'étalonnage est
-    calibré. C'est `project_shared_keys` (côté Settings après commit) qui
-    écrit cette clé depuis l'état édité, JAMAIS project_to_legacy quand la
-    clé existe déjà."""
+def test_project_to_legacy_overwrites_feeder_g_per_min_when_calibrated():
+    """SÉMANTIQUE DÉRIVÉE (BUG 1, manager 2026-06-09) : `feeder_g_per_min`
+    est une GRANDEUR CALCULÉE (RPM × coefficient), pas une saisie utilisateur.
+    L'étalonnage exploitable DOIT primer sur toute valeur ancienne en session,
+    sinon une valeur restaurée du miroir disque (30 g/min par défaut) bloque
+    la propagation du débit étalonné (4.17 g/min) à Profile/Supervision.
+
+    Asymétrie : screw_config / screw_rpm / bulk_density sont des SAISIES →
+    setdefault-only ; feeder_g_per_min étalonné est DÉRIVÉE → écrase toujours."""
     sess: dict = {
         "feeder_rpm": 100.0, "feeder_calib_g_h_per_rpm": 2.5,
-        "fd_en_1": True, "feeder_g_per_min": 12.0,   # valeur Profile saisie
+        "fd_en_1": True, "feeder_g_per_min": 30.0,   # ancienne valeur résiduelle
     }
     seed_editing_keys(sess)
+    sess["feeder_rpm"] = 100.0
+    sess["feeder_calib_g_h_per_rpm"] = 2.5
+    sess["feeder_g_per_min"] = 30.0   # ancienne valeur (résiduelle du store disque)
     state = build_state_from_widgets(sess)
     applied_commit(sess, state, label="snap_calib")
-    sess["feeder_g_per_min"] = 12.0   # l'opérateur force une valeur Profile
+    sess["feeder_g_per_min"] = 30.0
     sync_legacy_projection(sess)
-    assert sess["feeder_g_per_min"] == 12.0
+    # Le débit étalonné 100×2.5 = 250 g/h = 4,17 g/min DOIT primer.
+    assert abs(sess["feeder_g_per_min"] - 250.0 / 60.0) < 0.01
+
+
+def test_project_to_legacy_no_calibration_setdefault_only():
+    """Mode hors étalonnage (coeff=0) : `feeder_g_per_min` reste setdefault-only.
+    L'utilisateur Profile peut saisir directement une valeur SME et elle est
+    conservée."""
+    sess: dict = {
+        "feeder_rpm": 30.0, "feeder_calib_g_h_per_rpm": 0.0,
+        "fd_en_1": True, "feeder_g_per_min": 8.0,
+    }
+    seed_editing_keys(sess)
+    sess["feeder_calib_g_h_per_rpm"] = 0.0
+    sess["feeder_g_per_min"] = 8.0
+    state = build_state_from_widgets(sess)
+    applied_commit(sess, state, label="snap_no_calib")
+    sess["feeder_g_per_min"] = 8.0
+    sync_legacy_projection(sess)
+    assert sess["feeder_g_per_min"] == 8.0
 
 
 # ---------------------------------------------------------------------------

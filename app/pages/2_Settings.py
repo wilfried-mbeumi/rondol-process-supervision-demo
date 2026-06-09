@@ -912,10 +912,11 @@ with st.expander(t("settings.expander.advanced"), expanded=False):
         # affiche en lecture seule la zone dérivée, pour éviter une seconde
         # propriété de la même donnée (reconception state 2026-05-21).
         _sf2 = state.feeders[1] if len(state.feeders) > 1 else None
+        # i18n du libellé « Désactivé / Disabled » (fuite FR détectée par sonde).
         _sf_txt = (
             f"Z{_sf2.position[1:]}"
             if _sf2 and _sf2.enabled and _sf2.position.startswith("Z")
-            else "Désactivé"
+            else t("settings.adv.sf_disabled")
         )
         st.markdown(f"**{t('settings.adv.sf_zone')}**")
         st.caption(t("settings.adv.sf_caption", z=_sf_txt))
