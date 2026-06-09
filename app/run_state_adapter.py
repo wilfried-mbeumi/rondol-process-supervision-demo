@@ -33,31 +33,48 @@ def build(session: MutableMapping[str, Any]) -> CurrentRunState:
 
 
 def project_to_legacy(crs: CurrentRunState, session: MutableMapping[str, Any]) -> None:
-    """Projette l'état canonique vers les clés legacy partagées (sens UNIQUE).
+    """Initialise les clés legacy depuis l'état canonique (sens UNIQUE).
 
-    Écrit uniquement des valeurs DISPONIBLES (jamais NOT_AVAILABLE → on ne
-    remplace pas une valeur legacy par du None). Idempotent : si la session est
-    déjà cohérente, n'introduit aucun changement de valeur.
+    RÈGLE INVARIANTE manager 2026-06-09 (correctif Pb #2) :
+    **n'écrit JAMAIS une clé déjà présente en session**.
+
+    Avant ce correctif, project_to_legacy écrasait `screw_config`, `screw_rpm`,
+    `bulk_density` et `feeder_g_per_min` à chaque rerun. Comme Profile appelle
+    `sync_legacy_projection` à la fin de chaque rerun, toute édition de la vis
+    (boutons +1/+4/−1) était systématiquement annulée par le snapshot
+    précédent au rerun suivant — l'utilisateur croyait ne plus pouvoir
+    modifier après une sauvegarde. Repro pure-Python : snapshot=5 éléments,
+    +2 par l'utilisateur → session=7 → project_to_legacy → session=5.
+
+    Sémantique correcte : project_to_legacy initialise les clés ABSENTES
+    (premier boot / refresh navigateur / session purgée par navigation
+    multipage). Les pages de SAISIE (Profile, Settings) gardent l'exclusivité
+    sur les écritures de leurs clés (via leurs widgets et `project_shared_keys`
+    côté Settings après commit).
+
+    Cohérent avec `restore_operator_state` (même règle d'idempotence) et avec
+    `seed_editing_keys` (même règle : ne touche pas les clés présentes).
     """
     pp = crs.process_parameters
 
-    if "screw_rpm" in pp and pp["screw_rpm"].value is not None:
+    if ("screw_rpm" not in session
+            and "screw_rpm" in pp and pp["screw_rpm"].value is not None):
         session["screw_rpm"] = float(pp["screw_rpm"].value)
 
-    if "bulk_density" in pp and pp["bulk_density"].value is not None:
+    if ("bulk_density" not in session
+            and "bulk_density" in pp and pp["bulk_density"].value is not None):
         session["bulk_density"] = float(pp["bulk_density"].value)
 
-    if crs.screw_profile.value is not None:
+    if "screw_config" not in session and crs.screw_profile.value is not None:
         session["screw_config"] = list(crs.screw_profile.value)
 
-    # Débit legacy (g/min) UNIQUEMENT si le débit réel est calculable
-    # (étalonnage feeder présent) ; sinon on ne touche pas la valeur existante.
-    if crs.feeder_calibration.source == CALCULATED:  # défensif (jamais le cas)
-        pass
-    ff = crs.feeder_calibration.value
-    if (crs.feed_rate.source == CALCULATED and ff is not None
-            and getattr(ff, "effective_g_min", None) is not None):
-        session["feeder_g_per_min"] = float(ff.effective_g_min)
+    # Débit legacy (g/min) UNIQUEMENT si la clé est absente ET si le débit
+    # réel est calculable (étalonnage feeder présent). Sinon on ne touche pas.
+    if "feeder_g_per_min" not in session:
+        ff = crs.feeder_calibration.value
+        if (crs.feed_rate.source == CALCULATED and ff is not None
+                and getattr(ff, "effective_g_min", None) is not None):
+            session["feeder_g_per_min"] = float(ff.effective_g_min)
 
 
 def build_moteur_inputs_from_current_run_state(crs: CurrentRunState) -> dict[str, Any]:
