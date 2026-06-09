@@ -79,18 +79,24 @@ except Exception:  # pragma: no cover
 
 PROFILE = str(APP / "pages" / "1_Profile.py")
 MOTEUR = str(APP / "pages" / "5_Moteur_Procede.py")
+SETTINGS = str(APP / "pages" / "2_Settings.py")
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
 def test_profile_to_moteur_feeder_sync_end_to_end():
-    # 1) Profile : saisie RPM 30 + coeff 10 (rendu sidebar) → persiste le miroir.
-    at = AppTest.from_file(PROFILE)
+    # Phase S1 stabilisation 2026-06-09 : l'étalonnage feeder n'est plus saisi
+    # dans Profile (lecture seule). La source d'édition est Settings — qui
+    # crée le miroir persistant via `mirror_calibration_to_persistent`
+    # appelé par `render_multi_feeder_calibration`.
+    # 1) Settings : saisie RPM 30 + coeff 10 → persiste le miroir.
+    at = AppTest.from_file(SETTINGS)
     at.session_state[FEEDER_RPM_KEY] = 30.0
     at.session_state[FEEDER_CALIB_KEY] = 10.0
+    at.session_state["fd_en_1"] = True
     at.run(timeout=90)
     assert not at.exception, [str(e.value) for e in at.exception]
     ss = at.session_state
-    # Le miroir persistant doit exister.
+    # Le miroir persistant doit exister (créé par Settings désormais).
     assert ss[FEEDER_RPM_KEY + "__persist"] == 30.0
     assert ss[FEEDER_CALIB_KEY + "__persist"] == 10.0
 

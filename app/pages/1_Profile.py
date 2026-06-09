@@ -73,8 +73,9 @@ from screw_render import (  # noqa: E402
 # i18n — sélecteur de langue + traduction du chrome (B1).
 from rondol_i18n import language_selector, t  # noqa: E402
 
-# Étalonnage feeder (RPM × coeff → débit réel) — bloc partagé.
-from feeder_ui import render_feeder_calibration  # noqa: E402
+# Phase S1 : Profile ne saisit plus l'étalonnage feeder (édition centralisée
+# dans Settings). L'import render_feeder_calibration est retiré pour qu'aucun
+# widget concurrent ne réécrive `feeder_g_per_min`.
 
 # P3.2 : source de vérité current_run_state + projection legacy (sens unique).
 from run_state_adapter import sync_legacy_projection  # noqa: E402
@@ -162,29 +163,47 @@ st.html(
 # ---------------------------------------------------------------------------
 # Sidebar : paramètres procédé
 # ---------------------------------------------------------------------------
+# Phase S1 stabilisation (manager 2026-06-09) : Profile est désormais la page
+# d'édition du PROFIL DE VIS uniquement (boutons +1/+4/−1 sur les éléments).
+# RPM / débit feeder / densité bulk sont LECTURE SEULE ici — leur édition se
+# fait exclusivement dans la page **Settings**. Avant ce correctif, Profile
+# avait ses propres widgets (sb_rpm / sb_feed / sb_dens) qui écrivaient
+# directement les clés legacy `screw_rpm` / `feeder_g_per_min` / `bulk_density`
+# en parallèle des widgets Settings (`ni_rpm_hmi` / étalonnage / `fd_dens_1`).
+# Cette duplication de source de vérité causait des désynchronisations
+# silencieuses après navigation. UNE source = Settings.
 with st.sidebar:
     language_selector()
     st.divider()
     st.markdown(f"**{t('profile.sidebar.params')}**")
-    st.caption(t("profile.sidebar.params_caption"))
-    st.session_state["screw_rpm"] = st.number_input(
-        t("profile.sidebar.rpm"), min_value=1.0, max_value=3000.0,
-        value=float(st.session_state["screw_rpm"]), step=10.0, key="sb_rpm",
-    )
-    # Débit feeder via ÉTALONNAGE (RPM × coeff g/h/RPM). Si étalonné, écrit le
-    # débit effectif (plafonné max machine) dans feeder_g_per_min. Sinon, repli
-    # de saisie directe (clairement étiqueté hors étalonnage).
-    _ff_calib = render_feeder_calibration(st, st.sidebar)
-    if not _ff_calib.calibrated:
-        st.session_state["feeder_g_per_min"] = st.number_input(
-            t("profile.sidebar.feed") + " — saisie directe (hors étalonnage)",
-            min_value=0.0, max_value=1000.0,
-            value=float(st.session_state["feeder_g_per_min"]), step=1.0, key="sb_feed",
-        )
-    st.session_state["bulk_density"] = st.number_input(
-        t("profile.sidebar.dens"), min_value=0.05, max_value=5.0,
-        value=float(st.session_state["bulk_density"]), step=0.05, key="sb_dens",
-    )
+    st.caption(t("profile.sidebar.params_caption_ro"))
+
+    # Lecture seule des valeurs pilotées depuis Settings. Hydratation garantie
+    # par restore_operator_state + project_to_legacy (cf. ligne 89 + ligne 1149).
+    _rpm_ro = float(st.session_state.get("screw_rpm", 120.0))
+    _dens_ro = float(st.session_state.get("bulk_density", 0.55))
+    _feed_ro = float(st.session_state.get("feeder_g_per_min", 0.0))
+
+    st.metric(t("profile.sidebar.rpm"), f"{_rpm_ro:.0f} rpm")
+
+    # Débit feeder : si l'étalonnage est exploitable, on l'affiche en clair
+    # avec le rappel de la formule. Sinon, « Non calculable » (aucun débit par
+    # défaut inventé — cohérent avec Moteur Procédé).
+    _feed_rpm = float(st.session_state.get("feeder_rpm", 0.0))
+    _feed_coeff = float(st.session_state.get("feeder_calib_g_h_per_rpm", 0.0))
+    if _feed_ro > 0.0 and _feed_coeff > 0.0:
+        st.metric(t("profile.sidebar.feed"), f"{_feed_ro:.2f} g/min")
+        st.caption(t(
+            "profile.sidebar.feed_calibrated_hint",
+            rpm=f"{_feed_rpm:.0f}", coeff=f"{_feed_coeff:.2f}",
+        ))
+    elif _feed_ro > 0.0:
+        st.metric(t("profile.sidebar.feed"), f"{_feed_ro:.2f} g/min")
+    else:
+        st.metric(t("profile.sidebar.feed"), t("profile.sidebar.feed_not_calculable"))
+
+    st.metric(t("profile.sidebar.dens"), f"{_dens_ro:.3f} g/cm³")
+    st.caption(t("profile.sidebar.piloted_by_settings"))
     st.markdown(f"**{t('profile.sidebar.dosage')}**")
     st.caption(t("profile.sidebar.sf_caption"))
     _sf_zone_now = int(st.session_state.get("side_feeder_zone", SIDE_FEEDER_DISABLED_ZONE))

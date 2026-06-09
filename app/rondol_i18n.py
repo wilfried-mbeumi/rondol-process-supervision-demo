@@ -140,6 +140,24 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "profile.sidebar.rpm": {"fr": "Vitesse vis (rpm)", "en": "Screw speed (rpm)"},
     "profile.sidebar.feed": {"fr": "Débit feeder (g/min)", "en": "Feeder rate (g/min)"},
     "profile.sidebar.dens": {"fr": "Densité bulk (g/cm³)", "en": "Bulk density (g/cm³)"},
+    # Phase S1 stabilisation 2026-06-09 : Profile sidebar passe en lecture seule
+    # pour RPM/débit/densité (édition centralisée dans Settings).
+    "profile.sidebar.params_caption_ro": {
+        "fr": "Valeurs pilotées depuis **Settings** — lecture seule ici.",
+        "en": "Values piloted from **Settings** — read-only here.",
+    },
+    "profile.sidebar.piloted_by_settings": {
+        "fr": "ℹ️ Pour modifier ces valeurs, allez dans **Paramètres IA & feeders**.",
+        "en": "ℹ️ To modify these values, go to **AI & feeders settings**.",
+    },
+    "profile.sidebar.feed_not_calculable": {
+        "fr": "Non calculable",
+        "en": "Not computable",
+    },
+    "profile.sidebar.feed_calibrated_hint": {
+        "fr": "Étalonnage : {rpm} RPM × {coeff} g/h/RPM",
+        "en": "Calibration: {rpm} RPM × {coeff} g/h/RPM",
+    },
     "profile.sidebar.dosage": {"fr": "DOSAGE", "en": "DOSING"},
     "profile.sidebar.sf_caption": {
         "fr": "Side feeder : 0 = désactivé · 1..8 = zone procédé Z1..Z8",
