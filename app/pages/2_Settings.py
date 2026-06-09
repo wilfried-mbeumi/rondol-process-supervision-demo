@@ -70,6 +70,8 @@ from AgentIndustrial_v1.core.applied_state import (  # noqa: E402
 )
 from AgentIndustrial_v1.core.editing_state import (  # noqa: E402
     build_state_from_widgets,
+    feeder_calibrated_g_per_min,
+    feeder_is_calibrated,
     project_shared_keys,
     seed_editing_keys,
 )
@@ -579,13 +581,31 @@ with col_left:
     flow_cols = st.columns(6)
     for i, f in enumerate(state.feeders):
         with flow_cols[i]:
-            # Unité explicite dans le label visible (manager 2026-06-09).
+            _fid = f.feeder_id
+            _fid_enabled = bool(st.session_state[f"fd_en_{_fid}"])
+            # Manager 2026-06-09 : si l'étalonnage feeder #fid est renseigné,
+            # le widget SME est VERROUILLÉ — une seule source de vérité pour le
+            # débit (l'étalonnage prime, cf. editing_state.build_state_from_widgets).
+            # L'opérateur voit la valeur étalonnée sous le widget (lecture seule).
+            _fid_calibrated = feeder_is_calibrated(st.session_state, _fid)
             st.number_input(
-                f"#{f.feeder_id} {t('settings.feeder.flow_unit')}",
+                f"#{_fid} {t('settings.feeder.flow_unit')}",
                 min_value=0.0, max_value=2000.0,
-                step=1.0, key=f"fd_flow_{f.feeder_id}",
-                disabled=not bool(st.session_state[f"fd_en_{f.feeder_id}"]),
+                step=1.0, key=f"fd_flow_{_fid}",
+                disabled=(not _fid_enabled) or _fid_calibrated,
+                help=(
+                    t("settings.feeder.flow_locked_by_calibration")
+                    if _fid_calibrated else None
+                ),
             )
+            if _fid_calibrated and _fid_enabled:
+                _calib_g_min = feeder_calibrated_g_per_min(
+                    st.session_state, _fid,
+                ) or 0.0
+                st.caption(t(
+                    "settings.feeder.flow_from_calibration",
+                    v=f"{_calib_g_min:.2f}",
+                ))
 
     # ─── Bloc 3bis : PROPRIÉTÉS MATIÈRE ÉTENDUES par feeder ──────────────
     # (Exigence manager 2026-05-20 — l'IA doit avoir les données polymère,

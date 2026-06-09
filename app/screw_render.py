@@ -1758,7 +1758,14 @@ def compute_recommendations(
         if _bt in (0, 13):
             continue
         _present.add(_bt)
+    # IMPORTANT — table dupliquée volontairement (cf. commentaire ci-dessus pour
+    # le découplage). DOIT rester synchronisée avec
+    # screw_logic.ELEMENT_MENTION_TOKENS (manager 2026-06-09 : ajout des tokens
+    # d'angle Kneading 30/45/60/90 pour bloquer les recos qui citent un angle
+    # absent du profil — bug observé : profil avec seulement Kneading 60°,
+    # reco qui mentionnait « Kneading 90° » passait le filtre collectif).
     _ELEMENT_TOKENS = (
+        # Tokens collectifs.
         ("kneading", {4, 5, 7, 8}), ("malaxage", {4, 5, 7, 8}), ("malaxeur", {4, 5, 7, 8}),
         ("convoyage", {1, 2, 9}), ("conveying", {1, 2, 9}),
         ("short-pitch", {3}), ("pas court", {3}),
@@ -1767,6 +1774,11 @@ def compute_recommendations(
         ("toothed", {11}), ("dentelé", {11}),
         ("special mixing", {12}), ("mélange spécial", {12}),
         ("reverse", {9}),
+        # Tokens d'angle SPÉCIFIQUE (Kneading 30/45/60/90 = types 5/8/7/4).
+        ("kneading 90", {4}), ("malaxage 90", {4}),
+        ("kneading 30", {5}), ("malaxage 30", {5}),
+        ("kneading 60", {7}), ("malaxage 60", {7}),
+        ("kneading 45", {8}), ("malaxage 45", {8}),
     )
 
     def _cites_absent(r: dict) -> bool:

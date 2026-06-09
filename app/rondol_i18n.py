@@ -362,6 +362,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Thermal expansion (1/K)",
     },
     "settings.feeder.flow_unit": {"fr": "g/min", "en": "g/min"},
+    # Manager 2026-06-09 — saisie SME verrouillée quand l'étalonnage est présent
+    # (source de vérité unique pour le débit feeder).
+    "settings.feeder.flow_locked_by_calibration": {
+        "fr": "Débit calculé via l'étalonnage (RPM × coefficient) — modifier "
+              "le coefficient pour changer ce débit.",
+        "en": "Flow computed from calibration (RPM × coefficient) — edit "
+              "the coefficient to change this flow.",
+    },
+    "settings.feeder.flow_from_calibration": {
+        "fr": "✓ Débit étalonné : {v} g/min (verrouillé)",
+        "en": "✓ Calibrated flow: {v} g/min (locked)",
+    },
     # Phase 5 — températures rouges : « estimé » au lieu de « réel ».
     "settings.t_estimated_short": {"fr": "estimé", "en": "estimated"},
     "settings.t_estimated_tooltip": {

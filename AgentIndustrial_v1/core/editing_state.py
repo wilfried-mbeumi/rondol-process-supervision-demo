@@ -37,7 +37,9 @@ Module PUR : aucune dépendance Streamlit (testable en CLI sur un dict).
 
 from __future__ import annotations
 
-from typing import Any, MutableMapping
+from typing import Any, Mapping, MutableMapping
+
+from physics.feeder_flow import resolve_feeder_flow
 
 from .applied_state import _safe_get
 from .coercion import safe_float, safe_int
@@ -61,6 +63,61 @@ TORQUE_KEY = "ni_tq_v2"
 PRESSURE_KEY = "ni_pr_v2"
 N_DIE_KEY = "n_die_zones"
 SCREW_CONFIG_KEY = "screw_config"
+
+# ---------------------------------------------------------------------------
+# Étalonnage feeder — réconciliation manager 2026-06-09 (bloc A)
+# ---------------------------------------------------------------------------
+# Clés d'étalonnage partagées avec app/feeder_ui (copiées ici pour ne PAS créer
+# de dépendance core → app). Feeder #1 = clés legacy historiques ; feeders
+# #2..N = `feedcal_{rpm,coeff}_{id}`.
+_FEEDER1_RPM_KEY = "feeder_rpm"
+_FEEDER1_CALIB_KEY = "feeder_calib_g_h_per_rpm"
+_PERSIST_SUFFIX = "__persist"
+
+
+def _feedcal_rpm_key(feeder_id: int) -> str:
+    return _FEEDER1_RPM_KEY if feeder_id == 1 else f"feedcal_rpm_{feeder_id}"
+
+
+def _feedcal_coeff_key(feeder_id: int) -> str:
+    return _FEEDER1_CALIB_KEY if feeder_id == 1 else f"feedcal_coeff_{feeder_id}"
+
+
+def _calib_read(session: Mapping[str, Any], widget_key: str, default: float) -> float:
+    """Lecture nav-safe d'une clé d'étalonnage : widget > miroir persistant > défaut."""
+    v = _safe_get(session, widget_key, None)
+    if v is None:
+        v = _safe_get(session, widget_key + _PERSIST_SUFFIX, None)
+    return safe_float(v, default, 0.0, 100000.0) if v is not None else default
+
+
+def feeder_is_calibrated(session: Mapping[str, Any], feeder_id: int) -> bool:
+    """True si l'étalonnage feeder #{fid} est exploitable (coeff > 0).
+
+    Source de vérité partagée avec `feeder_calibrated_g_per_min` et avec la
+    chaîne `current_run_state._feeder_calibrations` : mêmes clés, même règle.
+    """
+    coeff = _calib_read(session, _feedcal_coeff_key(int(feeder_id)), 0.0)
+    return coeff > 0.0
+
+
+def feeder_calibrated_g_per_min(
+    session: Mapping[str, Any], feeder_id: int,
+) -> float | None:
+    """Débit g/min effectif de l'étalonnage feeder #{fid}, None si non étalonné.
+
+    Applique le clamp `MAX_FEEDER_FLOW_G_H` (centralisé dans physics.feeder_flow)
+    — JAMAIS de plafonnement silencieux. Cohérent avec ce qu'affiche le bloc
+    multi-feeder de Settings et avec le total `current_run_state.feed_rate`.
+    """
+    fid = int(feeder_id)
+    rpm_default = 30.0 if fid == 1 else 0.0
+    rpm = _calib_read(session, _feedcal_rpm_key(fid), rpm_default)
+    coeff = _calib_read(session, _feedcal_coeff_key(fid), 0.0)
+    if coeff <= 0.0:
+        return None
+    ff = resolve_feeder_flow(rpm, coeff)
+    return float(ff.effective_g_min or 0.0)
 
 
 def _setdefault(session: MutableMapping[str, Any], key: str, value: Any) -> None:
@@ -151,6 +208,16 @@ def build_state_from_widgets(session: MutableMapping[str, Any]) -> ProcessState:
             f.mass_flow_g_per_min = safe_float(
                 session[f"fd_flow_{fid}"], f.mass_flow_g_per_min, 0.0, 2000.0
             )
+        # Cause racine #1 manager 2026-06-09 : si l'étalonnage feeder #fid est
+        # calibré (RPM × coeff > 0), il PRIME sur la saisie SME directe
+        # `fd_flow_{fid}`. Garantit qu'il n'y a qu'UNE source de vérité pour
+        # le débit feeder ; sinon `project_shared_keys` écraserait silencieusement
+        # le débit étalonné par la valeur SME au prochain rerun, et toute la
+        # chaîne (Profile, Supervision, Agent IA) verrait un débit incohérent
+        # avec le total multi-feeder affiché par Settings.
+        _calib_flow = feeder_calibrated_g_per_min(session, fid)
+        if _calib_flow is not None:
+            f.mass_flow_g_per_min = _calib_flow
         if f"fd_poly_{fid}" in session:
             f.polymer_name = str(session[f"fd_poly_{fid}"])
         f.t_degradation_C = _none_if_zero(_safe_get(session, f"fd_tdeg_{fid}"))

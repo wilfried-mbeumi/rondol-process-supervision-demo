@@ -205,9 +205,18 @@ def present_element_types(config: list[int]) -> set[int]:
 # Tokens textuels (FR/EN, minuscule) → familles de types d'éléments concernées.
 # Si un token apparaît dans le texte d'une reco mais qu'AUCUN de ses types n'est
 # présent dans la config, la reco cite un élément absent → interdite.
+#
+# Manager 2026-06-09 : les tokens d'ANGLE SPÉCIFIQUE (kneading 30/45/60/90) sont
+# évalués en plus des tokens collectifs (kneading/malaxage). Cela bloque le cas
+# vu en prod : profil avec uniquement Kneading 60° (type 7), reco qui cite
+# « Kneading 90° » (type 4 absent). Avant ce correctif, le filtre laissait
+# passer parce que le token collectif « kneading » matchait via le type 7
+# présent ; désormais le token spécifique « kneading 90 » détecte l'absence
+# du type 4 et la reco est supprimée.
 _KNEADING_TYPES: frozenset[int] = frozenset({4, 5, 7, 8})
 _CONVEYING_TYPES: frozenset[int] = frozenset({1, 2, 9})
 ELEMENT_MENTION_TOKENS: tuple[tuple[str, frozenset[int]], ...] = (
+    # Tokens collectifs (mélange en général).
     ("kneading", _KNEADING_TYPES),
     ("malaxage", _KNEADING_TYPES),
     ("malaxeur", _KNEADING_TYPES),
@@ -224,6 +233,19 @@ ELEMENT_MENTION_TOKENS: tuple[tuple[str, frozenset[int]], ...] = (
     ("special mixing", frozenset({12})),
     ("mélange spécial", frozenset({12})),
     ("reverse", frozenset({9})),
+    # Tokens d'angle SPÉCIFIQUE (manager 2026-06-09) — types Kneading individuels :
+    #   4 = Kneading 90° (dispersif)
+    #   5 = Kneading 30° (distributif)
+    #   7 = Kneading 60° (intermédiaire)
+    #   8 = Kneading 45° (distributif)
+    ("kneading 90", frozenset({4})),
+    ("malaxage 90", frozenset({4})),
+    ("kneading 30", frozenset({5})),
+    ("malaxage 30", frozenset({5})),
+    ("kneading 60", frozenset({7})),
+    ("malaxage 60", frozenset({7})),
+    ("kneading 45", frozenset({8})),
+    ("malaxage 45", frozenset({8})),
 )
 
 
