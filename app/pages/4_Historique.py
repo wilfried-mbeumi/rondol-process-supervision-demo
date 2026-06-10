@@ -51,7 +51,7 @@ from demo_ml_run import demo_ml_banner_html  # noqa: E402
 # Store opérateur central (cohérence inter-pages).
 from operator_store import restore_operator_state  # noqa: E402
 # i18n FR/EN (Phase 6 manager 2026-06-09) — Historique doit aussi être traduit.
-from rondol_i18n import t  # noqa: E402
+from rondol_i18n import language_selector, t  # noqa: E402
 # Mode client vs démonstration (Phase S2) : aucune chimie nominale (LFP/LATP)
 # ne doit s'afficher en mode client — même convention que Moteur Procédé.
 from app_mode import is_demo_mode  # noqa: E402
@@ -80,6 +80,8 @@ header[data-testid="stHeader"]{background:transparent!important;height:0!importa
 [data-testid="stVerticalBlockBorderWrapper"]>div{border-color:#1F2937!important;border-radius:.65rem;}
 </style>
 """)
+
+language_selector()
 
 RONDOL_GREEN = "#4CAF50"
 

@@ -50,7 +50,7 @@ from app_mode import (  # noqa: E402
 # i18n FR/EN (stabilisation globale 2026-06-10) — uniquement pour le libellé
 # « Non renseigné » : en anglais, l'écran doit afficher « Not entered ».
 # Modification STRICTEMENT textuelle (aucune logique moteur touchée).
-from rondol_i18n import t as _t  # noqa: E402
+from rondol_i18n import language_selector as _language_selector, t as _t  # noqa: E402
 
 
 def _material_label_i18n(name, demo_mode_flag):
@@ -133,6 +133,8 @@ header[data-testid="stHeader"]{background:transparent!important;height:0!importa
 [data-testid="stMetricValue"]>div{overflow:visible;}
 </style>
 """)
+
+_language_selector()
 
 RONDOL_GREEN = "#4CAF50"
 ACC = "#4ADE80"   # vert (confirmé)

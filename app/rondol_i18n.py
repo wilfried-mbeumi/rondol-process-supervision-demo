@@ -37,7 +37,7 @@ import i18n_messages  # noqa: E402
 
 LANG_KEY = "ui_lang"
 DEFAULT_LANG = "en"
-SUPPORTED_LANGS: tuple[str, ...] = ("fr", "en")
+SUPPORTED_LANGS: tuple[str, ...] = ("en", "fr")
 _LANG_LABELS: dict[str, str] = {"fr": "Français", "en": "English"}
 
 # ---------------------------------------------------------------------------

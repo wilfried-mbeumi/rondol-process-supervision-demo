@@ -97,6 +97,13 @@ RAW_KEY_PATTERN = re.compile(
 )
 
 
+def _load_fresh(path: str):
+    """Fresh session — NO ui_lang preset. Tests that DEFAULT_LANG takes effect."""
+    at = AppTest.from_file(path)
+    at.session_state["demo_mode"] = False
+    return at.run(timeout=120)
+
+
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
 @pytest.mark.parametrize("name", list(PAGES))
 def test_no_forbidden_french_in_english_mode(name):
@@ -117,9 +124,41 @@ def test_no_raw_i18n_keys_in_english_mode(name):
     at = _load_en(PAGES[name])
     assert not at.exception, [str(e.value) for e in at.exception]
     text = _rendered_text(at)
-    matches = RAW_KEY_PATTERN.findall(text)
     raw_keys = RAW_KEY_PATTERN.findall(text)
     assert not raw_keys, (
         f"[{name}] raw i18n keys found in rendered UI: "
         f"{[m.group() for m in RAW_KEY_PATTERN.finditer(text)]}"
     )
+
+
+@pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
+def test_settings_direct_entry_defaults_english():
+    """Direct URL /Settings on fresh session must render English."""
+    at = _load_fresh(PAGES["Settings"])
+    assert not at.exception, [str(e.value) for e in at.exception]
+    assert at.session_state["ui_lang"] == "en", (
+        f"Settings defaulted to '{at.session_state['ui_lang']}' instead of 'en'"
+    )
+    text = _rendered_text(at)
+    for fr in FORBIDDEN_FR:
+        assert fr not in text, f"[Settings direct] French leak: '{fr}'"
+
+
+@pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
+def test_settings_rerun_stays_english():
+    """After initial render, rerun must keep English."""
+    at = _load_fresh(PAGES["Settings"])
+    assert not at.exception
+    at2 = at.run()
+    assert not at2.exception
+    assert at2.session_state["ui_lang"] == "en"
+
+
+@pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
+def test_all_pages_default_english_fresh_session():
+    """Every page must default to English on a fresh session (no ui_lang set)."""
+    for name, path in PAGES.items():
+        at = _load_fresh(path)
+        assert not at.exception, f"[{name}] exception: {[str(e.value) for e in at.exception]}"
+        lang = at.session_state["ui_lang"]
+        assert lang == "en", f"[{name}] defaulted to '{lang}' instead of 'en'"
