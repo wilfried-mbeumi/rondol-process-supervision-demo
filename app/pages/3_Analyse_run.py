@@ -52,9 +52,7 @@ st.html(
     'margin:0.3rem 0 0.5rem;color:#C4B5FD;font-size:0.84rem;">'
     '<span style="background:#7C3AED;color:#fff;font-weight:700;font-size:0.6rem;'
     'letter-spacing:0.06em;padding:0.05rem 0.4rem;border-radius:0.25rem;">DEMO</span>'
-    "<span>Analyse d'un run du <b>dataset ML d'essai (avril 2026)</b> — durée, "
-    "scores et profils sont des <b>données de démonstration</b>, "
-    "<b>non un run opérateur live</b>.</span>"
+    f"<span>{t('analyse.demo_banner')}</span>"
     '</div>'
 )
 st.divider()
@@ -132,8 +130,7 @@ col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric(t("m.run"),              f"#{selected_run}")
 col2.metric(
     t("m.duration"), f"{dur:.1f} min",
-    help="DEMO — durée du run d'essai (run_duration_min du dataset ML), "
-         "pas un temps procédé opérateur validé.",
+    help=t("analyse.demo_duration_help"),
 )
 col3.metric(t("analyse.m.windows"),  n_win)
 col4.metric(t("analyse.m.pct_stable"),   f"{pct_stable:.0f} %")
@@ -141,10 +138,7 @@ col5.metric(t("analyse.m.pct_critical"), f"{pct_crit:.0f} %")
 
 # Marquage explicite : ces indicateurs sont des métadonnées du run de
 # démonstration (dataset ML d'essai), jamais un run opérateur live.
-st.caption(
-    "⚠️ DEMO — durée, % stable/critique et scores ci-dessus sont des "
-    "métadonnées du run d'essai (dataset ML), non un run opérateur live."
-)
+st.caption(t("analyse.demo_caption"))
 
 st.divider()
 

@@ -61,7 +61,7 @@ restore_operator_state(st.session_state)
 DATASET_PATH = ROOT / "data" / "features" / "dataset_ml_w60.csv"
 THRESHOLD = 80
 
-st.set_page_config(page_title="Historique des procédés — Rondol", layout="wide")
+st.set_page_config(page_title=t("page.historique.title"), layout="wide")
 
 # ---------------------------------------------------------------------------
 # Thème sombre Rondol (cohérent avec Supervision / Moteur Procédé) — bloc statique
@@ -107,10 +107,12 @@ def _fmt_num(value, decimals: int = 1, suffix: str = "") -> str:
         return "—"
 
 
-_SOURCE_LABELS = {
-    "manual": "Manuel",
-    "demonstration": "Démonstration",
-}
+def _source_label(source: str) -> str:
+    """Libellé i18n d'une source de record (défaut : manuel)."""
+    return (
+        t("historique.source.demo") if source == "demonstration"
+        else t("historique.source.manual")
+    )
 
 
 def _record_to_row(rec: dict) -> dict[str, str]:
@@ -128,27 +130,33 @@ def _record_to_row(rec: dict) -> dict[str, str]:
     )
     status = rec.get("status", "archivé")
     return {
-        "Statut": "● Actif" if status == "actif" else "Archivé",
-        "Date / heure": _fmt_timestamp(rec.get("timestamp_iso", "")),
-        "Label": rec.get("label") or "—",
-        "Source": _SOURCE_LABELS.get(rec.get("source", ""), "Manuel"),
-        "Vis (tr/min)": _fmt_num(cfg.get("screw_rpm"), 0),
-        "Débit princ. (g/min)": _fmt_num(cfg.get("debit_principal_g_min"), 1),
-        "Matière": cfg.get("matiere_principale") or "—",
-        "Zones die": str(int(cfg.get("zones_die", 0) or 0)),
-        "Éléments": n_el_str,
-        "Couple (N·m)": _fmt_num(kpi.get("couple_total_nm"), 3),
-        "SME (kWh/kg)": _fmt_num(kpi.get("sme_kwh_kg"), 4),
-        "Résidence (s)": _fmt_num(kpi.get("residence_s"), 1),
-        "Fill moy.": _fmt_num(kpi.get("fill_moyen"), 2),
-        "Fill crête": _fmt_num(kpi.get("fill_crete"), 2),
-        "Cisaill. max (1/s)": _fmt_num(kpi.get("cisaillement_max_s"), 0),
+        t("historique.col.status"): (
+            "● " + t("historique.status.active") if status == "actif"
+            else t("historique.status.archived")
+        ),
+        t("historique.col.datetime"): _fmt_timestamp(rec.get("timestamp_iso", "")),
+        t("historique.col.label"): rec.get("label") or "—",
+        t("historique.col.source"): _source_label(rec.get("source", "")),
+        t("historique.col.rpm"): _fmt_num(cfg.get("screw_rpm"), 0),
+        t("historique.col.flow"): _fmt_num(cfg.get("debit_principal_g_min"), 1),
+        t("historique.col.material"): cfg.get("matiere_principale") or "—",
+        t("historique.col.die_zones"): str(int(cfg.get("zones_die", 0) or 0)),
+        t("historique.col.elements"): n_el_str,
+        t("historique.col.torque"): _fmt_num(kpi.get("couple_total_nm"), 3),
+        t("historique.col.sme"): _fmt_num(kpi.get("sme_kwh_kg"), 4),
+        t("historique.col.residence"): _fmt_num(kpi.get("residence_s"), 1),
+        t("historique.col.fill_mean"): _fmt_num(kpi.get("fill_moyen"), 2),
+        t("historique.col.fill_peak"): _fmt_num(kpi.get("fill_crete"), 2),
+        t("historique.col.shear"): _fmt_num(kpi.get("cisaillement_max_s"), 0),
     }
 
 
 def _status_style(val: str) -> str:
-    """Couleur de la cellule Statut (vert = actif, gris = archivé)."""
-    if "Actif" in val:
+    """Couleur de la cellule Statut (vert = actif, gris = archivé).
+
+    Repère la puce « ● » (préfixe du statut actif) — indépendant de la langue.
+    """
+    if "●" in val:
         return "color:#10B981;font-weight:600"
     return "color:#9CA3AF"
 
@@ -160,17 +168,13 @@ st.html(
     f'<div style="background:{RONDOL_GREEN};padding:0.55rem 1rem;border-radius:0.3rem;'
     f'display:flex;justify-content:space-between;align-items:center;color:white;'
     f'font-weight:600;font-size:1rem;margin-bottom:0.5rem;">'
-    f'<span>● Rondol · Historique des procédés</span>'
-    f'<span style="font-size:0.85rem;opacity:0.9;">Configurations enregistrées (persistant)</span>'
+    f'<span>{t("historique.banner.left")}</span>'
+    f'<span style="font-size:0.85rem;opacity:0.9;">{t("historique.banner.right")}</span>'
     f'</div>'
 )
 
-st.markdown("## Historique des procédés")
-st.caption(
-    "Configurations validées (« Enregistrer » dans Paramètres IA & feeders), "
-    "conservées sur disque et restaurées au redémarrage. Lecture seule — KPIs "
-    "moteur figés au moment de l'enregistrement, aucune valeur recalculée."
-)
+st.markdown("## " + t("historique.header"))
+st.caption(t("historique.header.caption"))
 
 # ---------------------------------------------------------------------------
 # Section principale — historique procédé PERSISTANT (data/history/*.json)
@@ -180,61 +184,74 @@ _runs = _load.runs
 
 if _load.corrupt:
     # Robustesse : fichier illisible → message discret, pas de crash.
-    st.warning(
-        "Fichier d'historique illisible — affichage ignoré pour cette lecture. "
-        "Les prochains enregistrements repartiront sur une base saine.",
-        icon="⚠️",
-    )
+    st.warning(t("historique.corrupt"), icon="⚠️")
 
 if not _runs:
-    st.info(
-        "**Aucun historique procédé enregistré.** "
-        "L'historique se remplira après l'enregistrement d'une configuration "
-        "(page **Paramètres IA & feeders → Enregistrer**) et sera conservé même "
-        "après redémarrage de l'application.",
-        icon="ℹ️",
-    )
+    st.info(t("historique.empty"), icon="ℹ️")
 else:
     # Métriques d'en-tête (comptages — pas de calcul procédé).
     _active = next((r for r in _runs if r.get("status") == "actif"), _runs[-1])
     _active_label = _active.get("label") or _fmt_timestamp(_active.get("timestamp_iso", ""))
     h1, h2, h3 = st.columns(3)
-    h1.metric("Procédés enregistrés", str(len(_runs)))
-    h2.metric("Dernier enregistrement", _fmt_timestamp(_runs[-1].get("timestamp_iso", "")))
-    h3.metric("Procédé actif", _active_label)
+    h1.metric(t("historique.m.count"), str(len(_runs)))
+    h2.metric(t("historique.m.last"), _fmt_timestamp(_runs[-1].get("timestamp_iso", "")))
+    h3.metric(t("historique.m.active"), _active_label)
 
     # Filtres simples (statut / source / date) — sur les records, pas de recalcul.
+    # Valeurs INTERNES stables (indépendantes de la langue) + format_func i18n :
+    # un changement de langue ne casse jamais la valeur stockée du widget.
     _dates = sorted(
         {(r.get("timestamp_iso", "") or "")[:10] for r in _runs if r.get("timestamp_iso")},
         reverse=True,
     )
+    _STATUS_FMT = {
+        "all": "historique.f.all_m",
+        "active": "historique.status.active",
+        "archived": "historique.status.archived",
+    }
+    _SOURCE_FMT = {
+        "all": "historique.f.all_f",
+        "manual": "historique.source.manual",
+        "demonstration": "historique.source.demo",
+    }
     f1, f2, f3 = st.columns(3)
-    _f_status = f1.selectbox("Statut", ["Tous", "Actif", "Archivé"], key="hist_f_status")
-    _f_source = f2.selectbox("Source", ["Toutes", "Manuel", "Démonstration"], key="hist_f_source")
-    _f_date = f3.selectbox("Date", ["Toutes"] + _dates, key="hist_f_date")
+    _f_status = f1.selectbox(
+        t("historique.f.status"), ["all", "active", "archived"],
+        format_func=lambda v: t(_STATUS_FMT[v]), key="hist_f_status",
+    )
+    _f_source = f2.selectbox(
+        t("historique.f.source"), ["all", "manual", "demonstration"],
+        format_func=lambda v: t(_SOURCE_FMT[v]), key="hist_f_source",
+    )
+    _f_date = f3.selectbox(
+        t("historique.f.date"), ["all"] + _dates,
+        format_func=lambda v: t("historique.f.all_f") if v == "all" else v,
+        key="hist_f_date",
+    )
 
     def _keep(r: dict) -> bool:
-        if _f_status == "Actif" and r.get("status") != "actif":
+        if _f_status == "active" and r.get("status") != "actif":
             return False
-        if _f_status == "Archivé" and r.get("status") == "actif":
+        if _f_status == "archived" and r.get("status") == "actif":
             return False
-        if _f_source != "Toutes" and _SOURCE_LABELS.get(r.get("source", ""), "Manuel") != _f_source:
+        _src = "demonstration" if r.get("source") == "demonstration" else "manual"
+        if _f_source != "all" and _src != _f_source:
             return False
-        if _f_date != "Toutes" and (r.get("timestamp_iso", "") or "")[:10] != _f_date:
+        if _f_date != "all" and (r.get("timestamp_iso", "") or "")[:10] != _f_date:
             return False
         return True
 
     _filtered = [r for r in _runs if _keep(r)]
 
     if not _filtered:
-        st.caption("Aucun procédé ne correspond aux filtres sélectionnés.")
+        st.caption(t("historique.no_filter_match"))
     else:
         # Tableau — plus récent en haut.
         _rows = [_record_to_row(r) for r in reversed(_filtered)]
         _df = pd.DataFrame(_rows)
         with st.container(border=True):
             st.dataframe(
-                _df.style.map(_status_style, subset=["Statut"]),
+                _df.style.map(_status_style, subset=[t("historique.col.status")]),
                 use_container_width=True,
                 hide_index=True,
             )
@@ -242,12 +259,12 @@ else:
         # ---- Détail d'un procédé (agrégats zones + statut agent) -------------
         def _run_caption(r: dict) -> str:
             ts = _fmt_timestamp(r.get("timestamp_iso", ""))
-            lbl = r.get("label") or "(sans libellé)"
+            lbl = r.get("label") or t("historique.no_label")
             return f"{ts} · {lbl}"
 
         _options = list(reversed(_filtered))
         _idx = st.selectbox(
-            "Voir le détail d'un procédé",
+            t("historique.detail_select"),
             range(len(_options)),
             format_func=lambda i: _run_caption(_options[i]),
             key="hist_detail_sel",
@@ -339,7 +356,7 @@ else:
                 st.caption(t("historique.agent_absent"))
 
     if _load.skipped:
-        st.caption(f"Note : {_load.skipped} entrée(s) illisible(s) ignorée(s).")
+        st.caption(t("historique.skipped_note", n=_load.skipped))
 
 # ---------------------------------------------------------------------------
 # Section secondaire — essais d'entraînement ML (contenu existant, séparé)
@@ -352,7 +369,7 @@ def load_dataset() -> pd.DataFrame:
     return pd.read_csv(DATASET_PATH, parse_dates=["window_start", "window_end"])
 
 
-with st.expander("Essais d'entraînement ML — données historiques modèle", expanded=False):
+with st.expander(t("historique.ml.expander"), expanded=False):
     st.html(demo_ml_banner_html(
         "Runs du jeu d'entraînement ML (SVM w60, essais avril 2026) — "
         "<b>démonstration</b>, strictement distincts de l'historique procédé opérateur."
@@ -459,4 +476,4 @@ with st.expander("Essais d'entraînement ML — données historiques modèle", e
         f"Seuil stable = {THRESHOLD}/100 · Seuil critique = 65/100"
     )
 
-st.caption("Rondol Industrie · Historique des procédés (persistant) · Prototype")
+st.caption(t("historique.footer"))

@@ -247,8 +247,16 @@ def _engine_kpis_block(report: Any) -> dict[str, Any]:
     }
 
 
-def _zones_block(report: Any) -> list[dict[str, Any]] | None:
-    """Agrégats par zone figés depuis EngineReport.zones (None si indisponible)."""
+def _zones_block(
+    report: Any, mask_nominal_materials: bool = False,
+) -> list[dict[str, Any]] | None:
+    """Agrégats par zone figés depuis EngineReport.zones (None si indisponible).
+
+    `mask_nominal_materials=True` (mode client, manager 2026-06-10) : le label
+    matière du moteur est une hypothèse NOMINALE (powder de démonstration, ex.
+    LFP), pas une saisie opérateur — il n'est alors PAS persisté
+    (`matiere_dominante=None`). Jamais de chimie inventée dans un record client.
+    """
     if report is None or not getattr(report, "zones", None):
         return None
     return [
@@ -257,7 +265,9 @@ def _zones_block(report: Any) -> list[dict[str, Any]] | None:
             "fill_moyen": float(z.mean_fill_factor),
             "fill_crete": float(z.max_fill_factor),
             "residence_s": float(z.residence_time_s),
-            "matiere_dominante": z.dominant_material,
+            "matiere_dominante": (
+                None if mask_nominal_materials else z.dominant_material
+            ),
         }
         for z in report.zones
     ]
@@ -268,11 +278,17 @@ def make_record(
     report: Any,
     source: str = SOURCE_MANUAL,
     agent: Mapping[str, Any] | None = None,
+    mask_nominal_materials: bool = False,
 ) -> dict[str, Any]:
     """Construit le record persistant complet depuis un snapshot + EngineReport.
 
     `agent` reste `None` par défaut : le statut agent (décision/score/alertes)
     n'est PAS disponible au moment du commit — on ne l'invente pas.
+
+    `mask_nominal_materials=True` : mode client — les labels matière NOMINAUX
+    du moteur (LFP/LATP de démonstration) ne sont pas persistés dans les
+    agrégats zones (cf. `_zones_block`). À passer depuis le call-site Settings
+    avec `not is_demo_mode(...)`.
     """
     feeders = list(getattr(snapshot, "feeders", []) or [])
     timestamp_iso = str(getattr(snapshot, "timestamp_iso", "") or "")
@@ -292,7 +308,7 @@ def make_record(
         "fingerprint": fingerprint,
         "config": _config_block(snapshot),
         "engine_kpis": _engine_kpis_block(report),
-        "zones": _zones_block(report),
+        "zones": _zones_block(report, mask_nominal_materials=mask_nominal_materials),
         "agent": dict(agent) if agent else None,
     }
 

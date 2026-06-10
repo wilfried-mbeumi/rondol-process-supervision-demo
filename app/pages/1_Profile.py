@@ -813,8 +813,8 @@ def _build_recs_html(recs_list: list[dict]) -> str:
             '<div style="padding:0.9rem;background:#111827;border:1px solid #1F2937;'
             'border-radius:0.3rem;color:#9CA3AF;font-style:italic;text-align:center;'
             'font-size:0.88rem;">'
-            "Aucune recommandation à afficher."
-            "</div>"
+            + t("profile.recos.none")
+            + "</div>"
         )
     items: list[str] = []
     for r in recs_list:
@@ -906,11 +906,11 @@ count_rec = recommend_element_count(
     zone_residence_fn=zone_residence_times,
 )
 
-# Confiance → couleur du badge (libellé visible, pas de chiffre)
+# Confiance → couleur du badge (libellé visible, pas de chiffre) — i18n.
 _CONF_STYLE: dict[str, tuple[str, str]] = {
-    "high":   ("#10B981", "ÉLEVÉE"),
-    "medium": ("#3B82F6", "MOYENNE"),
-    "low":    ("#F59E0B", "FAIBLE"),
+    "high":   ("#10B981", t("profile.conf.high")),
+    "medium": ("#3B82F6", t("profile.conf.medium")),
+    "low":    ("#F59E0B", t("profile.conf.low")),
 }
 
 
@@ -969,15 +969,15 @@ def _build_count_rec_html(cr, why_optimal_override: str = "") -> str:
         f'<span style="font-size:3rem;font-weight:700;color:#10B981;'
         f'line-height:1;">{suggested}</span>'
         f'<span style="font-size:1.25rem;font-weight:600;color:#10B981;'
-        f'line-height:1;">éléments recommandés</span>'
+        f'line-height:1;">{t("profile.reco.elements_recommended")}</span>'
         f'</div>'
         f'{tagline_html}'
         f'{archetype_chip}'
         f'<div style="color:{conf_color};font-size:0.8rem;'
-        f'margin-top:0.35rem;">Confiance {conf_label.lower()}</div>'
+        f'margin-top:0.35rem;">{t("profile.reco.confidence")} {conf_label.lower()}</div>'
         f'<div style="color:#9CA3AF;font-size:0.7rem;font-weight:600;'
         f'letter-spacing:0.04em;text-transform:uppercase;margin-top:0.6rem;">'
-        f'POURQUOI CE CHOIX EST OPTIMAL</div>'
+        f'{t("profile.reco.why_optimal")}</div>'
         f'<div style="color:#D1D5DB;font-size:0.88rem;line-height:1.55;'
         f'margin-top:0.2rem;">{why_optimal}</div>'
         f'</div>'
@@ -1059,7 +1059,7 @@ def _build_count_rec_html(cr, why_optimal_override: str = "") -> str:
             f'border-radius:0 0.2rem 0.2rem 0;">'
             f'<div style="color:#10B981;font-size:0.78rem;font-weight:600;'
             f'margin-bottom:0.45rem;letter-spacing:0.02em;">'
-            f'À FAIRE MAINTENANT</div>'
+            f'{t("profile.reco.do_now")}</div>'
             f'{sections_html}'
             f'</div>'
         )
@@ -1142,14 +1142,14 @@ fig_zones.add_trace(go.Bar(
     x=zone_names,
     y=zrt,
     marker_color="#06B6D4",
-    hovertemplate="%{x}<br>Résidence: %{y:.2f} s<extra></extra>",
+    hovertemplate="%{x}<br>" + t("profile.chart.residence_axis") + ": %{y:.2f} s<extra></extra>",
 ))
 fig_zones.update_layout(
     paper_bgcolor=BG_CARD, plot_bgcolor=BG_CARD,
     height=220, margin=dict(l=0, r=0, t=5, b=0),
     xaxis=dict(showgrid=False, color="#9CA3AF", tickfont=dict(size=11)),
     yaxis=dict(showgrid=True, gridcolor="#1F2937", color="#9CA3AF",
-               title=dict(text="Résidence (s)", font=dict(color="#9CA3AF"))),
+               title=dict(text=t("profile.chart.residence_axis"), font=dict(color="#9CA3AF"))),
     hoverlabel=dict(bgcolor="#1F2937", font_color="#F9FAFB"),
 )
 st.plotly_chart(fig_zones, use_container_width=True, key="zone_rt_chart")

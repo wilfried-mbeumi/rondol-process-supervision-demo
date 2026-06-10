@@ -92,6 +92,9 @@ from rondol_i18n import language_selector, t  # noqa: E402
 # page Moteur Procédé) ; le store ne fait que persister/mettre en forme.
 import history_store  # noqa: E402
 from engine.report_params import build_report_from_flat_params  # noqa: E402
+# Mode client vs démonstration : pilote le masquage des matières nominales
+# dans le record d'historique figé au commit (S2-bis manager 2026-06-10).
+from app_mode import is_demo_mode  # noqa: E402
 
 
 # ===========================================================================
@@ -264,7 +267,7 @@ with _save_col:
             sync_legacy_projection(st.session_state)
         except Exception:  # noqa: BLE001
             pass
-        st.toast("Configuration enregistrée — Supervision mise à jour.", icon="✅")
+        st.toast(t("settings.toast.saved"), icon="✅")
         # Persistance historique procédé (disque) + KPIs moteur FIGÉS au commit.
         # try/except : un échec de persistance ne doit JAMAIS casser l'enregistrement
         # session (la couche `applied`/Supervision est déjà validée ci-dessus).
@@ -277,13 +280,19 @@ with _save_col:
                 bulk_density=_fp["bulk_density"],
                 side_feeder_zone=_fp["side_feeder_zone"],
             )
-            _record = history_store.make_record(_snap, _report)
+            # S2-bis manager 2026-06-10 : en mode client (démo OFF), les labels
+            # matière NOMINAUX du moteur (LFP/LATP) ne sont PAS persistés dans
+            # les agrégats zones du record — jamais de chimie non saisie.
+            _record = history_store.make_record(
+                _snap, _report,
+                mask_nominal_materials=not is_demo_mode(st.session_state),
+            )
             if history_store.append_run(_record):
-                st.toast("Historique procédé mis à jour (persistant).", icon="🗂️")
+                st.toast(t("settings.toast.history_saved"), icon="🗂️")
             else:
-                st.toast("Configuration identique au dernier enregistrement — pas de doublon.", icon="ℹ️")
+                st.toast(t("settings.toast.duplicate"), icon="ℹ️")
         except Exception as _exc:  # noqa: BLE001 — persistance best-effort
-            st.toast(f"Historique persistant indisponible : {_exc}", icon="⚠️")
+            st.toast(t("settings.toast.history_error", err=_exc), icon="⚠️")
 with _label_col:
     st.text_input(
         t("settings.save.label"), value="", key="apply_label",

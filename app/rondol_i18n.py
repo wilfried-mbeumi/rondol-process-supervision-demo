@@ -439,17 +439,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "fr": "Agrégats par zone (figés au commit)",
         "en": "Per-zone aggregates (frozen at commit)",
     },
+    # Libellés exacts exigés par le manager (S2-bis 2026-06-10).
     "historique.zones_absent": {
         "fr": "Agrégats par zone non disponibles pour ce procédé.",
-        "en": "Per-zone aggregates unavailable for this run.",
+        "en": "Per-zone aggregates not available for this process.",
     },
     "historique.zones_not_significant": {
-        "fr": "Agrégats par zone non significatifs au moment du commit "
-              "(vis vide ou débit nul) — table masquée pour ne pas afficher "
-              "des zéros trompeurs.",
-        "en": "Per-zone aggregates not meaningful at commit time "
-              "(empty screw or zero flow) — table hidden to avoid showing "
-              "misleading zeros.",
+        "fr": "Agrégats par zone non disponibles pour ce procédé. "
+              "Valeurs non significatives au moment du commit "
+              "(vis vide ou débit nul) — table masquée.",
+        "en": "Per-zone aggregates not available for this process. "
+              "Values not meaningful at commit time "
+              "(empty screw or zero flow) — table hidden.",
     },
     "historique.zones_col.zone": {"fr": "Zone", "en": "Zone"},
     "historique.zones_col.fill_mean": {"fr": "Fill moyen", "en": "Mean fill"},
@@ -519,6 +520,248 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "profile.msg.add4_blocked": {
         "fr": "+4 bloqué — capacité ou positions insuffisantes pour 4 × {lbl}.",
         "en": "+4 blocked — insufficient capacity or positions for 4 × {lbl}.",
+    },
+    # Phase S2-bis — Profile : restes visibles (panneau recos / décision).
+    "profile.recos.none": {
+        "fr": "Aucune recommandation à afficher.",
+        "en": "No recommendation to display.",
+    },
+    "profile.reco.elements_recommended": {
+        "fr": "éléments recommandés", "en": "recommended elements",
+    },
+    "profile.reco.do_now": {"fr": "À FAIRE MAINTENANT", "en": "DO NOW"},
+    "profile.reco.confidence": {"fr": "Confiance", "en": "Confidence"},
+    "profile.reco.why_optimal": {
+        "fr": "POURQUOI CE CHOIX EST OPTIMAL", "en": "WHY THIS CHOICE IS OPTIMAL",
+    },
+    "profile.chart.residence_axis": {"fr": "Résidence (s)", "en": "Residence (s)"},
+    "profile.conf.high": {"fr": "ÉLEVÉE", "en": "HIGH"},
+    "profile.conf.medium": {"fr": "MOYENNE", "en": "MEDIUM"},
+    "profile.conf.low": {"fr": "FAIBLE", "en": "LOW"},
+
+    # Phase S2-bis — Settings : toasts d'enregistrement.
+    "settings.toast.saved": {
+        "fr": "Configuration enregistrée — Supervision mise à jour.",
+        "en": "Configuration saved — Supervision updated.",
+    },
+    "settings.toast.history_saved": {
+        "fr": "Historique procédé mis à jour (persistant).",
+        "en": "Process history updated (persistent).",
+    },
+    "settings.toast.duplicate": {
+        "fr": "Configuration identique au dernier enregistrement — pas de doublon.",
+        "en": "Configuration identical to the last save — no duplicate.",
+    },
+    "settings.toast.history_error": {
+        "fr": "Historique persistant indisponible : {err}",
+        "en": "Persistent history unavailable: {err}",
+    },
+
+    # Phase S2-bis — Supervision : blocs décision/état + avertissement débit.
+    "home.flow_not_computable": {
+        "fr": "**Débit réel non calculable : coefficient d'étalonnage feeder à "
+              "renseigner.** Les indicateurs dépendant du débit ne sont pas une "
+              "vérité procédé tant que l'étalonnage (RPM feeder × g/h/RPM) "
+              "n'est pas saisi dans **Profile**. Aucun débit par défaut n'est "
+              "utilisé.",
+        "en": "**Real flow not computable: feeder calibration coefficient "
+              "required.** Flow-dependent indicators are not process truth "
+              "until the calibration (feeder RPM × g/h/RPM) is entered in "
+              "**Profile**. No default flow is used.",
+    },
+    "home.rec_config.title": {
+        "fr": "CONFIG VIS RECOMMANDÉE", "en": "RECOMMENDED SCREW CONFIG",
+    },
+    "home.rec_config.elements": {"fr": "éléments", "en": "elements"},
+    "home.no_screw_reco": {
+        "fr": "Aucune recommandation vis active — ouvrez Profile pour analyser.",
+        "en": "No active screw recommendation — open Profile to analyse.",
+    },
+    "home.why_optimal": {
+        "fr": "POURQUOI {n} EST OPTIMAL", "en": "WHY {n} IS OPTIMAL",
+    },
+    "home.priority_action": {"fr": "ACTION PRIORITAIRE", "en": "PRIORITY ACTION"},
+    "home.no_other_alert": {
+        "fr": "— aucune autre alerte", "en": "— no other alert",
+    },
+    "home.main_reco": {"fr": "RECO PRINCIPALE", "en": "MAIN RECO"},
+    # Recos opérateur par état SVM (slots fixes — DOM stable).
+    "home.reco.STABLE.1.t": {"fr": "Maintenir les consignes thermiques actuelles",
+                             "en": "Keep the current thermal setpoints"},
+    "home.reco.STABLE.1.d": {"fr": "Aucun ajustement nécessaire — zones 1–8 dans les tolérances.",
+                             "en": "No adjustment needed — zones 1–8 within tolerance."},
+    "home.reco.STABLE.2.t": {"fr": "Contrôle visuel périodique du film suffit",
+                             "en": "Periodic visual film check is sufficient"},
+    "home.reco.STABLE.2.d": {"fr": "Fréquence standard — pas d'accélération requise.",
+                             "en": "Standard frequency — no acceleration required."},
+    "home.reco.STABLE.3.t": {"fr": "Pas d'intervention sur le profil de vis",
+                             "en": "No intervention on the screw profile"},
+    "home.reco.STABLE.3.d": {"fr": "Régime nominal confirmé par le modèle SVM.",
+                             "en": "Nominal regime confirmed by the SVM model."},
+    "home.reco.SURVEILLER.1.t": {"fr": "Augmenter la fréquence de contrôle qualité film",
+                                 "en": "Increase film quality check frequency"},
+    "home.reco.SURVEILLER.1.d": {"fr": "Vérifier épaisseur et aspect toutes les 5 min.",
+                                 "en": "Check thickness and appearance every 5 min."},
+    "home.reco.SURVEILLER.2.t": {"fr": "Inspecter les zones à std élevé ci-dessous",
+                                 "en": "Inspect the high-std zones below"},
+    "home.reco.SURVEILLER.2.d": {"fr": "Comparer avec les consignes de régulation en place.",
+                                 "en": "Compare with the regulation setpoints in place."},
+    "home.reco.SURVEILLER.3.t": {"fr": "Anticiper une correction si la dérive persiste",
+                                 "en": "Anticipate a correction if the drift persists"},
+    "home.reco.SURVEILLER.3.d": {"fr": "Attendre 2 cycles avant d'intervenir.",
+                                 "en": "Wait 2 cycles before intervening."},
+    "home.reco.SURVEILLER.4.t": {"fr": "Ne pas modifier la vitesse vis sans confirmation",
+                                 "en": "Do not change screw speed without confirmation"},
+    "home.reco.SURVEILLER.4.d": {"fr": "Risque d'amplification de la dérive thermique.",
+                                 "en": "Risk of amplifying the thermal drift."},
+    "home.reco.CRITIQUE.1.t": {"fr": "Réduire la vitesse de rotation vis de 10–15 %",
+                               "en": "Reduce screw rotation speed by 10–15%"},
+    "home.reco.CRITIQUE.1.d": {"fr": "Action prioritaire — effet mesurable en moins de 60 s.",
+                               "en": "Priority action — measurable effect within 60 s."},
+    "home.reco.CRITIQUE.2.t": {"fr": "Vérifier consigne et régulation des zones instables",
+                               "en": "Check setpoint and regulation of unstable zones"},
+    "home.reco.CRITIQUE.2.d": {"fr": "Comparer consigne vs mesure en temps réel.",
+                               "en": "Compare setpoint vs measurement in real time."},
+    "home.reco.CRITIQUE.3.t": {"fr": "Contrôler le film : épaisseur, aspect, homogénéité",
+                               "en": "Check the film: thickness, appearance, homogeneity"},
+    "home.reco.CRITIQUE.3.d": {"fr": "Écarter les bobines produites durant l'instabilité.",
+                               "en": "Set aside reels produced during the instability."},
+    "home.reco.CRITIQUE.4.t": {"fr": "Arrêt procédé si instabilité persiste > 2 min",
+                               "en": "Stop the process if instability persists > 2 min"},
+    "home.reco.CRITIQUE.4.d": {"fr": "Protocole sécurité qualité SSB — non négociable.",
+                               "en": "SSB quality safety protocol — non-negotiable."},
+    # États procédé : recommandations opérateur par état (5 slots fixes).
+    "home.expl.STABLE": {
+        "fr": "Toutes les zones thermiques sont dans les tolérances. "
+              "Zone la plus variable : **{sensor}** (σ = {std} °C) — sous le "
+              "seuil critique de 1,5 °C. Procédé en régime nominal.",
+        "en": "All thermal zones are within tolerance. Most variable zone: "
+              "**{sensor}** (σ = {std} °C) — below the 1.5 °C critical "
+              "threshold. Process in nominal regime.",
+    },
+    "home.expl.SURVEILLER": {
+        "fr": "**{sensor}** présente la variabilité la plus élevée "
+              "(σ = {std} °C). Score {score}/100 sous le seuil {th}. Dérive "
+              "thermique en cours — surveillance renforcée recommandée.",
+        "en": "**{sensor}** shows the highest variability (σ = {std} °C). "
+              "Score {score}/100 below the {th} threshold. Thermal drift in "
+              "progress — heightened monitoring recommended.",
+    },
+    "home.expl.CRITIQUE": {
+        "fr": "**{sensor}** est la zone la plus instable (σ = {std} °C, "
+              "seuil = 1,5 °C). Score {score}/100 critique. Risque de "
+              "production non conforme si non corrigé immédiatement.",
+        "en": "**{sensor}** is the most unstable zone (σ = {std} °C, "
+              "threshold = 1.5 °C). Critical score {score}/100. Risk of "
+              "non-conforming production if not corrected immediately.",
+    },
+
+    # Phase S2-bis — Analyse run : bandeau + avertissements DEMO.
+    "analyse.demo_banner": {
+        "fr": "Analyse d'un run du <b>dataset ML d'essai (avril 2026)</b> — "
+              "durée, scores et profils sont des <b>données de "
+              "démonstration</b>, <b>non un run opérateur live</b>.",
+        "en": "Analysis of a run from the <b>ML trial dataset (April 2026)</b> "
+              "— duration, scores and profiles are <b>demonstration data</b>, "
+              "<b>not a live operator run</b>.",
+    },
+    "analyse.demo_duration_help": {
+        "fr": "DEMO — durée du run d'essai (run_duration_min du dataset ML), "
+              "pas un temps procédé opérateur validé.",
+        "en": "DEMO — trial run duration (run_duration_min from the ML "
+              "dataset), not a validated operator process time.",
+    },
+    "analyse.demo_caption": {
+        "fr": "⚠️ DEMO — durée, % stable/critique et scores ci-dessus sont des "
+              "métadonnées du run d'essai (dataset ML), non un run opérateur "
+              "live.",
+        "en": "⚠️ DEMO — duration, % stable/critical and scores above are "
+              "trial-run metadata (ML dataset), not a live operator run.",
+    },
+
+    # Phase S2-bis — Historique : chrome section principale.
+    "page.historique.title": {
+        "fr": "Historique des procédés — Rondol", "en": "Process history — Rondol",
+    },
+    "historique.banner.left": {
+        "fr": "● Rondol · Historique des procédés", "en": "● Rondol · Process history",
+    },
+    "historique.banner.right": {
+        "fr": "Configurations enregistrées (persistant)",
+        "en": "Saved configurations (persistent)",
+    },
+    "historique.header": {"fr": "Historique des procédés", "en": "Process history"},
+    "historique.header.caption": {
+        "fr": "Configurations validées (« Enregistrer » dans Paramètres IA & "
+              "feeders), conservées sur disque et restaurées au redémarrage. "
+              "Lecture seule — KPIs moteur figés au moment de "
+              "l'enregistrement, aucune valeur recalculée.",
+        "en": "Validated configurations (“Save” in AI & feeders settings), "
+              "stored on disk and restored at restart. Read-only — engine "
+              "KPIs frozen at save time, no value recomputed.",
+    },
+    "historique.corrupt": {
+        "fr": "Fichier d'historique illisible — affichage ignoré pour cette "
+              "lecture. Les prochains enregistrements repartiront sur une "
+              "base saine.",
+        "en": "Unreadable history file — display skipped for this read. "
+              "Future saves will restart on a clean basis.",
+    },
+    "historique.empty": {
+        "fr": "**Aucun historique procédé enregistré.** L'historique se "
+              "remplira après l'enregistrement d'une configuration (page "
+              "**Paramètres IA & feeders → Enregistrer**) et sera conservé "
+              "même après redémarrage de l'application.",
+        "en": "**No saved process history.** History will fill up after a "
+              "configuration is saved (**AI & feeders settings → Save**) and "
+              "is kept across application restarts.",
+    },
+    "historique.m.count": {"fr": "Procédés enregistrés", "en": "Saved runs"},
+    "historique.m.last": {"fr": "Dernier enregistrement", "en": "Last save"},
+    "historique.m.active": {"fr": "Procédé actif", "en": "Active run"},
+    "historique.f.status": {"fr": "Statut", "en": "Status"},
+    "historique.f.source": {"fr": "Source", "en": "Source"},
+    "historique.f.date": {"fr": "Date", "en": "Date"},
+    "historique.f.all_m": {"fr": "Tous", "en": "All"},
+    "historique.f.all_f": {"fr": "Toutes", "en": "All"},
+    "historique.status.active": {"fr": "Actif", "en": "Active"},
+    "historique.status.archived": {"fr": "Archivé", "en": "Archived"},
+    "historique.source.manual": {"fr": "Manuel", "en": "Manual"},
+    "historique.source.demo": {"fr": "Démonstration", "en": "Demonstration"},
+    "historique.no_filter_match": {
+        "fr": "Aucun procédé ne correspond aux filtres sélectionnés.",
+        "en": "No run matches the selected filters.",
+    },
+    "historique.detail_select": {
+        "fr": "Voir le détail d'un procédé", "en": "View run detail",
+    },
+    "historique.no_label": {"fr": "(sans libellé)", "en": "(no label)"},
+    "historique.skipped_note": {
+        "fr": "Note : {n} entrée(s) illisible(s) ignorée(s).",
+        "en": "Note: {n} unreadable record(s) skipped.",
+    },
+    "historique.col.status": {"fr": "Statut", "en": "Status"},
+    "historique.col.datetime": {"fr": "Date / heure", "en": "Date / time"},
+    "historique.col.label": {"fr": "Label", "en": "Label"},
+    "historique.col.source": {"fr": "Source", "en": "Source"},
+    "historique.col.rpm": {"fr": "Vis (tr/min)", "en": "Screw (rpm)"},
+    "historique.col.flow": {"fr": "Débit princ. (g/min)", "en": "Main flow (g/min)"},
+    "historique.col.material": {"fr": "Matière", "en": "Material"},
+    "historique.col.die_zones": {"fr": "Zones die", "en": "Die zones"},
+    "historique.col.elements": {"fr": "Éléments", "en": "Elements"},
+    "historique.col.torque": {"fr": "Couple (N·m)", "en": "Torque (N·m)"},
+    "historique.col.sme": {"fr": "SME (kWh/kg)", "en": "SME (kWh/kg)"},
+    "historique.col.residence": {"fr": "Résidence (s)", "en": "Residence (s)"},
+    "historique.col.fill_mean": {"fr": "Fill moy.", "en": "Mean fill"},
+    "historique.col.fill_peak": {"fr": "Fill crête", "en": "Peak fill"},
+    "historique.col.shear": {"fr": "Cisaill. max (1/s)", "en": "Max shear (1/s)"},
+    "historique.ml.expander": {
+        "fr": "Essais d'entraînement ML — données historiques modèle",
+        "en": "ML training trials — model history data",
+    },
+    "historique.footer": {
+        "fr": "Rondol Industrie · Historique des procédés (persistant) · Prototype",
+        "en": "Rondol Industrie · Process history (persistent) · Prototype",
     },
     # Phase 6 — Étalonnage feeders (Settings expander + bloc Profile sidebar)
     "settings.expander.feedcal": {

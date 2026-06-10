@@ -1513,9 +1513,10 @@ def compute_recommendations(
             "Global",
             "Convection dominante / cisaillement insuffisant",
             "Pâte transite trop vite → homogénéité poudre active compromise",
-            f"Intercaler 2-3 × Malaxage (90° dispersif + 30/45° distributif) "
-            f"entre les zones de transport. À {rpm:.0f} rpm le temps de séjour "
-            f"est court — densifier le mélange compense.",
+            f"Intercaler 2-3 × malaxeurs supplémentaires entre les zones de "
+            f"transport (renforcer les types déjà présents sur le profil). "
+            f"À {rpm:.0f} rpm le temps de séjour est court — densifier le "
+            f"mélange compense.",
             evidence=f"ratio C/M = {ratio:.1f}:1",
         ))
 
@@ -1779,6 +1780,11 @@ def compute_recommendations(
         ("kneading 30", {5}), ("malaxage 30", {5}),
         ("kneading 60", {7}), ("malaxage 60", {7}),
         ("kneading 45", {8}), ("malaxage 45", {8}),
+        # Tokens d'angle NUS (manager 2026-06-10) : bloquent les formes
+        # « Malaxage (90° dispersif + 30/45° distributif) » qui échappaient aux
+        # tokens composés à cause de la ponctuation. Sans risque côté
+        # températures : celles-ci s'écrivent « 200 °C » (espace avant °).
+        ("90°", {4}), ("30°", {5}), ("60°", {7}), ("45°", {8}),
     )
 
     def _cites_absent(r: dict) -> bool:

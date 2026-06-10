@@ -151,55 +151,45 @@ def classify_state(score: float, proba_stable: float) -> str:
 # Chaque état a exactement _N_RECOS=5 tuples.
 # Les tuples ("", "") sont des placeholders invisibles.
 # Règle : NE JAMAIS changer ce nombre — cela rendrait la structure DOM instable.
-STATE_CFG = {
-    "STABLE": {
-        "label": "PROCÉDÉ STABLE", "sub": "Fonctionnement nominal",
-        "impact": "Film conforme — aucun risque qualité identifié",
-        "icon": "✦", "acc": "#10B981",
-        "recos": [
-            ("Maintenir les consignes thermiques actuelles",
-             "Aucun ajustement nécessaire — zones 1–8 dans les tolérances."),
-            ("Contrôle visuel périodique du film suffit",
-             "Fréquence standard — pas d'accélération requise."),
-            ("Pas d'intervention sur le profil de vis",
-             "Régime nominal confirmé par le modèle SVM."),
-            ("", ""),
-            ("", ""),
-        ],
-    },
-    "SURVEILLER": {
-        "label": "À SURVEILLER", "sub": "Surveillance renforcée",
-        "impact": "Instabilité thermique naissante — qualité film à contrôler",
-        "icon": "▲", "acc": "#F59E0B",
-        "recos": [
-            ("Augmenter la fréquence de contrôle qualité film",
-             "Vérifier épaisseur et aspect toutes les 5 min."),
-            ("Inspecter les zones à std élevé ci-dessous",
-             "Comparer avec les consignes de régulation en place."),
-            ("Anticiper une correction si la dérive persiste",
-             "Attendre 2 cycles avant d'intervenir."),
-            ("Ne pas modifier la vitesse vis sans confirmation",
-             "Risque d'amplification de la dérive thermique."),
-            ("", ""),
-        ],
-    },
-    "CRITIQUE": {
-        "label": "INSTABLE CRITIQUE", "sub": "Intervention requise",
-        "impact": "Risque film non conforme — correction ou arrêt immédiat",
-        "icon": "■", "acc": "#EF4444",
-        "recos": [
-            ("Réduire la vitesse de rotation vis de 10–15 %",
-             "Action prioritaire — effet mesurable en moins de 60 s."),
-            ("Vérifier consigne et régulation des zones instables",
-             "Comparer consigne vs mesure en temps réel."),
-            ("Contrôler le film : épaisseur, aspect, homogénéité",
-             "Écarter les bobines produites durant l'instabilité."),
-            ("Arrêt procédé si instabilité persiste > 2 min",
-             "Protocole sécurité qualité SSB — non négociable."),
-            ("", ""),
-        ],
-    },
-}
+# i18n S2-bis : libellés/sous-titres/impacts via les clés home.state.* déjà
+# présentes dans rondol_i18n ; recos opérateur par état via home.reco.<état>.<i>.
+# Structure inchangée : exactement 5 tuples par état (DOM stable).
+def _state_cfg() -> dict:
+    def _recos(state_key: str, n_filled: int) -> list[tuple[str, str]]:
+        out = [
+            (t(f"home.reco.{state_key}.{i}.t"), t(f"home.reco.{state_key}.{i}.d"))
+            for i in range(1, n_filled + 1)
+        ]
+        while len(out) < _N_RECOS:
+            out.append(("", ""))
+        return out
+
+    return {
+        "STABLE": {
+            "label": t("home.state.STABLE.label"),
+            "sub": t("home.state.STABLE.sub"),
+            "impact": t("home.state.STABLE.impact"),
+            "icon": "✦", "acc": "#10B981",
+            "recos": _recos("STABLE", 3),
+        },
+        "SURVEILLER": {
+            "label": t("home.state.SURVEILLER.label"),
+            "sub": t("home.state.SURVEILLER.sub"),
+            "impact": t("home.state.SURVEILLER.impact"),
+            "icon": "▲", "acc": "#F59E0B",
+            "recos": _recos("SURVEILLER", 4),
+        },
+        "CRITIQUE": {
+            "label": t("home.state.CRITIQUE.label"),
+            "sub": t("home.state.CRITIQUE.sub"),
+            "impact": t("home.state.CRITIQUE.impact"),
+            "icon": "■", "acc": "#EF4444",
+            "recos": _recos("CRITIQUE", 4),
+        },
+    }
+
+
+STATE_CFG = _state_cfg()
 
 # ---------------------------------------------------------------------------
 # Fonctions d'analyse — INCHANGÉES
@@ -326,27 +316,12 @@ p_col     = "#10B981" if proba_stable >= 0.70 else ("#EF4444" if proba_stable < 
 # ---------------------------------------------------------------------------
 # Texte diagnostic — markdown pur, sans HTML ni unsafe_allow_html
 # ---------------------------------------------------------------------------
-if state == "STABLE":
-    expl = (
-        f"Toutes les zones thermiques sont dans les tolérances. "
-        f"Zone la plus variable : **{top_sensor}** "
-        f"(σ = {top_std:.3f} °C) — sous le seuil critique de 1,5 °C. "
-        f"Procédé en régime nominal."
-    )
-elif state == "SURVEILLER":
-    expl = (
-        f"**{top_sensor}** présente la variabilité la plus élevée "
-        f"(σ = {top_std:.3f} °C). "
-        f"Score {score:.1f}/100 sous le seuil {THRESHOLD}. "
-        f"Dérive thermique en cours — surveillance renforcée recommandée."
-    )
-else:
-    expl = (
-        f"**{top_sensor}** est la zone la plus instable "
-        f"(σ = {top_std:.3f} °C, seuil = 1,5 °C). "
-        f"Score {score:.1f}/100 critique. "
-        f"Risque de production non conforme si non corrigé immédiatement."
-    )
+# i18n S2-bis : diagnostic par état via home.expl.<état> (FR/EN).
+expl = t(
+    f"home.expl.{state}",
+    sensor=top_sensor, std=f"{top_std:.3f}",
+    score=f"{score:.1f}", th=THRESHOLD,
+)
 
 # ===========================================================================
 #  RENDU — Streamlit natif uniquement
@@ -491,13 +466,7 @@ _screw_dens = _op_mi["bulk_density"]
 # Repli feeder non étalonné : ne pas présenter un débit/FF à 0 comme une vérité
 # procédé. On avertit explicitement (aucun débit par défaut inventé).
 if not _op_mi["feed_available"]:
-    st.warning(
-        "**Débit réel non calculable : coefficient d'étalonnage feeder à "
-        "renseigner.** Les indicateurs dépendant du débit ne sont pas une vérité "
-        "procédé tant que l'étalonnage (RPM feeder × g/h/RPM) n'est pas saisi "
-        "dans **Profile**. Aucun débit par défaut n'est utilisé.",
-        icon="⚠️",
-    )
+    st.warning(t("home.flow_not_computable"), icon="⚠️")
 
 _count_rec = screw_recommend_count(
     _screw_cfg, _screw_rpm, _screw_feed, _screw_dens,
@@ -629,11 +598,11 @@ with _dec_col1:
         f'<div style="background:#0B0F14;border:1px solid #10B981;'
         f'border-radius:0.3rem;padding:0.7rem 0.9rem;text-align:center;">'
         f'<div style="color:#9CA3AF;font-size:0.72rem;font-weight:600;'
-        f'letter-spacing:0.05em;">CONFIG VIS RECOMMANDÉE</div>'
+        f'letter-spacing:0.05em;">{t("home.rec_config.title")}</div>'
         f'<div style="color:#10B981;font-size:2.2rem;font-weight:700;'
         f'line-height:1.05;margin:0.25rem 0;">{_count_rec.suggested}</div>'
         f'<div style="color:#9CA3AF;font-size:0.78rem;">'
-        f'éléments · {_count_rec.tagline}</div>'
+        f'{t("home.rec_config.elements")} · {_count_rec.tagline}</div>'
         f'</div>'
     )
 with _dec_col2:
@@ -664,7 +633,7 @@ with _dec_col2:
             f'<div style="display:flex;gap:0.5rem;align-items:center;'
             f'flex-wrap:wrap;">'
             f'<span style="color:{accent};font-size:0.7rem;font-weight:700;'
-            f'letter-spacing:0.05em;">RECO PRINCIPALE · {sev.upper()}</span>'
+            f'letter-spacing:0.05em;">{t("home.main_reco")} · {sev.upper()}</span>'
             f'<span style="background:rgba(255,255,255,0.05);color:#D1D5DB;'
             f'border:1px solid {accent};font-weight:700;font-size:0.7rem;'
             f'padding:0.1rem 0.45rem;border-radius:0.2rem;">{zone}</span>'
@@ -683,8 +652,8 @@ with _dec_col2:
         st.html(
             '<div style="background:#111827;border-left:4px solid #3B82F6;'
             'border-radius:0.25rem;padding:0.55rem 0.85rem;color:#9CA3AF;">'
-            "Aucune recommandation vis active — ouvrez Profile pour analyser."
-            "</div>"
+            + t("home.no_screw_reco")
+            + "</div>"
         )
 
 # Pourquoi 25/30/40 est optimal (toujours présent → DOM stable).
@@ -698,7 +667,7 @@ st.html(
     f'<div style="background:rgba(16,185,129,0.04);border-left:2px solid #10B981;'
     f'border-radius:0 0.2rem 0.2rem 0;padding:0.5rem 0.85rem;margin-top:0.5rem;">'
     f'<div style="color:#10B981;font-size:0.7rem;font-weight:700;'
-    f'letter-spacing:0.04em;">POURQUOI {_count_rec.suggested} EST OPTIMAL</div>'
+    f'letter-spacing:0.04em;">{t("home.why_optimal", n=_count_rec.suggested)}</div>'
     f'<div style="color:#D1D5DB;font-size:0.84rem;line-height:1.5;'
     f'margin-top:0.2rem;">{_why_optimal}</div>'
     f'</div>'
@@ -709,7 +678,7 @@ if _main_action:
         f'<div style="background:rgba(16,185,129,0.06);border-left:2px solid #10B981;'
         f'border-radius:0 0.2rem 0.2rem 0;padding:0.5rem 0.85rem;margin-top:0.5rem;">'
         f'<div style="color:#10B981;font-size:0.7rem;font-weight:700;'
-        f'letter-spacing:0.04em;">ACTION PRIORITAIRE</div>'
+        f'letter-spacing:0.04em;">{t("home.priority_action")}</div>'
         f'<div style="color:#F9FAFB;font-size:0.86rem;line-height:1.45;'
         f'margin-top:0.2rem;">→ {_main_action}</div>'
         f'</div>'
@@ -764,7 +733,7 @@ while len(_rows_html) < 3:
     _rows_html.append(
         '<div style="border-left:3px solid #1F2937;padding:0.3rem 0.6rem;'
         'margin-top:0.3rem;background:#0B0F14;border-radius:0.2rem;'
-        'color:#374151;font-size:0.76rem;">— aucune autre alerte</div>'
+        f'color:#374151;font-size:0.76rem;">{t("home.no_other_alert")}</div>'
     )
 
 # Le « Cooling Test » opérateur a été retiré : on lit la zone la plus chaude

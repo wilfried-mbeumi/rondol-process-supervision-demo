@@ -207,8 +207,8 @@ def test_historique_all_zero_aggregates_show_status_not_table(tmp_path, monkeypa
     at = _run_historique(tmp_path, monkeypatch, _zero_record_with_lfp_zone8())
     assert not at.exception, [str(e.value) for e in at.exception]
     text = _all_rendered_text(at)
-    # Statut clair affiché (FR par défaut).
-    assert "non significatifs" in text
+    # Statut clair affiché (libellé exact manager S2-bis, FR par défaut).
+    assert "Agrégats par zone non disponibles pour ce procédé" in text
     # La table d'agrégats n'est pas rendue (le titre de section est absent).
     assert "Agrégats par zone (figés au commit)" not in text
 
