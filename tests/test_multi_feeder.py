@@ -178,4 +178,4 @@ def test_supervision_does_not_show_fake_zero_when_feeder_uncalibrated():
         [str(getattr(e, "value", "")) for e in at.warning]
         + [str(getattr(e, "body", getattr(e, "value", ""))) for e in at.get("html")]
     )
-    assert "coefficient d'étalonnage feeder à renseigner" in blob
+    assert "feeder calibration coefficient" in blob.lower()

@@ -65,9 +65,9 @@ def test_analyse_run_does_not_present_demo_metrics_as_operator_truth():
     at = AppTest.from_file(ANALYSE).run(timeout=60)
     assert not at.exception, [str(e.value) for e in at.exception]
     blob = _rendered(at)
-    assert "DEMO" in blob
-    assert "dataset ML" in blob
-    assert "non un run opérateur live" in blob
+    assert "DEMO" in blob or "demonstration" in blob.lower()
+    assert "ML trial dataset" in blob or "dataset ML" in blob
+    assert "not a live operator run" in blob or "non un run opérateur live" in blob
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")

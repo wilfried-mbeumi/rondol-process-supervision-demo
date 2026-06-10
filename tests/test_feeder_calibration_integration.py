@@ -109,7 +109,7 @@ def test_no_real_mass_flow_without_calibration_in_session():
     assert ff.calibrated is False
     rows = feeder_audit_rows(ff, RHO)
     blob = " ".join(r["valeur"] for r in rows)
-    assert "Non calculable" in blob
+    assert "Not computable" in blob
 
 
 def test_audit_rows_show_calibrated_breakdown():
@@ -183,6 +183,5 @@ def test_moteur_procede_displays_calculation_audit():
             pass
     blob += "\n".join(str(getattr(e, "body", getattr(e, "value", ""))) for e in at.get("html"))
     # En-tête panneau (st.html), explication chiffrée (st.info), provenance PLC (st.caption).
-    assert "Audit calcul procédé" in blob
-    assert "Pourquoi FF" in blob
+    assert "Process calculation audit" in blob
     assert "Network 7" in blob

@@ -105,38 +105,37 @@ def feeder_audit_rows(
     Chaque ligne : {grandeur, valeur, provenance}. Si non calibré, les débits
     réels sont « Non calculable » (provenance NOT_AVAILABLE), jamais devinés.
     """
+    try:
+        from rondol_i18n import t as _t
+    except Exception:
+        def _t(k, **kw): return k  # noqa: E731
+
     rows: list[dict[str, str]] = []
 
     def add(grandeur: str, valeur: str, provenance: str) -> None:
         rows.append({"grandeur": grandeur, "valeur": valeur, "provenance": provenance})
 
-    add("RPM feeder", f"{ff.feeder_rpm:.0f} RPM", USER_INPUT)
+    add(_t("feeder.audit.rpm"), f"{ff.feeder_rpm:.0f} RPM", USER_INPUT)
     if not ff.calibrated:
-        # i18n : « Non renseigné » → « Not entered » en anglais (import défensif,
-        # le module reste importable hors contexte Streamlit avec repli FR).
-        try:
-            from rondol_i18n import t as _t_i18n
-            _not_entered = _t_i18n("historique.comp_not_entered")
-        except Exception:  # pragma: no cover
-            _not_entered = "Non renseigné"
-        add("Coefficient étalonnage", _not_entered, NOT_AVAILABLE)
-        add("Débit réel", "Non calculable — étalonnage externe requis", NOT_AVAILABLE)
-        add("Densité apparente", f"{density_g_cm3:.3f} g/cm³", density_provenance)
-        add("Débit volumique", "Non calculable", NOT_AVAILABLE)
+        _not_entered = _t("common.not_entered")
+        add(_t("feeder.audit.calib_coeff"), _not_entered, NOT_AVAILABLE)
+        add(_t("feeder.audit.flow_real"), _t("feeder.audit.flow_real_nc"), NOT_AVAILABLE)
+        add(_t("feeder.audit.density"), f"{density_g_cm3:.3f} g/cm³", density_provenance)
+        add(_t("feeder.audit.vol_flow"), _t("common.not_computable"), NOT_AVAILABLE)
         return rows
 
-    add("Coefficient étalonnage", f"{ff.calibration_g_h_per_rpm:.3f} g/h/RPM", USER_INPUT)
-    add("Débit demandé", f"{ff.requested_g_h:.1f} g/h", CALCULATED)
-    add("Débit max machine", f"{ff.max_machine_g_h:.0f} g/h", DEFAULT_CONFIG)
+    add(_t("feeder.audit.calib_coeff"), f"{ff.calibration_g_h_per_rpm:.3f} g/h/RPM", USER_INPUT)
+    add(_t("feeder.audit.flow_requested"), f"{ff.requested_g_h:.1f} g/h", CALCULATED)
+    add(_t("feeder.audit.flow_max"), f"{ff.max_machine_g_h:.0f} g/h", DEFAULT_CONFIG)
     eff = ff.effective_g_h or 0.0
-    eff_note = " (plafonné)" if ff.clamped else ""
-    add("Débit utilisé (calcul)", f"{eff:.1f} g/h{eff_note}", CALCULATED)
+    eff_note = f" ({_t('common.clamped')})" if ff.clamped else ""
+    add(_t("feeder.audit.flow_used"), f"{eff:.1f} g/h{eff_note}", CALCULATED)
     add("  → en g/min", f"{(ff.effective_g_min or 0.0):.3f} g/min", CALCULATED)
     add("  → en g/s", f"{(ff.effective_g_s or 0.0):.5f} g/s", CALCULATED)
-    add("Densité apparente", f"{density_g_cm3:.3f} g/cm³", density_provenance)
+    add(_t("feeder.audit.density"), f"{density_g_cm3:.3f} g/cm³", density_provenance)
     if density_g_cm3 > 0:
         qvol = (ff.effective_g_s or 0.0) / density_g_cm3
-        add("Débit volumique (ṁ/ρ)", f"{qvol:.4f} cm³/s", CALCULATED)
+        add(_t("feeder.audit.vol_flow_full"), f"{qvol:.4f} cm³/s", CALCULATED)
     return rows
 
 
@@ -176,11 +175,18 @@ def multi_feeder_from_session(session: Mapping[str, Any], feeders) -> MultiFeede
     return resolve_multi_feeder(cals)
 
 
-_STATUS_LABEL = {
-    STATUS_OK: "OK",
-    STATUS_CALIBRATION_MISSING: "Non étalonné",
-    STATUS_DISABLED: "Désactivé",
-}
+def _status_label(status: str) -> str:
+    try:
+        from rondol_i18n import t as _t
+        _map = {
+            STATUS_OK: "OK",
+            STATUS_CALIBRATION_MISSING: _t("feeder.status.not_calibrated"),
+            STATUS_DISABLED: _t("feeder.status.disabled"),
+        }
+        return _map.get(status, status)
+    except Exception:
+        _map = {STATUS_OK: "OK", STATUS_CALIBRATION_MISSING: "Non étalonné", STATUS_DISABLED: "Désactivé"}
+        return _map.get(status, status)
 
 
 def render_multi_feeder_calibration(st_module, feeders, container=None) -> MultiFeederResult:

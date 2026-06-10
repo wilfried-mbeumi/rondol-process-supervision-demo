@@ -71,7 +71,7 @@ from screw_render import (  # noqa: E402
 )
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
-from rondol_i18n import language_selector, t  # noqa: E402
+from rondol_i18n import current_lang, language_selector, t  # noqa: E402
 
 # Phase S1 : Profile ne saisit plus l'étalonnage feeder (édition centralisée
 # dans Settings). L'import render_feeder_calibration est retiré pour qu'aucun
@@ -368,7 +368,9 @@ placed = list_placed_elements(
     base_type_fn=base_type,
     is_part2_fn=is_part2,
     position_to_zone_fn=position_to_zone,
-    element_label_fn=lambda t: ELEMENT_TYPES[t].label,
+    element_label_fn=lambda t: (ELEMENT_TYPES[t].full_name
+                                if current_lang() == "en"
+                                else ELEMENT_TYPES[t].label),
 )
 
 
@@ -647,7 +649,7 @@ for row_idx, row in enumerate(SLOT_LAYOUT):
                     f'<span style="background:{color};color:#0B0F14;'
                     f'font-weight:700;font-size:0.65rem;letter-spacing:0.04em;'
                     f'padding:0.1rem 0.45rem;border-radius:0.25rem;">'
-                    f'🔒 fin de vis</span>'
+                    f'🔒 {t("profile.tip_lock")}</span>'
                 ) if is_tip else (
                     f'<span style="background:#0B0F14;color:#F9FAFB;'
                     f'border:1px solid {BORDER};padding:0.1rem 0.5rem;'
@@ -656,7 +658,8 @@ for row_idx, row in enumerate(SLOT_LAYOUT):
                 )
                 st.html(
                     f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-                    f'<span style="color:{color};font-weight:600;font-size:0.85rem;">● {et.label}</span>'
+                    f'<span style="color:{color};font-weight:600;font-size:0.85rem;">● '
+                    f'{et.full_name if current_lang() == "en" else et.label}</span>'
                     f'{header_right}'
                     f'</div>'
                 )

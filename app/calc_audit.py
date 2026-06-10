@@ -58,13 +58,25 @@ def fill_factor_validation_status(
 def formula_status_label() -> str:
     """Libellé honnête pour les lignes dont la formule est PLC mais les
     constantes partiellement à confirmer."""
-    if DB_CONSTANTS_CONFIRMED and not BIVIS_CORRECTION_IS_MANAGER:
-        return "Formule PLC validée (Network 7)"
-    return "Formule PLC utilisée — constantes partiellement à confirmer"
+    try:
+        from rondol_i18n import t as _t
+        if DB_CONSTANTS_CONFIRMED and not BIVIS_CORRECTION_IS_MANAGER:
+            return _t("calc.formula.plc_validated")
+        return _t("calc.formula.plc_assumptions")
+    except Exception:
+        if DB_CONSTANTS_CONFIRMED and not BIVIS_CORRECTION_IS_MANAGER:
+            return "PLC formula validated (Network 7)"
+        return "PLC formula used — constants partially to be confirmed"
 
 
 def _fmt(value: float | None, unit: str) -> str:
-    return f"{value:.1f} {unit}" if value is not None else "Non disponible"
+    if value is not None:
+        return f"{value:.1f} {unit}"
+    try:
+        from rondol_i18n import t as _t
+        return _t("common.not_available")
+    except Exception:
+        return "Non disponible"
 
 
 def flow_taxonomy_rows(
@@ -81,35 +93,46 @@ def flow_taxonomy_rows(
     mach_src = USER_INPUT if machine_max_capacity_g_h else NOT_AVAILABLE
     out_src = CALCULATED if output_flow_g_h is not None else NOT_AVAILABLE
 
+    try:
+        from rondol_i18n import t as _t
+    except Exception:
+        def _t(k, **kw): return k  # noqa: E731
+
+    _na = _t("common.not_available")
     return [
         {
-            "variable": "Débit feeder utilisé (calcul FF)",
+            "variable": _t("calc.flow.feeder"),
             "valeur": _fmt(feed_effective_g_h, "g/h"), "unite": "g/h",
-            "source": feed_src, "statut": feed_stat, "used_in_ff": "Oui",
-            "commentaire": "Débit effectif étalonné, plafonné max machine — SEUL débit entrant dans le fill factor.",
+            "source": feed_src, "statut": feed_stat,
+            "used_in_ff": _t("calc.flow.yes"),
+            "commentaire": _t("calc.flow.feeder_comment"),
         },
         {
-            "variable": "Débit machine maximal déclaré",
+            "variable": _t("calc.flow.machine_max"),
             "valeur": _fmt(machine_max_capacity_g_h, "g/h"), "unite": "g/h",
-            "source": mach_src, "statut": NOT_VALIDATED, "used_in_ff": "Non",
-            "commentaire": "Contrainte/référence machine (≈ 1 kg/h évoqué) — N'ÉCRASE PAS le débit feeder.",
+            "source": mach_src, "statut": NOT_VALIDATED,
+            "used_in_ff": _t("calc.flow.no"),
+            "commentaire": _t("calc.flow.machine_max_comment"),
         },
         {
-            "variable": "Débit sortie filière estimé",
+            "variable": _t("calc.flow.output"),
             "valeur": _fmt(output_flow_g_h, "g/h"), "unite": "g/h",
-            "source": out_src, "statut": CALCULATED_WITH_ASSUMPTIONS, "used_in_ff": "Non",
-            "commentaire": "Hypothèse régime permanent (sortie ≈ entrée) — pas une mesure.",
+            "source": out_src, "statut": CALCULATED_WITH_ASSUMPTIONS,
+            "used_in_ff": _t("calc.flow.no"),
+            "commentaire": _t("calc.flow.output_comment"),
         },
         {
-            "variable": "Débit polymère sec estimé",
-            "valeur": "Non disponible", "unite": "g/h",
-            "source": NOT_AVAILABLE, "statut": NOT_VALIDATED, "used_in_ff": "Non",
-            "commentaire": "Nécessite taux solide / humidité — non renseigné.",
+            "variable": _t("calc.flow.dry_polymer"),
+            "valeur": _na, "unite": "g/h",
+            "source": NOT_AVAILABLE, "statut": NOT_VALIDATED,
+            "used_in_ff": _t("calc.flow.no"),
+            "commentaire": _t("calc.flow.dry_polymer_comment"),
         },
         {
-            "variable": "Pertes / humidité",
-            "valeur": "Non disponible", "unite": "%",
-            "source": NOT_AVAILABLE, "statut": NOT_VALIDATED, "used_in_ff": "Non",
-            "commentaire": "À renseigner (séchage, pertes procédé).",
+            "variable": _t("calc.flow.losses"),
+            "valeur": _na, "unite": "%",
+            "source": NOT_AVAILABLE, "statut": NOT_VALIDATED,
+            "used_in_ff": _t("calc.flow.no"),
+            "commentaire": _t("calc.flow.losses_comment"),
         },
     ]

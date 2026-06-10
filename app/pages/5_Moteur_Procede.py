@@ -78,7 +78,7 @@ from run_state_adapter import (  # noqa: E402
 )
 from operator_store import restore_operator_state  # noqa: E402
 
-st.set_page_config(page_title="Moteur Procédé — Rondol", layout="wide")
+st.set_page_config(page_title=_t("moteur.page_title"), layout="wide")
 
 # ---------------------------------------------------------------------------
 # CSS global (cohérent avec les autres pages — bloc statique immuable)
@@ -246,40 +246,16 @@ def _build_report(config: list[int]):
 def _fill_assessment(report) -> tuple[str, str, str]:
     """Évaluation INDICATIVE du remplissage — pure LECTURE du fill_factor déjà
     calculé (aucune nouvelle équation). Retourne (libellé, sévérité, message).
-
-    Sévérité ∈ {info, warning} pour un rendu cohérent (cf. UI severity levels).
-    Les bornes sont des repères de présentation, pas des seuils industriels.
     """
-    # On classe sur l'occupation MOYENNE (fill global). Une crête locale à 100 %
-    # est normale sur un bloc de malaxage et ne signifie PAS un sur-remplissage :
-    # « Sur-rempli » n'est réservé qu'à un vrai débordement feeder (overflow_*).
     avg = report.fill_factor_average
     overflow = report.overflow_main_feeder or report.overflow_side_feeder
     if overflow:
-        return (
-            "Sur-rempli",
-            "warning",
-            "Débordement détecté à un feeder. Risque indicatif de bourrage / montée "
-            "de pression — réduire le débit ou augmenter la vitesse vis (à confirmer).",
-        )
+        return (_t("moteur.fill.overflow"), "warning", _t("moteur.fill.overflow_msg"))
     if avg >= 0.75:
-        return (
-            "Remplissage élevé",
-            "warning",
-            "Occupation élevée. Surveiller couple et pression ; marge de procédé réduite.",
-        )
+        return (_t("moteur.fill.high"), "warning", _t("moteur.fill.high_msg"))
     if avg >= 0.30:
-        return (
-            "Acceptable",
-            "info",
-            "Niveau de remplissage compatible avec un fonctionnement stable (indicatif).",
-        )
-    return (
-        "Sous-rempli",
-        "info",
-        "Occupation faible. Convoyage/mélange potentiellement insuffisants — "
-        "envisager plus de débit ou moins de vitesse vis.",
-    )
+        return (_t("moteur.fill.nominal"), "info", _t("moteur.fill.nominal_msg"))
+    return (_t("moteur.fill.low"), "info", _t("moteur.fill.low_msg"))
 
 
 # ===========================================================================
@@ -289,39 +265,24 @@ st.html(
     f'<div style="background:{RONDOL_GREEN};padding:0.55rem 1rem;border-radius:0.3rem;'
     f'display:flex;justify-content:space-between;align-items:center;color:white;'
     f'font-weight:600;font-size:1rem;margin-bottom:0.5rem;">'
-    f'<span>● Rondol · Moteur Procédé</span>'
-    f'<span style="font-size:0.85rem;opacity:0.9;">Couche engine — couple local · SME · état machine</span>'
+    f'<span>{_t("moteur.banner.left")}</span>'
+    f'<span style="font-size:0.85rem;opacity:0.9;">{_t("moteur.banner.right")}</span>'
     f'</div>'
 )
 
-st.markdown("## Moteur Procédé")
-st.caption(
-    "Résultats calculés par la couche moteur (graph d'extrusion + couple E4 + SME) "
-    "à partir de la configuration et des paramètres saisis dans Profile / Settings. "
-    "Page en lecture seule."
-)
+st.markdown(f"## {_t('moteur.header')}")
+st.caption(_t("moteur.caption"))
 
 # ── État vide explicite : aucun profil procédé chargé ────────────────────────
 # Exigence manager : ne JAMAIS afficher des KPIs à 0 sans explication, ni charger
 # un profil par défaut en silence. On affiche un message clair + un bouton de
 # démonstration explicite, puis on stoppe le rendu (pas de KPIs trompeurs).
 if profile_empty and not demo_active:
-    st.info(
-        "**Aucun profil procédé configuré.** Les valeurs affichées resteraient "
-        "nulles tant qu'un profil de vis n'est pas chargé.\n\n"
-        "→ Configurez un profil dans la page **Profile**, ou chargez ci-dessous un "
-        "**profil de démonstration** (configuration nominale, non calibrée "
-        "industriellement) pour visualiser la page.",
-        icon="ℹ️",
-    )
-    if st.button(
-        "▶  Charger un profil de démonstration",
-        type="primary",
-        use_container_width=False,
-    ):
+    st.info(_t("moteur.no_profile.info"), icon="ℹ️")
+    if st.button(_t("moteur.no_profile.btn"), type="primary", use_container_width=False):
         st.session_state["mp_demo_profile"] = True
         st.rerun()
-    st.caption("Rondol Industrie · Couche moteur procédé (engine) · Prototype")
+    st.caption(_t("moteur.no_profile.footer"))
     st.stop()
 
 # Choix de la config rendue : démo page-local si demandée ET profil partagé vide,
@@ -333,14 +294,9 @@ report = _build_report(config)
 if demo_active:
     dcol1, dcol2 = st.columns([4, 1])
     with dcol1:
-        st.warning(
-            "**⚙️ Profil de DÉMONSTRATION chargé.** Configuration nominale "
-            "(convoyage → malaxages → convoyage), **non calibrée industriellement** — "
-            "destinée à illustrer la page, pas à représenter un run réel.",
-            icon="⚙️",
-        )
+        st.warning(_t("moteur.demo.warning"), icon="⚙️")
     with dcol2:
-        if st.button("✕  Décharger", use_container_width=True):
+        if st.button(_t("moteur.demo.unload"), use_container_width=True):
             st.session_state["mp_demo_profile"] = False
             st.rerun()
 
@@ -348,9 +304,7 @@ if demo_active:
 st.html(
     '<div class="mp-proto">'
     + _badge("⚠ Prototype", "warn")
-    + "<span>Valeurs <b>nominales, non calibrées industriellement</b> — à "
-      "interpréter en tendance, pas comme une vérité procédé finale. "
-      "Détails dans « Hypothèses » en bas de page.</span>"
+    + f"<span>{_t('moteur.proto.banner')}</span>"
     + "</div>"
 )
 
@@ -359,14 +313,7 @@ st.html(
 # coefficient d'étalonnage feeder est absent. Les indicateurs dépendant du débit
 # affichent « Non calculable » (aucun débit par défaut inventé).
 if not feed_available:
-    st.warning(
-        "**Débit réel non calculable : coefficient d'étalonnage feeder à "
-        "renseigner.** Les indicateurs dépendant du débit (couple, SME, "
-        "résidence, remplissage, débit massique, débit sortie) sont affichés "
-        "« Non calculable » — aucun débit par défaut n'est inventé. Renseignez "
-        "RPM feeder + coefficient g/h/RPM dans **Profile**.",
-        icon="⚠️",
-    )
+    st.warning(_t("moteur.flow_warning"), icon="⚠️")
 
 
 def _nc(s: str) -> str:
@@ -375,53 +322,53 @@ def _nc(s: str) -> str:
     Empêche d'afficher un « 0 » trompeur comme vérité procédé quand le feeder
     n'est pas étalonné (le débit réel est inconnu, pas nul).
     """
-    return s if feed_available else "Non calculable"
+    return s if feed_available else _t("common.not_computable")
 
 
 # ── KPIs principaux (carte) ──────────────────────────────────────────────────
-_section("Indicateurs principaux", "valeurs estimées · modèle nominal (non calibré)")
+_section(_t("moteur.sec.kpis"), _t("moteur.sec.kpis_sub"))
 with st.container(border=True):
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric(
-        "Couple total", _nc(f"{report.total_torque_nm:.3f} N·m"),
-        help="Estimé (modèle E4) : M = η·γ̇²·V_rempli / (2π·N), sommé sur la vis. "
-             "Confiance : nominale (presets matière non calibrés).",
+        _t("moteur.kpi.torque"), _nc(f"{report.total_torque_nm:.3f} N·m"),
+        help=_t("moteur.kpi.torque_help"),
     )
     k2.metric(
-        "SME totale", _nc(f"{report.total_sme_kwh_per_kg:.3f} kWh/kg"),
-        help="Énergie mécanique spécifique estimée : P_dissipée / débit massique, "
-             "avec P = 2π·N·couple. Confiance : nominale.",
+        _t("moteur.kpi.sme"), _nc(f"{report.total_sme_kwh_per_kg:.3f} kWh/kg"),
+        help=_t("moteur.kpi.sme_help"),
     )
     k3.metric(
-        "Résidence totale", _nc(f"{report.residence_time_total_s:.1f} s"),
-        help="Temps de séjour moyen estimé (volume vis rempli / débit). Indicatif.",
+        _t("moteur.kpi.residence"), _nc(f"{report.residence_time_total_s:.1f} s"),
+        help=_t("moteur.kpi.residence_help"),
     )
     k4.metric(
-        "Remplissage moyen", _nc(f"{report.fill_factor_average * 100:.0f} %"),
-        help="Taux de remplissage moyen des positions de vis (fill factor calculé).",
+        _t("moteur.kpi.fill"), _nc(f"{report.fill_factor_average * 100:.0f} %"),
+        help=_t("moteur.kpi.fill_help"),
     )
     k5.metric(
-        "Cisaillement max", f"{report.max_shear_rate_s:.0f} s⁻¹",
-        help="Taux de cisaillement maximal estimé (rpm × géométrie, indépendant du débit).",
+        _t("moteur.kpi.shear"), f"{report.max_shear_rate_s:.0f} s⁻¹",
+        help=_t("moteur.kpi.shear_help"),
     )
 
 # ── État machine / graph (carte + chips) ─────────────────────────────────────
-_section("État machine / graph")
+_section(_t("moteur.sec.machine"))
 with st.container(border=True):
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Puissance dissipée", _nc(f"{report.total_power_w:.1f} W"))
-    m2.metric("Débit massique", _nc(f"{report.mass_flow_kg_per_h:.2f} kg/h"))
-    m3.metric("Débit sortie (pointe)", _nc(f"{report.output_vol_flow_cm3_s:.2f} cm³/s"))
+    m1.metric(_t("moteur.kpi.power"), _nc(f"{report.total_power_w:.1f} W"))
+    m2.metric(_t("moteur.kpi.mass_flow"), _nc(f"{report.mass_flow_kg_per_h:.2f} kg/h"))
+    m3.metric(_t("moteur.kpi.output_flow"), _nc(f"{report.output_vol_flow_cm3_s:.2f} cm³/s"))
     m4.metric(
-        "Remplissage crête",
+        _t("moteur.kpi.peak_fill"),
         _nc(f"{report.peak_fill_factor * 100:.0f} %"),
         (f"position #{report.peak_fill_position:02d}" if feed_available else None),
     )
     _chips = [
-        _chip("Vitesse vis", f"{report.screw_rpm:.0f} tr/min"),
-        _chip("Overflow main", "oui" if report.overflow_main_feeder else "non",
+        _chip(_t("moteur.chip.screw_speed"), f"{report.screw_rpm:.0f} {_t('moteur.chip.rpm_unit')}"),
+        _chip(_t("moteur.chip.overflow_main"),
+              _t("common.yes") if report.overflow_main_feeder else _t("common.no"),
               warn=report.overflow_main_feeder),
-        _chip("Overflow side", "oui" if report.overflow_side_feeder else "non",
+        _chip(_t("moteur.chip.overflow_side"),
+              _t("common.yes") if report.overflow_side_feeder else _t("common.no"),
               warn=report.overflow_side_feeder),
         # Matière : « Non renseigné » en mode client (aucune saisie matière
         # réelle n'existe encore) ; nom chimique nominal + badge DEMO en démo.
@@ -436,120 +383,110 @@ with st.container(border=True):
 # ── Évaluation indicative du remplissage (lecture du fill_factor, FR-11) ──────
 # AUCUNE nouvelle équation : simple interprétation par paliers du fill_factor
 # déjà calculé par la couche moteur. Wording volontairement prudent.
-_section("Évaluation du remplissage", "indicative — lecture du fill_factor calculé")
+_section(_t("moteur.sec.fill_eval"), _t("moteur.sec.fill_eval_sub"))
 if not feed_available:
-    # Pas de débit étalonné → le fill factor n'est pas calculable : on n'émet
-    # AUCUN verdict (« Sous-rempli » sur un 0 serait trompeur).
-    st.info(
-        "Remplissage **non calculable** — coefficient d'étalonnage feeder à "
-        "renseigner (le fill factor dépend du débit réel).",
-        icon="ℹ️",
-    )
+    st.info(_t("moteur.fill.not_computable"), icon="ℹ️")
 else:
     _fill_label, _fill_sev, _fill_msg = _fill_assessment(report)
     st.html(_badge(f"● {_fill_label}", _FILL_BADGE_KIND.get(_fill_label, "neutral")))
     _banner = st.warning if _fill_sev == "warning" else st.info
     _banner(
         f"**{_fill_label}** — {_fill_msg}\n\n"
-        f"*Évaluation indicative, basée sur le fill_factor calculé "
-        f"(moyen {report.fill_factor_average * 100:.0f} %, crête "
-        f"{report.peak_fill_factor * 100:.0f} %) — à confirmer sur essai réel.*",
+        + _t("moteur.fill.eval_footer",
+             avg=f"{report.fill_factor_average * 100:.0f}",
+             peak=f"{report.peak_fill_factor * 100:.0f}"),
         icon="🟢" if _fill_sev == "info" else "🟠",
     )
 
 # ── Statut équations différées E6 / E7 (cartes + badge « À venir ») ───────────
-_section("Équations à venir", "non calculées")
+_section(_t("moteur.sec.equations"), _t("moteur.sec.equations_sub"))
 e1, e2 = st.columns(2)
 with e1:
     st.html(
         '<div class="mp-defer">'
-        f'<h4>🕒 E6 — Température réelle du fondu (T_real) {_badge("À venir", "neutral")}</h4>'
-        '<p>Équation manager imposée '
-        '<code>T_real = T_set + (2π·N·M)/(ṁ·Cp) + k·τ</code> — nécessite des '
-        'constantes thermiques à recaler.</p>'
-        '<p><b style="color:#CBD5E1;">Statut :</b> non disponible.</p>'
+        f'<h4>{_t("moteur.eq.e6_title")} {_badge(_t("moteur.upcoming"), "neutral")}</h4>'
+        f'<p>{_t("moteur.eq.e6_body")}</p>'
+        f'<p><b style="color:#CBD5E1;">{_t("moteur.eq.status")}</b> {_t("moteur.eq.status_na")}</p>'
         '</div>'
     )
 with e2:
     st.html(
         '<div class="mp-defer">'
-        f'<h4>🕒 E7 — Pression / contre-pression filière {_badge("À venir", "neutral")}</h4>'
-        '<p>Nécessite une loi ΔP filière (Hagen-Poiseuille + correction non '
-        'newtonienne) au-dessus de la géométrie de filière.</p>'
-        '<p><b style="color:#CBD5E1;">Statut :</b> non disponible.</p>'
+        f'<h4>{_t("moteur.eq.e7_title")} {_badge(_t("moteur.upcoming"), "neutral")}</h4>'
+        f'<p>{_t("moteur.eq.e7_body")}</p>'
+        f'<p><b style="color:#CBD5E1;">{_t("moteur.eq.status")}</b> {_t("moteur.eq.status_na")}</p>'
         '</div>'
     )
 
 # ── Agrégats par zone ────────────────────────────────────────────────────────
-_section("Agrégats par zone", "Feed + Z1..Z8")
+_section(_t("moteur.sec.zones"), "Feed + Z1..Z8")
 _zone_labels = ["Feed", "Z1", "Z2", "Z3", "Z4", "Z5", "Z6", "Z7", "Z8"]
 _zone_rows = []
 for z in report.zones:
     label = _zone_labels[z.zone] if 0 <= z.zone < len(_zone_labels) else f"Z{z.zone}"
     _zone_rows.append({
-        "Zone": label,
-        "Positions": z.n_nodes,
-        "Remplissage moyen": z.mean_fill_factor * 100.0,
-        "Remplissage crête": z.max_fill_factor * 100.0,
-        "γ̇ moyen": z.mean_shear_rate_s,
-        "γ̇ max": z.max_shear_rate_s,
-        "T max": z.max_temperature_c,
-        # Mode client : pas de matière chimique inventée → « Non renseigné ».
-        "Matière dominante": _material_label_i18n(z.dominant_material, demo_mode),
-        "Résidence": z.residence_time_s,
+        _t("moteur.col.zone"): label,
+        _t("moteur.col.positions"): z.n_nodes,
+        _t("moteur.col.fill_mean"): z.mean_fill_factor * 100.0,
+        _t("moteur.col.fill_peak"): z.max_fill_factor * 100.0,
+        _t("moteur.col.shear_mean"): z.mean_shear_rate_s,
+        _t("moteur.col.shear_max"): z.max_shear_rate_s,
+        _t("moteur.col.t_max"): z.max_temperature_c,
+        _t("moteur.col.material"): _material_label_i18n(z.dominant_material, demo_mode),
+        _t("moteur.col.residence"): z.residence_time_s,
     })
 st.dataframe(
     pd.DataFrame(_zone_rows), use_container_width=True, hide_index=True,
     column_config={
-        "Positions": st.column_config.NumberColumn("Positions", format="%d"),
-        "Remplissage moyen": st.column_config.ProgressColumn(
-            "Remplissage moyen", min_value=0, max_value=100, format="%.0f%%"),
-        "Remplissage crête": st.column_config.ProgressColumn(
-            "Remplissage crête", min_value=0, max_value=100, format="%.0f%%"),
-        "γ̇ moyen": st.column_config.NumberColumn("γ̇ moyen (s⁻¹)", format="%.0f"),
-        "γ̇ max": st.column_config.NumberColumn("γ̇ max (s⁻¹)", format="%.0f"),
-        "T max": st.column_config.NumberColumn("T consigne max (°C)", format="%.0f"),
-        "Résidence": st.column_config.NumberColumn("Résidence (s)", format="%.1f"),
+        _t("moteur.col.positions"): st.column_config.NumberColumn(_t("moteur.col.positions"), format="%d"),
+        _t("moteur.col.fill_mean"): st.column_config.ProgressColumn(
+            _t("moteur.col.fill_mean"), min_value=0, max_value=100, format="%.0f%%"),
+        _t("moteur.col.fill_peak"): st.column_config.ProgressColumn(
+            _t("moteur.col.fill_peak"), min_value=0, max_value=100, format="%.0f%%"),
+        _t("moteur.col.shear_mean"): st.column_config.NumberColumn(_t("moteur.col.shear_mean") + " (s⁻¹)", format="%.0f"),
+        _t("moteur.col.shear_max"): st.column_config.NumberColumn(_t("moteur.col.shear_max") + " (s⁻¹)", format="%.0f"),
+        _t("moteur.col.t_max"): st.column_config.NumberColumn(_t("moteur.col.t_max_label"), format="%.0f"),
+        _t("moteur.col.residence"): st.column_config.NumberColumn(_t("moteur.col.residence_label"), format="%.1f"),
     },
 )
 
 # ── Détail par position ──────────────────────────────────────────────────────
-_section("Propriétés locales par position de vis", "0..80")
-_hide_empty = st.checkbox("Masquer les positions vides", value=True)
+_section(_t("moteur.sec.positions"), "0..80")
+_hide_empty = st.checkbox(_t("moteur.chk.hide_empty"), value=True)
 _pos_rows = []
 for p in report.positions:
     if _hide_empty and p.is_empty:
         continue
     _pos_rows.append({
         "Pos.": p.position,
-        "Zone": _zone_labels[p.zone] if 0 <= p.zone < len(_zone_labels) else str(p.zone),
-        "Élément": p.element_label,
+        _t("moteur.col.zone"): _zone_labels[p.zone] if 0 <= p.zone < len(_zone_labels) else str(p.zone),
+        _t("moteur.col.element"): p.element_label,
         "Port": p.port_kind or "—",
-        "Remplissage": p.fill_factor * 100.0,
+        _t("moteur.col.fill"): p.fill_factor * 100.0,
         "γ̇": p.shear_rate_s,
-        "Couple local": p.torque_nm,
+        _t("moteur.col.torque_local"): p.torque_nm,
     })
 if _pos_rows:
     st.dataframe(
         pd.DataFrame(_pos_rows), use_container_width=True, hide_index=True, height=380,
         column_config={
             "Pos.": st.column_config.NumberColumn("Pos.", format="%d"),
-            "Remplissage": st.column_config.ProgressColumn(
-                "Remplissage", min_value=0, max_value=100, format="%.0f%%"),
+            _t("moteur.col.fill"): st.column_config.ProgressColumn(
+                _t("moteur.col.fill"), min_value=0, max_value=100, format="%.0f%%"),
             "γ̇": st.column_config.NumberColumn("γ̇ (s⁻¹)", format="%.0f"),
-            "Couple local": st.column_config.NumberColumn(
-                "Couple local (N·m)", format="%.4f"),
+            _t("moteur.col.torque_local"): st.column_config.NumberColumn(
+                _t("moteur.col.torque_local_label"), format="%.4f"),
         },
     )
 else:
-    st.caption("Aucune position à afficher (profil vide).")
+    st.caption(_t("moteur.no_positions"))
 
 # ── Audit calcul procédé (transparence entrée → sortie, provenance + statut) ──
 # Exigence manager : MONTRER chaque variable machine, son unité, sa source, sa
 # formule et son STATUT (validé PLC / correction manager / à valider). Formules
 # vérifiées sur la source PLC Rondol (references/logique_metier/2-CALCULS.pdf,
 # Network 7). Aucune valeur sans provenance.
-_section("Audit calcul procédé", "débit · capacité · remplissage · résidence — source PLC Network 7")
+_section(_t("moteur.sec.audit"), _t("moteur.sec.audit_sub"))
 with st.container(border=True):
     # ProcessState dédié à l'audit (mêmes paramètres plats que la chaîne) — sert
     # à exposer capacité et FF AU MAIN FEEDER (point déterminant, pédagogique).
@@ -566,13 +503,13 @@ with st.container(border=True):
     # Statuts honnêtes : la chaîne FF (capacité, V_libre/tour, FF) dépend de
     # valeurs DB automate non confirmées ET de la correction manager ×2 → on
     # n'écrit PAS « validé PLC » sur ces lignes.
-    _PLC = "Formule PLC validée (Network 7)"          # formule PURE sans constante à confirmer
-    _PLC_ASSUM = formula_status_label()                # formule PLC + constantes à confirmer
-    _PLC_DB = "Constante PLC — valeurs DB à confirmer"
-    _MGR = "Correction manager (hors PLC d'origine)"
-    _MGR_LIM = "Limite manager — à valider"
-    _IN = "Saisie"
-    _CALC = "Calculé"
+    _PLC = _t("calc.formula.plc_validated")
+    _PLC_ASSUM = formula_status_label()
+    _PLC_DB = _t("moteur.audit.status.pdb")
+    _MGR = _t("moteur.audit.status.mgr")
+    _MGR_LIM = _t("moteur.audit.status.mgr_lim")
+    _IN = _t("moteur.audit.status.input")
+    _CALC = _t("moteur.audit.status.calc")
     _ff_status = fill_factor_validation_status(feed_known=feeder_flow.calibrated)
 
     if feeder_flow.calibrated:
@@ -581,40 +518,43 @@ with st.container(border=True):
         _eff_gmin = f"{feeder_flow.effective_g_min:.3f}"
         _eff_gs = f"{feeder_flow.effective_g_s:.5f}"
         _coeff = f"{feeder_flow.calibration_g_h_per_rpm:.3f}"
-        _coeff_src, _coeff_stat = "USER_INPUT", "Étalonnage externe (= Mass_flow_rate PLC, g/tour×60)"
+        _coeff_src, _coeff_stat = "USER_INPUT", _t("moteur.audit.status.calib_ext")
     else:
-        _dem = _eff_gh = _eff_gmin = _eff_gs = "Non calculable"
-        _coeff = _t("historique.comp_not_entered")
-        _coeff_src, _coeff_stat = "NOT_AVAILABLE", "Étalonnage requis"
+        _dem = _eff_gh = _eff_gmin = _eff_gs = _t("common.not_computable")
+        _coeff = _t("common.not_entered")
+        _coeff_src, _coeff_stat = "NOT_AVAILABLE", _t("moteur.audit.status.calib_req")
 
     _rows = [
-        ("RPM feeder", f"{feeder_flow.feeder_rpm:.0f}", "RPM", "USER_INPUT", "—", _IN),
-        ("Coefficient étalonnage", _coeff, "g/h/RPM", _coeff_src, "= Mass_flow_rate (PLC L0018)", _coeff_stat),
-        ("Débit demandé", _dem, "g/h", "CALCULATED", "RPM × coeff", _CALC),
-        ("Débit max machine", f"{feeder_flow.max_machine_g_h:.0f}", "g/h", "DEFAULT_CONFIG", "—", _MGR_LIM),
-        ("Débit effectif (calcul)", _eff_gh, "g/h", "CALCULATED", "min(demandé, max)", _CALC),
-        ("Débit effectif", _eff_gmin, "g/min", "CALCULATED", "g/h ÷ 60", _CALC),
-        ("Débit effectif", _eff_gs, "g/s", "CALCULATED", "g/h ÷ 3600", _CALC),
-        ("Densité apparente ρ", f"{bulk_density:.3f}", "g/cm³", "USER_INPUT", "—", _IN),
-        ("Débit volumique Q_vol", f"{_qvol:.4f}", "cm³/s", "CALCULATED", "ṁ ÷ ρ (PLC L0056)", _PLC),
-        ("RPM vis", f"{screw_rpm:.0f}", "tr/min", "USER_INPUT", "—", _IN),
-        ("N (vis)", f"{_n_rps:.3f}", "tr/s", "CALCULATED", "rpm ÷ 60 (PLC L0015)", _PLC),
-        ("V libre / tour (main)", f"{_v_byrev_main:.4f}", "cm³/tour", "CALCULATED",
+        (_t("moteur.audit.row.rpm_feeder"), f"{feeder_flow.feeder_rpm:.0f}", "RPM", "USER_INPUT", "—", _IN),
+        (_t("moteur.audit.row.calib_coeff"), _coeff, "g/h/RPM", _coeff_src, "= Mass_flow_rate (PLC L0018)", _coeff_stat),
+        (_t("moteur.audit.row.flow_requested"), _dem, "g/h", "CALCULATED", "RPM × coeff", _CALC),
+        (_t("moteur.audit.row.flow_max"), f"{feeder_flow.max_machine_g_h:.0f}", "g/h", "DEFAULT_CONFIG", "—", _MGR_LIM),
+        (_t("moteur.audit.row.flow_effective"), _eff_gh, "g/h", "CALCULATED", "min(demandé, max)", _CALC),
+        (_t("moteur.audit.row.flow_eff_gmin"), _eff_gmin, "g/min", "CALCULATED", "g/h ÷ 60", _CALC),
+        (_t("moteur.audit.row.flow_eff_gmin"), _eff_gs, "g/s", "CALCULATED", "g/h ÷ 3600", _CALC),
+        (_t("moteur.audit.row.density"), f"{bulk_density:.3f}", "g/cm³", "USER_INPUT", "—", _IN),
+        (_t("moteur.audit.row.vol_flow"), f"{_qvol:.4f}", "cm³/s", "CALCULATED", "ṁ ÷ ρ (PLC L0056)", _PLC),
+        (_t("moteur.audit.row.rpm_screw"), f"{screw_rpm:.0f}", _t("moteur.chip.rpm_unit"), "USER_INPUT", "—", _IN),
+        (_t("moteur.audit.row.n_screw"), f"{_n_rps:.3f}", "tr/s", "CALCULATED", "rpm ÷ 60 (PLC L0015)", _PLC),
+        (_t("moteur.audit.row.vol_per_rev"), f"{_v_byrev_main:.4f}", "cm³/tour", "CALCULATED",
          "V_libre × Factor_FreeByRev (PLC L0033)", _PLC_DB),
-        ("Capacité volumique (main)", f"{_cap_main:.4f}", "cm³/s", "CALCULATED",
+        (_t("moteur.audit.row.vol_cap"), f"{_cap_main:.4f}", "cm³/s", "CALCULATED",
          "N × V_libre/tour (PLC L0057)", _PLC_ASSUM),
-        ("Volume libre utile (2 vis)", f"{_free_vol_2screws:.2f}", "cm³", "CALCULATED",
+        (_t("moteur.audit.row.free_vol"), f"{_free_vol_2screws:.2f}", "cm³", "CALCULATED",
          "76.1756 − 2×occupé/vis", _MGR),
-        ("Nombre d'éléments", f"{_n_elem:.0f}", "—", "USER_INPUT", "—", _IN),
+        (_t("moteur.audit.row.n_elements"), f"{_n_elem:.0f}", "—", "USER_INPUT", "—", _IN),
         ("Fill factor (main)", f"{_ff_main * 100:.1f}", "%", "CALCULATED",
          "Q_vol ÷ capacité (PLC L0060)", _PLC_ASSUM),
-        ("Remplissage moyen (rapport)", f"{report.fill_factor_average * 100:.1f}", "%", "CALCULATED",
+        (_t("moteur.audit.row.ff_mean"), f"{report.fill_factor_average * 100:.1f}", "%", "CALCULATED",
          "moyenne FF (PLC L0153)", _PLC_ASSUM),
-        ("Temps de résidence total", f"{report.residence_time_total_s:.1f}", "s", "CALCULATED",
+        (_t("moteur.audit.row.residence"), f"{report.residence_time_total_s:.1f}", "s", "CALCULATED",
          "Σ V_libre/VolFlow (PLC L0144)", _PLC_ASSUM),
     ]
     st.dataframe(
-        pd.DataFrame(_rows, columns=["Variable", "Valeur", "Unité", "Source", "Formule", "Statut"]),
+        pd.DataFrame(_rows, columns=[
+            _t("moteur.audit.col.variable"), _t("moteur.audit.col.value"),
+            _t("moteur.audit.col.unit"), _t("moteur.audit.col.source"),
+            _t("moteur.audit.col.formula"), _t("moteur.audit.col.status")]),
         use_container_width=True, hide_index=True,
     )
 
@@ -625,45 +565,34 @@ with st.container(border=True):
     st.html(
         f'<div style="background:rgba(251,191,36,.08);border:1px solid {_status_color};'
         f'border-radius:.4rem;padding:.4rem .7rem;margin:.3rem 0;font-size:.84rem;color:#E5E7EB;">'
-        f'<b style="color:{_status_color};">Statut du résultat fill factor : {_ff_status}</b> — '
-        f'le fill factor affiché est calculé sur le <b>débit feeder effectif utilisé par le '
-        f'modèle</b>, <b>pas</b> sur la capacité machine globale ni sur le débit sortie filière.'
+        f'<b style="color:{_status_color};">{_t("moteur.audit.ff_status", status=_ff_status)}</b> — '
+        f'{_t("moteur.audit.ff_explanation")}'
         f'</div>'
     )
 
-    # Explication chiffrée du « pourquoi 26 % » (présentée comme cohérente avec
-    # les hypothèses, PAS comme vérité métier définitive) + condition FF→100 %.
     if feeder_flow.calibrated and _cap_main > 0:
         st.info(
-            f"**{_t('moteur.why_ff', ff=f'{_ff_main * 100:.0f}')}** *Résultat cohérent avec les "
-            f"paramètres actuels (débit {feeder_flow.effective_g_h:.0f} g/h, densité "
-            f"{bulk_density:.2f}, {screw_rpm:.0f} rpm, capacité vis issue PLC/DB à "
-            f"confirmer).* Au main feeder, `Q_vol = {_qvol:.3f} cm³/s` alimenté contre "
-            f"une `capacité = {_cap_main:.3f} cm³/s` → `FF = {_ff_main * 100:.0f} %`. "
-            f"Cohérent avec une bivis *starve-fed* (capacité > débit). **FF → 100 %** si "
-            f"la capacité descend au niveau du débit : baisser la vis vers "
-            f"**≈ {_rpm_full:.0f} tr/min**, augmenter le débit, ou augmenter la densité. "
-            f"⚠️ Tant que les constantes DB vis / le ×2 bivis ne sont pas validés Rondol, "
-            f"ce % reste **calculé avec hypothèses**, non une vérité procédé définitive.",
+            _t("moteur.audit.why_ff_body",
+               title=_t("moteur.kpi.fill"),
+               flow=f"{feeder_flow.effective_g_h:.0f}",
+               dens=f"{bulk_density:.2f}",
+               rpm=f"{screw_rpm:.0f}",
+               qvol=f"{_qvol:.3f}",
+               cap=f"{_cap_main:.3f}",
+               ff=f"{_ff_main * 100:.0f}",
+               rpm_full=f"{_rpm_full:.0f}"),
             icon="🧮",
         )
     elif not feeder_flow.calibrated:
-        st.warning(
-            "Débit réel **non calculable** (coefficient d'étalonnage feeder non "
-            "renseigné). Les valeurs procédé ci-dessus reposent sur la **saisie "
-            "directe** de débit (hors étalonnage) — renseignez le coefficient "
-            "g/h/RPM dans **Profile** pour un débit réel tracé.",
-            icon="⚠️",
-        )
+        st.warning(_t("moteur.audit.flow_not_calibrated"), icon="⚠️")
 
     # ── Distinction explicite des débits (jamais confondus) ──────────────────
-    st.markdown("**Débits — ne pas confondre :**")
+    st.markdown(_t("moteur.audit.flows_title"))
     _mach_cap = safe_float(st.session_state.get(MACHINE_MAX_CAPACITY_KEY, 0.0), 0.0, 0.0, 1e6)
     st.number_input(
-        "Capacité machine déclarée (g/h) — référence, n'écrase PAS le débit feeder",
+        _t("moteur.audit.machine_cap"),
         min_value=0.0, max_value=100000.0, step=50.0, key=MACHINE_MAX_CAPACITY_KEY,
-        help="Optionnel. Le manager évoque ≈ 1 kg/h (1000 g/h). 0 = non renseigné. "
-             "Sert de référence/contrainte, jamais de débit de calcul.",
+        help=_t("moteur.audit.machine_cap_help"),
     )
     _output_g_h = report.output_vol_flow_cm3_s * bulk_density * 3600.0
     _flow_rows = flow_taxonomy_rows(
@@ -674,58 +603,56 @@ with st.container(border=True):
     st.dataframe(
         pd.DataFrame(_flow_rows, columns=["variable", "valeur", "unite", "source",
                                           "statut", "used_in_ff", "commentaire"])
-        .rename(columns={"variable": "Variable", "valeur": "Valeur", "unite": "Unité",
-                         "source": "Source", "statut": "Statut validation",
-                         "used_in_ff": "Utilisée dans FF ?", "commentaire": "Commentaire métier"}),
+        .rename(columns={
+            "variable": _t("moteur.audit.col.variable"),
+            "valeur": _t("moteur.audit.col.value"),
+            "unite": _t("moteur.audit.col.unit"),
+            "source": _t("moteur.audit.col.source"),
+            "statut": _t("moteur.audit.col.status"),
+            "used_in_ff": _t("moteur.flow.col.used_in_ff"),
+            "commentaire": _t("moteur.flow.col.comment")}),
         use_container_width=True, hide_index=True,
     )
 
     # ── Détail PAR FEEDER (multi-feeder) : débit + statut + contribution ──────
     _multi = _mi.get("multi_feeder")
     if _multi is not None and _multi.lines:
-        st.markdown("**Détail par feeder :**")
+        st.markdown(_t("moteur.audit.feeder_detail"))
         _total = _multi.total_g_h or 0.0
-        _STAT_FR = {"OK": "OK", "CALIBRATION_MISSING": "Non étalonné", "DISABLED": "Désactivé"}
+        _STAT_I18N = {"OK": _t("moteur.feeder.status.ok"),
+                      "CALIBRATION_MISSING": _t("moteur.feeder.status.not_calibrated"),
+                      "DISABLED": _t("moteur.feeder.status.disabled")}
         _feeder_rows = []
         for _ln in _multi.lines:
             _gh = _ln.flow_g_h
-            _val = "Non calculable" if _gh is None else f"{_gh:.0f}"
+            _val = _t("common.not_computable") if _gh is None else f"{_gh:.0f}"
             if _ln.status == "OK" and _total > 0:
                 _contrib = f"{100.0 * (_gh or 0.0) / _total:.0f} %"
             elif _ln.status == "DISABLED":
                 _contrib = "—"
             else:
-                _contrib = "exclu (non étalonné)"
+                _contrib = _t("moteur.feeder.excluded")
             _feeder_rows.append({
                 "Feeder": f"#{_ln.feeder_id}",
                 "Label": _ln.label,
-                "Statut": _STAT_FR.get(_ln.status, _ln.status),
-                "Débit (g/h)": _val,
-                "Contribution au total": _contrib,
+                _t("moteur.feeder.col.status"): _STAT_I18N.get(_ln.status, _ln.status),
+                _t("moteur.feeder.col.flow"): _val,
+                _t("moteur.feeder.col.contrib"): _contrib,
             })
         st.dataframe(
             pd.DataFrame(_feeder_rows), use_container_width=True, hide_index=True,
         )
         if _multi.total_calculable:
-            _tot_msg = f"Débit total feeders : **{_multi.total_g_h:.0f} g/h** ({_multi.total_g_min:.2f} g/min)"
+            _tot_msg = _t("moteur.audit.total_flow",
+                          gh=f"{_multi.total_g_h:.0f}", gmin=f"{_multi.total_g_min:.2f}")
             if _multi.has_uncalibrated_active:
-                st.warning(_tot_msg + " — ⚠️ **incomplet** : un feeder actif n'est pas "
-                           "étalonné (exclu du total).", icon="⚠️")
+                st.warning(_tot_msg + _t("moteur.audit.total_incomplete"), icon="⚠️")
             else:
                 st.caption(_tot_msg)
         else:
-            st.warning("Débit total feeders **non calculable** : aucun feeder étalonné.",
-                       icon="⚠️")
+            st.warning(_t("moteur.audit.total_not_computable"), icon="⚠️")
 
-    st.caption(
-        "Statuts : *Formule PLC validée* = vérifiée sur la source automate Rondol "
-        "(2-CALCULS.pdf, Network 7), sans constante à confirmer. *Formule PLC "
-        "utilisée — constantes partiellement à confirmer* = formule PLC mais "
-        "dépend de valeurs DB automate (DataScrewElmt) et/ou de la correction "
-        "manager ×2 (bivis, hors PLC d'origine). *CALCULATED_WITH_ASSUMPTIONS* = "
-        "résultat cohérent mais soumis à ces hypothèses. *Limite manager — à valider* "
-        "= plafond 2500 g/h (manager 2026-06-09, ancien 300 g/h levé)."
-    )
+    st.caption(_t("moteur.audit.status_legend"))
 
 # ── Encart hypothèses ────────────────────────────────────────────────────────
 st.divider()

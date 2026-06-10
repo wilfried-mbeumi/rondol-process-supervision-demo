@@ -66,7 +66,7 @@ from AgentIndustrial_v1.core.cooling import (  # noqa: E402
 )
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
-from rondol_i18n import language_selector, t  # noqa: E402
+from rondol_i18n import current_lang, language_selector, t  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Chemins
@@ -365,8 +365,7 @@ st.html(
     'margin:0.3rem 0;color:#C4B5FD;font-size:0.82rem;">'
     '<span style="background:#7C3AED;color:#fff;font-weight:700;font-size:0.6rem;'
     'letter-spacing:0.06em;padding:0.05rem 0.4rem;border-radius:0.25rem;">DEMO</span>'
-    '<span>Indicateurs issus du <b>dataset ML d\'essais (avril 2026)</b> — '
-    'donnée de démonstration, non représentative d\'un run opérateur live.</span>'
+    f'<span>{t("demo.ml.banner_default")}</span>'
     '</div>'
 )
 
@@ -707,6 +706,30 @@ _agent_cm = agent_compute_cooling(_agent_state)
 
 _AG_STATE_C = {"STABLE": "#10B981", "SURVEILLER": "#F59E0B", "CRITIQUE": "#EF4444"}
 _ag_c = _AG_STATE_C.get(_agent_report.state, "#10B981")
+
+
+def _translate_agent_state(state: str) -> str:
+    return t(f"home.agent.state.{state}")
+
+
+def _translate_agent_diagnostic(diag: str, report) -> str:
+    if current_lang() == "fr":
+        return diag
+    _n_crit = sum(1 for a in report.alerts if a.severity == "critical")
+    _n_warn = sum(1 for a in report.alerts if a.severity == "warning")
+    _kpis = _agent_state.kpis if hasattr(_agent_state, 'kpis') else None
+    if report.state == "STABLE" and _kpis:
+        return t("home.agent.diag.stable",
+                 n_act=sum(1 for f in getattr(_agent_state, 'feeders', []) if getattr(f, 'active', False)),
+                 ff=f"{_kpis.fill_factor*100:.1f} %",
+                 rt=f"{_kpis.residence_time_s:.1f}",
+                 sme=f"{_kpis.sme_kwh_per_kg:.2f}")
+    elif report.state == "SURVEILLER":
+        return t("home.agent.diag.watch", n_warn=_n_warn, n_crit=_n_crit)
+    elif report.state == "CRITIQUE":
+        return t("home.agent.diag.critical",
+                 score=report.risk_score, n_crit=_n_crit, n_warn=_n_warn)
+    return diag
 _AG_SEV_C = {"critical": "#EF4444", "warning": "#F59E0B", "info": "#3B82F6", "ok": "#10B981"}
 
 _reco_by_code: dict[str, object] = {}
@@ -725,7 +748,7 @@ for _a in _agent_report.alerts[:3]:
         f'<div style="color:{_sc};font-size:0.72rem;font-weight:700;">'
         f'{_a.severity.upper()} · {_a.target or "—"} — {_a.title}</div>'
         f'<div style="color:#D1D5DB;font-size:0.76rem;margin-top:0.15rem;">'
-        f'<span style="color:#10B981;font-weight:600;">ACTION</span> {_act} '
+        f'<span style="color:#10B981;font-weight:600;">{t("settings.card.action")}</span> {_act} '
         f'<span style="color:#6B7280;">· {_imp}</span></div></div>'
     )
 # Toujours 3 lignes (DOM stable même si moins d'alertes — bloc html unique).
@@ -750,17 +773,17 @@ st.html(
     f'<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">'
     f'<span style="background:{_ag_c};color:#0B0F14;font-weight:700;'
     f'font-size:0.74rem;padding:0.15rem 0.6rem;border-radius:0.2rem;">'
-    f'{_agent_report.state} · {_agent_report.risk_score}/100</span>'
+    f'{_translate_agent_state(_agent_report.state)} · {_agent_report.risk_score}/100</span>'
     f'<span style="color:#9CA3AF;font-size:0.76rem;">'
-    f'{len(_agent_report.alerts)} alerte(s) · {len(_agent_recos)} reco(s) · '
-    f'pic thermique {_agent_cm.hottest_zone} · couple '
+    f'{len(_agent_report.alerts)} {t("home.agent.alerts_label")} · {len(_agent_recos)} {t("home.agent.recos_label")} · '
+    f'{t("home.agent.thermal_peak")} {_agent_cm.hottest_zone} · {t("home.agent.torque")} '
     f'{_agent_cm.torque_load * 100:.0f} %</span>'
     f'<span style="margin-left:auto;color:#6B7280;font-size:0.7rem;">'
-    f'T={_selz.zone} {_selz.t_est_C:.0f}°C (cons. {_selz.t_target_C:.0f} '
-    f'· plafond {_selz.t_limit_C:.0f}) · modèle T=Tset+SME/Cp+kτ</span>'
+    f'T={_selz.zone} {_selz.t_est_C:.0f}°C ({t("home.agent.setpoint")} {_selz.t_target_C:.0f} '
+    f'· {t("home.agent.ceiling")} {_selz.t_limit_C:.0f}) · {t("home.agent.model")} T=Tset+SME/Cp+kτ</span>'
     f'</div>'
     f'<div style="color:#9CA3AF;font-size:0.78rem;margin-top:0.35rem;">'
-    f'{_agent_report.diagnostic}</div>'
+    f'{_translate_agent_diagnostic(_agent_report.diagnostic, _agent_report)}</div>'
     + "".join(_rows_html)
     + '</div>'
 )
@@ -828,7 +851,7 @@ _fig.add_hline(
     y=THRESHOLD,
     line_dash="dash",
     line_color="#374151",
-    annotation_text=f"Seuil {THRESHOLD}",
+    annotation_text=f"{t('home.chart.threshold')} {THRESHOLD}",
     annotation_font_color="#4B5563",
     annotation_font_size=10,
 )

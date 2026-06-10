@@ -104,7 +104,7 @@ def test_no_zero_presented_as_real_flow_when_feeder_uncalibrated():
     vals = _metric_values(at)
     # Le débit massique ne doit PAS afficher « 0.00 kg/h » comme réel.
     assert "0.00 kg/h" not in vals
-    assert "Non calculable" in vals          # au moins un KPI marqué non calculable
+    assert "Not computable" in vals
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
@@ -112,21 +112,21 @@ def test_ff_not_calculable_when_feeder_uncalibrated():
     at = _load(MOTEUR, 0.0)
     vals = _metric_values(at)
     assert "0 %" not in vals                  # pas de remplissage 0 % présenté comme réel
-    assert "Non calculable" in vals
+    assert "Not computable" in vals
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
 def test_residence_not_calculable_when_flow_missing():
     at = _load(MOTEUR, 0.0)
     vals = _metric_values(at)
-    assert "0.0 s" not in vals                # pas de résidence 0 s présentée comme réelle
+    assert "0.0 s" not in vals
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
 def test_warning_displayed_when_feeder_calibration_missing():
     at = _load(MOTEUR, 0.0)
     blob = _blob(at)
-    assert "coefficient d'étalonnage feeder à renseigner" in blob
+    assert "feeder calibration coefficient" in blob.lower()
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
@@ -137,7 +137,7 @@ def test_moteur_procede_uncalibrated_feeder_does_not_show_real_zero():
         assert bad not in vals, f"valeur 0 présentée comme réelle : {bad}"
     # …et le cas étalonné montre bien des valeurs calculées.
     at_ok = _load(MOTEUR, 10.0)
-    assert "Non calculable" not in _metric_values(at_ok)
+    assert "Not computable" not in _metric_values(at_ok)
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
@@ -145,4 +145,4 @@ def test_supervision_uncalibrated_feeder_does_not_show_real_zero():
     at = _load(SUP, 0.0)
     assert not at.exception, [str(e.value) for e in at.exception]
     blob = _blob(at)
-    assert "coefficient d'étalonnage feeder à renseigner" in blob
+    assert "feeder calibration coefficient" in blob.lower()

@@ -22,7 +22,8 @@ from AgentIndustrial_v1.core.feeders import new_feeder_bank  # noqa: E402
 from AgentIndustrial_v1.core.rules import evaluate  # noqa: E402
 
 # Termes chimie interdits SANS matière saisie.
-_CHEM = ("cathode", "lithium", "liant", "cnt", "nanotube")
+_CHEM = ("cathode", "lithium", "cnt", "nanotube")
+_CHEM_WORD = re.compile(r"\bliant\b", re.IGNORECASE)
 _LI_WORD = re.compile(r"\bLi\b")
 
 
@@ -61,7 +62,7 @@ def test_no_li_alert_without_material():
 
 
 def test_no_binder_alert_without_binder_input():
-    assert "liant" not in _alert_blob(_harsh_state()).lower()
+    assert not _CHEM_WORD.search(_alert_blob(_harsh_state()))
 
 
 def test_no_chemistry_wording_without_material_context():
@@ -71,11 +72,11 @@ def test_no_chemistry_wording_without_material_context():
 
 
 def test_generic_process_alert_still_displayed_without_material():
-    # Les alertes procédé génériques restent émises (le fond métier est préservé).
     rep = evaluate(_harsh_state())
     assert len(rep.alerts) > 0
     blob = _alert_blob(_harsh_state()).lower()
-    assert "matière" in blob or "thermique" in blob or "sme" in blob
+    assert ("matière" in blob or "thermique" in blob or "sme" in blob
+            or "material" in blob or "thermal" in blob)
 
 
 # ---------------------------------------------------------------------------
@@ -138,6 +139,7 @@ def _assert_no_chem(blob: str):
     low = blob.lower()
     for term in _CHEM:
         assert term not in low, f"chimie « {term} » affichée en mode client"
+    assert not _CHEM_WORD.search(blob), "« liant » affiché en mode client"
     assert not _LI_WORD.search(blob), "« Li » affiché en mode client"
 
 

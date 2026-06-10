@@ -19,7 +19,7 @@ en phase B2, en déplaçant les littéraux de ``core/rules.py`` et
 
 from __future__ import annotations
 
-DEFAULT_LANG = "fr"
+DEFAULT_LANG = "en"
 SUPPORTED_LANGS: tuple[str, ...] = ("fr", "en")
 
 # B0 : catalogue volontairement quasi vide (un seul message d'auto-test pour

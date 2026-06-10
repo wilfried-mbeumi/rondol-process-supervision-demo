@@ -48,20 +48,38 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+import sys as _sys
+
 import numpy as np
 from PIL import Image
 from scipy import ndimage
 
-# i18n FR/EN (stabilisation globale 2026-06-10) : les libellés courts de la
-# lecture IA (archétypes, régimes, labels de blocs, textes vis vide) passent
-# par rondol_i18n.t. Import défensif : hors contexte app (batch/preview sans
-# Streamlit installé), repli identité → les clés FR du catalogue restent
-# lisibles via le fallback fr de t() quand rondol_i18n est importable.
-try:  # pragma: no cover - dépend de l'environnement d'exécution
+# Garantir app/ sur sys.path pour l'import bare de rondol_i18n.
+_APP_DIR = str(Path(__file__).resolve().parent)
+if _APP_DIR not in _sys.path:
+    _sys.path.insert(0, _APP_DIR)
+
+# i18n FR/EN : import défensif — hors Streamlit (tests, batch), le fallback
+# résout les traductions EN depuis TRANSLATIONS sans session_state.
+try:  # pragma: no cover
     from rondol_i18n import t as _t
 except Exception:  # pragma: no cover
+    try:
+        from rondol_i18n import TRANSLATIONS as _TRANSLATIONS
+    except Exception:
+        _TRANSLATIONS = {}
+
     def _t(key: str, **kwargs: object) -> str:  # type: ignore[misc]
-        return key
+        entry = _TRANSLATIONS.get(key)
+        if entry is None:
+            return key
+        text = entry.get("en") or entry.get("fr") or key
+        if kwargs:
+            try:
+                return text.format(**kwargs)
+            except (KeyError, IndexError, ValueError):
+                return text
+        return text
 
 # ---------------------------------------------------------------------------
 # Paramètres visuels (utilisés par 1_Profile.py et build_preview_screw.py)
@@ -265,20 +283,16 @@ _OVERLAY_PARAMS: dict[int, tuple[float, str, int]] = {
 
 
 # Rôle métier par type (utilisé pour la lecture HMI + reco)
+def _element_role(etype: int) -> str:
+    return _t(f"role.{etype}") if 1 <= etype <= 13 else "—"
+
+
 ELEMENT_ROLES: dict[int, str] = {
-    1: "convoyage",
-    2: "convoyage (½)",
-    3: "convoyage compact",
-    4: "mélange dispersif",
-    5: "mélange doux",
-    6: "convoyage rapide",
-    7: "mélange dispersif",
-    8: "mélange dispersif",
-    9: "rétention / contre-pression",
-    10: "mélange chaotique",
-    11: "mélange distributif",
-    12: "mélange distributif",
-    13: "décharge",
+    1: "conveying", 2: "conveying (½)", 3: "compact conveying",
+    4: "dispersive mixing", 5: "gentle mixing", 6: "fast conveying",
+    7: "dispersive mixing", 8: "dispersive mixing",
+    9: "retention / back-pressure", 10: "chaotic mixing",
+    11: "distributive mixing", 12: "distributive mixing", 13: "discharge",
 }
 
 
@@ -706,10 +720,10 @@ def build_screw_assembly_html(
     tip_p1 = tip_part1_pos if tip_part1_pos is not None else n_positions - 2
     tip_x = tip_p1 * POS_UNIT_PX
     tip_color, tip_label_short, tip_pulse = {
-        "valid": ("#10B981", "pointe verrouillée", ""),
-        "missing": ("#EF4444", "pointe absente", " rs-tip-pulse"),
-        "deduplicated": ("#F59E0B", "pointe restaurée", ""),
-    }.get(tip_status, ("#10B981", "pointe verrouillée", ""))
+        "valid": ("#10B981", _t("tip.valid"), ""),
+        "missing": ("#EF4444", _t("tip.missing"), " rs-tip-pulse"),
+        "deduplicated": ("#F59E0B", _t("tip.deduplicated"), ""),
+    }.get(tip_status, ("#10B981", _t("tip.valid"), ""))
 
     # Apex de pointe — capuchon métallique colorisé posé exactement à l'apex
     # géométrique du cône. Sibling de rs-screw-area → PAS clippé par le
@@ -1090,7 +1104,7 @@ def list_placed_elements(
             continue
         zone = position_to_zone_fn(i)
         zone_name = f"Z{zone}"
-        role = ELEMENT_ROLES.get(bt, "—")
+        role = _element_role(bt)
         label = element_label_fn(bt)
         out.append(PlacedElement(
             pos=i, zone=zone, zone_name=zone_name,
@@ -1475,25 +1489,22 @@ def compute_recommendations(
     if 0 < n_filled < 8:
         recs.append(_rec(
             "warning", "Global",
-            "Sous-densification de la vis",
-            "Mélange insuffisant pour homogénéiser une formulation SSB",
-            f"Densifier la configuration : ajouter {18 - n_filled}-{25 - n_filled} "
-            f"éléments (convoyage + 2-4 malaxeurs) avant tout essai pilote. "
-            f"À {rpm:.0f} rpm × {feed:.0f} g/min, une vis aussi courte n'a pas "
-            f"de résidence exploitable.",
-            evidence=f"{n_filled} / 39 éléments",
+            _t("sr.rec.underdense.title"),
+            _t("sr.rec.underdense.physics"),
+            _t("sr.rec.underdense.action",
+               add_min=18 - n_filled, add_max=25 - n_filled,
+               rpm=f"{rpm:.0f}", feed=f"{feed:.0f}"),
+            evidence=_t("sr.rec.underdense.evidence", n=n_filled),
         ))
 
     # Manque de convoyage
     if n_conv + n_short < 3:
         recs.append(_rec(
             "critique", "Global",
-            "Transport sous-dimensionné",
-            "Matière non acheminée jusqu'au tip → bouchage probable",
-            f"Ajouter au moins {3 - (n_conv+n_short)} × **Convoyage +** (type 1) "
-            f"ou **Grand pas** (type 6) entre les zones de mélange. Sans convoyage "
-            f"suffisant, le débit feeder ({feed:.0f} g/min) ne sera pas évacué.",
-            evidence=f"{n_conv + n_short} convoyage(s)",
+            _t("sr.rec.no_conv.title"),
+            _t("sr.rec.no_conv.physics"),
+            _t("sr.rec.no_conv.action", need=3 - (n_conv+n_short), feed=f"{feed:.0f}"),
+            evidence=_t("sr.rec.no_conv.evidence", n=n_conv + n_short),
         ))
 
     # Ratio convoyage/mélange déséquilibré (trop de conveying)
@@ -1503,12 +1514,9 @@ def compute_recommendations(
         recs.append(_rec(
             _esc("warning", rpm_intense or feed_high, "critique"),
             "Global",
-            "Convection dominante / cisaillement insuffisant",
-            "Pâte transite trop vite → homogénéité poudre active compromise",
-            f"Intercaler 2-3 × malaxeurs supplémentaires entre les zones de "
-            f"transport (renforcer les types déjà présents sur le profil). "
-            f"À {rpm:.0f} rpm le temps de séjour est court — densifier le "
-            f"mélange compense.",
+            _t("sr.rec.conv_dominant.title"),
+            _t("sr.rec.conv_dominant.physics"),
+            _t("sr.rec.conv_dominant.action", rpm=f"{rpm:.0f}"),
             evidence=f"ratio C/M = {ratio:.1f}:1",
         ))
 
@@ -1521,36 +1529,34 @@ def compute_recommendations(
         )
         target_zone = f"Z{hot_zones[0]}" if hot_zones else "Global"
         loc = (
-            f" en priorité sur **Z{hot_zones[0]}** ({zone_mixers[hot_zones[0]]} mélangeurs)"
+            _t("sr.rec.excess_knead.loc", z=hot_zones[0], n=zone_mixers[hot_zones[0]])
             if hot_zones else ""
         )
-        # rpm élevé + densité chargée → critique escaladé
         sev = _esc("critique", rpm_intense or dens_high, "critique")
         abrasion_note = (
-            " Densité ρ={:.2f} g/cm³ (charges céramiques) → abrasion accrue "
-            "des malaxeurs.".format(dens) if dens_high else ""
+            _t("sr.rec.excess_knead.abrasion", dens=f"{dens:.2f}") if dens_high else ""
         )
+        _intensity = _t("sr.rec.excess_knead.amplified") if rpm_intense else _t("sr.rec.excess_knead.moderate")
         recs.append(_rec(
             sev, target_zone,
-            "Cisaillement excessif (kneading dense)",
-            "Dégradation thermique liant SSB (PVDF > 200 °C, PEO > 180 °C)",
-            f"Réduire à ≤ 5-6 malaxeurs{loc}, ou intercaler 2-3 × Convoyage + "
-            f"entre les blocs pour refroidir.{abrasion_note} À {rpm:.0f} rpm le "
-            f"cisaillement est " + ("amplifié" if rpm_intense else "modéré") + ".",
-            evidence=f"{n_knead+n_chaotic} mél. ({(n_knead+n_chaotic)/max(1,n_filled)*100:.0f} %)",
+            _t("sr.rec.excess_knead.title"),
+            _t("sr.rec.excess_knead.physics"),
+            _t("sr.rec.excess_knead.action",
+               loc=loc, abrasion=abrasion_note,
+               rpm=f"{rpm:.0f}", intensity=_intensity),
+            evidence=_t("sr.rec.excess_knead.evidence",
+                        n=n_knead+n_chaotic,
+                        pct=f"{(n_knead+n_chaotic)/max(1,n_filled)*100:.0f}"),
         ))
 
     # Aucun mélange
     if n_filled >= 5 and n_knead + n_chaotic + n_distrib == 0:
         recs.append(_rec(
             "warning", "Global",
-            "Aucun élément de mélange",
-            "Pâte non cisaillée — formulation SSB non homogénéisable",
-            f"Ajouter 2-4 malaxeurs : 1-2 × **Malaxage 90°** (type 4, dispersif) "
-            f"+ 1 × **Malaxage 30°** (type 5, distributif) en Z3-Z5. "
-            f"Sans cisaillement, le débit {feed:.0f} g/min ne fait que transporter "
-            f"la poudre.",
-            evidence="0 mélangeur",
+            _t("sr.rec.no_mix.title"),
+            _t("sr.rec.no_mix.physics"),
+            _t("sr.rec.no_mix.action", feed=f"{feed:.0f}"),
+            evidence=_t("sr.rec.no_mix.evidence"),
         ))
 
     # Surcharge zone (> 6 éléments dans une seule zone)
@@ -1561,31 +1567,27 @@ def compute_recommendations(
         if not neighbors:
             neighbors = [zn for zn in (z - 1, z + 1) if 1 <= zn <= 7]
         nb_text = (
-            " vers " + " ou ".join(f"**Z{zn}**" for zn in neighbors)
+            _t("sr.rec.overloaded.action_nb",
+               zones=" / ".join(f"**Z{zn}**" for zn in neighbors))
             if neighbors else ""
         )
         recs.append(_rec(
             _esc("warning", rpm_intense, "critique"),
             f"Z{z}",
-            "Concentration locale d'éléments",
-            "Pic couple moteur + échauffement ponctuel, pâte mal homogénéisée en aval",
-            f"Déplacer 2-3 éléments{nb_text} pour répartir l'effort. À "
-            f"{rpm:.0f} rpm une zone surchargée crée un pic de couple difficile à "
-            f"absorber.",
-            evidence=f"{zone_counts[z]} éléments en Z{z}",
+            _t("sr.rec.overloaded.title"),
+            _t("sr.rec.overloaded.physics"),
+            _t("sr.rec.overloaded.action", nb=nb_text, rpm=f"{rpm:.0f}"),
+            evidence=_t("sr.rec.overloaded.evidence", n=zone_counts[z], z=z),
         ))
 
     # Mélange tardif (premier mixer après Z4)
     if first_mixer_zone is not None and first_mixer_zone >= 5:
         recs.append(_rec(
             "warning", f"Z{first_mixer_zone}",
-            "Mélange initié tardivement",
-            "Pâte non dispersée en amont → cisaillement final brutal sur poudre encore sèche",
-            f"Avancer 1-2 mélangeurs en **Z2-Z4** pour amorcer la dispersion du "
-            f"liant dans la matière active dès le pré-convoyage. Au régime "
-            f"{rpm:.0f} rpm × {feed:.0f} g/min, le temps de pré-mélange est "
-            f"court — l'amorcer tôt est critique.",
-            evidence=f"1er mél. en Z{first_mixer_zone}",
+            _t("sr.rec.late_mix.title"),
+            _t("sr.rec.late_mix.physics"),
+            _t("sr.rec.late_mix.action", rpm=f"{rpm:.0f}", feed=f"{feed:.0f}"),
+            evidence=_t("sr.rec.late_mix.evidence", z=first_mixer_zone),
         ))
 
     # Aucun mélange dans Z1-Z4 alors que la vis a >= 6 éléments
@@ -1597,12 +1599,10 @@ def compute_recommendations(
             target_zone = 4
         recs.append(_rec(
             "info", f"Z{target_zone}",
-            "Pas de dispersion précoce",
-            "Dispersion liant retardée — homogénéité finale moins fine",
-            f"Ajouter 1-2 × **Malaxage 90°** (type 4) ou **Malaxage 30°** (type 5) "
-            f"en **Z{target_zone}** pour amorcer la dispersion juste après le "
-            f"pré-convoyage feeder.",
-            evidence=f"0 mél. Z1-Z4",
+            _t("sr.rec.no_early.title"),
+            _t("sr.rec.no_early.physics"),
+            _t("sr.rec.no_early.action", z=target_zone),
+            evidence=_t("sr.rec.no_early.evidence"),
         ))
 
     # Déséquilibre fort (> 60% des éléments dans une seule zone)
@@ -1612,12 +1612,11 @@ def compute_recommendations(
         if ratio_max > 0.60:
             recs.append(_rec(
                 "warning", f"Z{max_zone}",
-                "Déséquilibre spatial du profil",
-                "Vis effective courte — capacité utile et résidence gaspillées",
-                f"Étaler la configuration sur Z1..Z7 pour utiliser tout le "
-                f"volume utile (76,2 cm³). Concentrer {ratio_max*100:.0f} % du "
-                f"profil sur une zone unique annule le bénéfice d'une vis L/D=40.",
-                evidence=f"{zone_counts[max_zone]}/{n_filled} en Z{max_zone}",
+                _t("sr.rec.imbalance.title"),
+                _t("sr.rec.imbalance.physics"),
+                _t("sr.rec.imbalance.action", pct=f"{ratio_max*100:.0f}"),
+                evidence=_t("sr.rec.imbalance.evidence",
+                            n=zone_counts[max_zone], total=n_filled, z=max_zone),
             ))
 
     # Trop de rétention
@@ -1625,12 +1624,10 @@ def compute_recommendations(
         recs.append(_rec(
             _esc("warning", rpm_low, "critique"),
             "Global",
-            "Rétention abusive (reverse multiples)",
-            "Surcouple moteur + cumul thermique par fusion locale",
-            f"Limiter à 1-2 reverse max, en fin de zone de mélange uniquement. "
-            f"À {rpm:.0f} rpm, multiplier les reverse fait monter le couple "
-            f"sans bénéfice de mélange supplémentaire.",
-            evidence=f"{n_reverse} reverse",
+            _t("sr.rec.excess_rev.title"),
+            _t("sr.rec.excess_rev.physics"),
+            _t("sr.rec.excess_rev.action", rpm=f"{rpm:.0f}"),
+            evidence=_t("sr.rec.excess_rev.evidence", n=n_reverse),
         ))
 
     # Zones vides en aval du feeder — UNE reco par zone (action localisée).
@@ -1641,60 +1638,40 @@ def compute_recommendations(
     _bulk_sev = "critique" if len(empty_zones_downstream) >= 3 else "warning"
     for z in empty_zones_downstream[:3]:
         if z <= 3:
-            physics = "Transport interrompu après le feeder"
-            impact = "Zone gaspillée, débit non acheminé vers le mélange aval"
-            action = (
-                f"Ajouter 2-3 × **Convoyage +** (type 1) ou 1 × **Grand pas** "
-                f"(type 6) en **Z{z}**. Sans convoyage ici, le débit "
-                f"{feed:.0f} g/min stagne au feeder."
-            )
+            physics = _t("sr.rec.empty_zone.transport")
+            impact = _t("sr.rec.empty_zone.transport_impact")
+            action = _t("sr.rec.empty_zone.transport_action", z=z, feed=f"{feed:.0f}")
         elif z <= 6:
-            target = "Malaxage 90° (dispersif)" if z <= 5 else "Malaxage 30°/45° (distributif)"
-            physics = ("Pas de cisaillement à mi-vis"
-                       if z <= 5 else "Pas de finition distributive")
-            impact = ("Dispersion poudre/liant insuffisante en zone procédé "
-                      "naturelle" if z <= 5
-                      else "Homogénéité finale du mélange compromise")
-            action = (
-                f"Ajouter 1-2 × **{target}** en **Z{z}**. C'est la zone procédé "
-                f"naturelle pour " +
-                ("la dispersion" if z <= 5 else "la distribution finale") + "."
-            )
+            target = _t("sr.rec.mix_target_dispersive") if z <= 5 else _t("sr.rec.mix_target_distributive")
+            physics = (_t("sr.rec.empty_zone.no_shear")
+                       if z <= 5 else _t("sr.rec.empty_zone.no_finish"))
+            impact = (_t("sr.rec.empty_zone.no_shear_impact") if z <= 5
+                      else _t("sr.rec.empty_zone.no_finish_impact"))
+            purpose = (_t("sr.rec.empty_zone.dispersion") if z <= 5
+                       else _t("sr.rec.empty_zone.distribution"))
+            action = _t("sr.rec.empty_zone.mix_action",
+                        target=target, z=z, purpose=purpose)
         else:
-            physics = "Pas de transport vers le tip"
-            impact = "Pâte homogénéisée non évacuée → fluctuation débit sortie"
-            action = (
-                f"Ajouter 2-3 × **Convoyage +** (type 1) en **Z{z}** pour "
-                f"acheminer la pâte sans cisaillement supplémentaire."
-            )
+            physics = _t("sr.rec.empty_zone.no_transport")
+            impact = _t("sr.rec.empty_zone.no_transport_impact")
+            action = _t("sr.rec.empty_zone.end_action", z=z)
         recs.append(_rec(
             _bulk_sev, f"Z{z}", physics, impact, action,
-            evidence="0 élément",
+            evidence=_t("sr.rec.empty_zone.evidence"),
         ))
 
     # Remplissage faible — modulé par paramètres procédé
     if 0 < ff < 0.20:
         if feed_low:
-            action = (
-                f"Augmenter le débit feeder ({feed:.0f} → ~30 g/min) pour "
-                f"remplir la vis. Alternative : passer à 25 éléments si la "
-                f"capacité prime."
-            )
+            action = _t("sr.rec.starved.action_feed", feed=f"{feed:.0f}")
         elif rpm >= 200:
-            action = (
-                f"Vitesse vis trop haute ({rpm:.0f} rpm) pour le débit "
-                f"{feed:.0f} g/min — descendre à ~120-150 rpm pour augmenter "
-                f"la résidence."
-            )
+            action = _t("sr.rec.starved.action_rpm", rpm=f"{rpm:.0f}", feed=f"{feed:.0f}")
         else:
-            action = (
-                f"Augmenter le débit ({feed:.0f} g/min → 30+) ou ajouter un "
-                f"reverse en fin de mélange pour ralentir la pâte."
-            )
+            action = _t("sr.rec.starved.action_default", feed=f"{feed:.0f}")
         recs.append(_rec(
             "warning", "Global",
-            "Vis sous-alimentée",
-            "Mélange peu efficace, qualité poudre active variable",
+            _t("sr.rec.starved.title"),
+            _t("sr.rec.starved.physics"),
             action,
             evidence=f"FF {ff*100:.1f} %",
         ))
@@ -1703,11 +1680,11 @@ def compute_recommendations(
     if ff > 0.85:
         recs.append(_rec(
             "critique", "Global",
-            "Saturation procédé imminente",
-            "Blocage matière + pic couple — arrêt qualité produit",
-            f"Réduire le débit feeder ({feed:.0f} → ~{max(5, feed*0.7):.0f} g/min) "
-            f"ou augmenter la vitesse vis ({rpm:.0f} → ~{rpm*1.3:.0f} rpm). "
-            f"Alternative : passer à 40 éléments pour étaler la charge.",
+            _t("sr.rec.saturated.title"),
+            _t("sr.rec.saturated.physics"),
+            _t("sr.rec.saturated.action",
+               feed=f"{feed:.0f}", target_feed=f"{max(5, feed*0.7):.0f}",
+               rpm=f"{rpm:.0f}", target_rpm=f"{rpm*1.3:.0f}"),
             evidence=f"FF {ff*100:.1f} %",
         ))
 
@@ -1715,11 +1692,11 @@ def compute_recommendations(
     if not recs:
         recs.append(_rec(
             "ok", "Global",
-            "Profil équilibré",
-            "Configuration cohérente pour un essai pilote SSB",
-            f"Lancer un essai pilote pour valider l'homogénéité finale du "
-            f"mélange à {rpm:.0f} rpm × {feed:.0f} g/min × ρ={dens:.2f} g/cm³.",
-            evidence=f"Conv {n_conv+n_short} · Mél {n_mix_total} · Rev {n_reverse} · FF {ff*100:.0f} %",
+            _t("sr.rec.balanced.title"),
+            _t("sr.rec.balanced.physics"),
+            _t("sr.rec.balanced.action",
+               rpm=f"{rpm:.0f}", feed=f"{feed:.0f}", dens=f"{dens:.2f}"),
+            evidence=f"Conv {n_conv+n_short} · Mix {n_mix_total} · Rev {n_reverse} · FF {ff*100:.0f} %",
         ))
 
     # Suggestion finale : distributif terminal localisé Z6-Z7
@@ -1728,11 +1705,9 @@ def compute_recommendations(
         target_zone = candidates[0]
         recs.append(_rec(
             "info", f"Z{target_zone}",
-            "Manque de mélangeur distributif terminal",
-            "Homogénéité globale insuffisante — cisaillement local sans diffusion",
-            f"Ajouter 1 × **Denté** (type 11) ou **Mélange spécial** (type 12) "
-            f"en **Z{target_zone}**. Combinaison dispersif + distributif "
-            f"obligatoire pour SSB.",
+            _t("sr.rec.no_distrib.title"),
+            _t("sr.rec.no_distrib.physics"),
+            _t("sr.rec.no_distrib.action", z=target_zone),
             evidence=f"{n_knead} disp · 0 distrib",
         ))
 
@@ -1794,12 +1769,11 @@ def compute_recommendations(
     # Repli générique élément-agnostique si la garde a tout retiré (config non vide).
     if not recs:
         recs.append(_rec(
-            "info", "Global", "Configuration cohérente",
-            "Aucune anomalie liée aux éléments présents",
-            f"Ajuster si besoin la vitesse vis ({rpm:.0f} rpm), le débit "
-            f"({feed:.0f} g/min) ou la température pour viser le taux de "
-            f"remplissage cible.",
-            evidence="recommandations limitées aux éléments présents",
+            "info", "Global",
+            _t("sr.rec.fallback.title"),
+            _t("sr.rec.fallback.physics"),
+            _t("sr.rec.fallback.action", rpm=f"{rpm:.0f}", feed=f"{feed:.0f}"),
+            evidence=_t("sr.rec.fallback.evidence"),
         ))
 
     # Tri par sévérité décroissante
@@ -1901,77 +1875,24 @@ class CountRecommendation:
 # Bénéfices et risques inhérents à chaque longueur de vis.
 # Tirés de la pratique TSE : résidence ∝ L/D, capacité ∝ 1/L, dissipation
 # thermique ∝ L (séjour long → plus de chaleur cumulée).
-_COUNT_BENEFITS: dict[int, list[str]] = {
-    25: [
-        "Capacité de production maximale (transit rapide).",
-        "Échauffement minimal — adapté aux liants thermosensibles (PEO, PVDF).",
-        "Énergie consommée par kg produit plus faible.",
-    ],
-    30: [
-        "Bon compromis résidence / capacité — peu de pertes des deux côtés.",
-        "Polyvalent : accepte transport, mélange standard et formulations courantes.",
-        "Risque thermique modéré sur la plupart des liants.",
-    ],
-    40: [
-        "Résidence longue — dispersion poussée possible sur formulations difficiles.",
-        "Cisaillement cumulé élevé pour homogénéiser charges céramiques et liants visqueux.",
-        "Marge pour intercaler convoyage entre les blocs de mélange (refroidissement).",
-    ],
-}
+def _count_benefits(n: int) -> list[str]:
+    return [_t(f"sr.count.benefit.{n}.{i}") for i in (1, 2, 3)]
 
-# Phrase de contexte ultra-courte affichée sous la décision : la logique
-# du choix en 2-4 mots, langage métier.
-_COUNT_TAGLINE: dict[int, str] = {
-    25: "profil capacité",
-    30: "profil équilibré",
-    40: "dispersion poussée",
-}
 
-_COUNT_RISKS: dict[int, list[str]] = {
-    25: [
-        "Limite la marge de mélange et l'homogénéisation possible.",
-        "Inadapté aux formulations chargées ou aux liants visqueux.",
-        "Temps de séjour court, dispersion difficile.",
-    ],
-    30: [
-        "Pas adapté aux dispersions très poussées.",
-        "Capacité légèrement réduite face à une vis plus courte.",
-    ],
-    40: [
-        "Augmente le risque de chauffe sur les séjours longs.",
-        "Réduit la capacité de production.",
-        "Sollicite davantage le couple moteur.",
-    ],
-}
+def _count_tagline(n: int) -> str:
+    return _t(f"sr.count.tagline.{n}")
+
+
+def _count_risks(n: int) -> list[str]:
+    if n == 30:
+        return [_t(f"sr.count.risk.{n}.{i}") for i in (1, 2)]
+    return [_t(f"sr.count.risk.{n}.{i}") for i in (1, 2, 3)]
 
 # Pour chaque transition (suggested → alt) : (titre court, phrase claire).
 # Phrasé orienté décision : "ce que je gagne / ce que je perds si je choisis L".
-_COUNT_ALT_DETAIL: dict[tuple[int, int], tuple[str, str]] = {
-    (25, 30): (
-        "Plus de mélange",
-        "Améliore l'homogénéisation, réduit la capacité de production.",
-    ),
-    (25, 40): (
-        "Dispersion poussée",
-        "Adapté aux formulations difficiles, baisse fortement la capacité.",
-    ),
-    (30, 25): (
-        "Plus de capacité",
-        "Augmente la production, réduit le mélange disponible.",
-    ),
-    (30, 40): (
-        "Plus de cisaillement",
-        "Améliore la dispersion, augmente le risque de chauffe.",
-    ),
-    (40, 25): (
-        "Maximum capacité",
-        "Production rapide, supprime le cisaillement cumulé.",
-    ),
-    (40, 30): (
-        "Compromis polyvalent",
-        "Réduit le risque de chauffe, dispersion souvent suffisante.",
-    ),
-}
+def _count_alt_detail(src: int, dst: int) -> tuple[str, str]:
+    key = f"sr.count.alt.{src}_{dst}"
+    return (_t(f"{key}.title"), _t(f"{key}.sentence"))
 
 
 # Chaque _score_* retourne : (scores, measured, summary, reasoning).
@@ -1979,154 +1900,71 @@ _COUNT_ALT_DETAIL: dict[tuple[int, int], tuple[str, str]] = {
 # sont les seuls champs poussés à l'UI.
 
 def _score_fill_rate(ff: float) -> tuple[dict[int, float], str, str, str]:
-    """Critère 1 : remplissage moyen."""
     pct = ff * 100
     if ff < 0.15:
-        return (
-            {25: +3, 30: +1, 40: -2},
-            f"{pct:.0f} %",
-            "Vis sous-alimentée",
-            "Vis sous-alimentée — pas besoin d'allonger : 25 éléments libèrent "
-            "de la capacité de production sans pénaliser le mélange.",
-        )
+        return ({25: +3, 30: +1, 40: -2}, f"{pct:.0f} %",
+                _t("sr.score.starved"), _t("sr.score.starved.r"))
     if ff < 0.35:
-        return (
-            {25: +1, 30: +3, 40: 0},
-            f"{pct:.0f} %",
-            "Remplissage modéré",
-            "Remplissage faible-modéré — plage standard, 30 éléments sans "
-            "surdimensionner.",
-        )
+        return ({25: +1, 30: +3, 40: 0}, f"{pct:.0f} %",
+                _t("sr.score.fill_moderate"), _t("sr.score.fill_moderate.r"))
     if ff < 0.55:
-        return (
-            {25: -1, 30: +3, 40: +1},
-            f"{pct:.0f} %",
-            "Remplissage équilibré",
-            "Remplissage modéré — résidence/capacité bien équilibrées sur 30 ; "
-            "40 reste pertinent si du mélange est ajouté.",
-        )
+        return ({25: -1, 30: +3, 40: +1}, f"{pct:.0f} %",
+                _t("sr.score.fill_balanced"), _t("sr.score.fill_balanced.r"))
     if ff < 0.75:
-        return (
-            {25: -2, 30: +1, 40: +3},
-            f"{pct:.0f} %",
-            "Remplissage élevé",
-            "Remplissage élevé — 40 éléments allongent la résidence et "
-            "absorbent les pics de charge.",
-        )
-    return (
-        {25: -3, 30: 0, 40: +3},
-        f"{pct:.0f} %",
-        "Saturation imminente",
-        "Remplissage critique → risque saturation. 40 éléments pour étaler "
-        "la charge et éviter le pic couple.",
-    )
+        return ({25: -2, 30: +1, 40: +3}, f"{pct:.0f} %",
+                _t("sr.score.fill_high"), _t("sr.score.fill_high.r"))
+    return ({25: -3, 30: 0, 40: +3}, f"{pct:.0f} %",
+            _t("sr.score.fill_sat"), _t("sr.score.fill_sat.r"))
 
 
 def _score_mix_ratio(
     n_mix: int, n_filled: int,
 ) -> tuple[dict[int, float], str, str, str]:
-    """Critère 2 : proportion de mélangeurs dans le profil."""
     if n_filled == 0:
-        return (
-            {25: 0, 30: 0, 40: 0}, "—",
-            "Aucun élément",
-            "Aucun élément placé : critère neutre.",
-        )
+        return ({25: 0, 30: 0, 40: 0}, "—",
+                _t("sr.score.no_element"), _t("sr.score.no_element.r"))
     ratio = n_mix / n_filled
     pct = ratio * 100
     if n_mix == 0:
-        return (
-            {25: +3, 30: 0, 40: -2},
-            "0 %",
-            "Transport pur",
-            "Profil de transport pur — aucun élément de mélange. Une vis "
-            "courte (25) suffit, 40 serait sous-utilisée.",
-        )
+        return ({25: +3, 30: 0, 40: -2}, "0 %",
+                _t("sr.score.transport_pure"), _t("sr.score.transport_pure.r"))
     if ratio < 0.15:
-        return (
-            {25: +2, 30: +2, 40: -1},
-            f"{pct:.0f} %",
-            "Mélange léger",
-            f"Mélange léger ({n_mix} mélangeur(s)) — 25 ou 30 selon priorité "
-            "capacité/résidence.",
-        )
+        return ({25: +2, 30: +2, 40: -1}, f"{pct:.0f} %",
+                _t("sr.score.mix_light"), _t("sr.score.mix_light.r", n=n_mix))
     if ratio < 0.35:
-        return (
-            {25: -1, 30: +3, 40: +1},
-            f"{pct:.0f} %",
-            "Mélange équilibré",
-            f"Mélange standard ({n_mix} mélangeurs, {pct:.0f} % du profil) — "
-            "plage cible pour 30 éléments.",
-        )
+        return ({25: -1, 30: +3, 40: +1}, f"{pct:.0f} %",
+                _t("sr.score.mix_balanced"), _t("sr.score.mix_balanced.r", n=n_mix, pct=f"{pct:.0f}"))
     if ratio < 0.55:
-        return (
-            {25: -2, 30: +1, 40: +3},
-            f"{pct:.0f} %",
-            "Mélange dispersif important",
-            f"Mélange dispersif important ({n_mix} mélangeurs, {pct:.0f} %) — "
-            "40 éléments pour le cisaillement cumulé.",
-        )
-    return (
-        {25: -3, 30: -1, 40: +3},
-        f"{pct:.0f} %",
-        "Profil très dispersif",
-        f"Profil très dispersif ({pct:.0f} % de mélange) — 40 éléments "
-        "indispensables pour intercaler du convoyage entre les blocs.",
-    )
+        return ({25: -2, 30: +1, 40: +3}, f"{pct:.0f} %",
+                _t("sr.score.mix_dispersive"), _t("sr.score.mix_dispersive.r", n=n_mix, pct=f"{pct:.0f}"))
+    return ({25: -3, 30: -1, 40: +3}, f"{pct:.0f} %",
+            _t("sr.score.mix_extreme"), _t("sr.score.mix_extreme.r", pct=f"{pct:.0f}"))
 
 
 def _score_knead_conv(
     n_knead: int, n_chaotic: int, n_conv: int, n_short: int,
 ) -> tuple[dict[int, float], str, str, str]:
-    """Critère 3 : intensité de cisaillement vs transport."""
     n_k = n_knead + n_chaotic
     n_c = n_conv + n_short
-    measured = f"{n_k} mél. · {n_c} conv."
+    measured = f"{n_k} mix. · {n_c} conv."
     if n_c == 0 and n_k == 0:
-        return (
-            {25: 0, 30: 0, 40: 0}, "—",
-            "Pas de signal",
-            "Pas de signal cisaillement/transport.",
-        )
+        return ({25: 0, 30: 0, 40: 0}, "—",
+                _t("sr.score.no_signal"), _t("sr.score.no_signal.r"))
     if n_c == 0:
-        return (
-            {25: -3, 30: -1, 40: +3},
-            measured,
-            "Cisaillement sans transport",
-            "Profil composé exclusivement de kneading — non viable sans "
-            "convoyage. 40 éléments pour intercaler du transport.",
-        )
+        return ({25: -3, 30: -1, 40: +3}, measured,
+                _t("sr.score.shear_no_conv"), _t("sr.score.shear_no_conv.r"))
     ratio = n_k / n_c
     if n_k == 0:
-        return (
-            {25: +2, 30: +1, 40: -1},
-            measured,
-            "Convoyage seul",
-            "Convoyage seul, aucun kneading — vis courte suffisante.",
-        )
+        return ({25: +2, 30: +1, 40: -1}, measured,
+                _t("sr.score.conv_only"), _t("sr.score.conv_only.r"))
     if ratio < 0.30:
-        return (
-            {25: +1, 30: +3, 40: 0},
-            measured,
-            "Convoyage dominant",
-            f"Convoyage prédominant (ratio K/C = {ratio:.2f}) — 30 éléments "
-            "couvrent le besoin avec marge.",
-        )
+        return ({25: +1, 30: +3, 40: 0}, measured,
+                _t("sr.score.conv_dominant"), _t("sr.score.conv_dominant.r", ratio=f"{ratio:.2f}"))
     if ratio < 0.70:
-        return (
-            {25: -1, 30: +2, 40: +2},
-            measured,
-            "Cisaillement / transport équilibrés",
-            f"Équilibre kneading/convoyage (K/C = {ratio:.2f}) — 30 ou 40 "
-            "selon résidence visée et thermique du liant.",
-        )
-    return (
-        {25: -2, 30: 0, 40: +3},
-        measured,
-        "Cisaillement dominant",
-        f"Kneading dominant (K/C = {ratio:.2f}) — risque thermique. "
-        "40 éléments pour intercaler du convoyage de refroidissement.",
-    )
+        return ({25: -1, 30: +2, 40: +2}, measured,
+                _t("sr.score.shear_balanced"), _t("sr.score.shear_balanced.r", ratio=f"{ratio:.2f}"))
+    return ({25: -2, 30: 0, 40: +3}, measured,
+            _t("sr.score.shear_dominant"), _t("sr.score.shear_dominant.r", ratio=f"{ratio:.2f}"))
 
 
 def _score_empty_zones(
@@ -2136,38 +1974,22 @@ def _score_empty_zones(
     empty = [z for z in range(1, 8) if zone_counts.get(z, 0) == 0]
     n = len(empty)
     if n == 0:
-        return (
-            {25: 0, 30: +2, 40: +1},
-            "0 zone vide",
-            "Vis pleinement utilisée",
-            "Toutes les zones procédé sont occupées — la vis utilise sa "
-            "longueur de manière homogène.",
-        )
-    measured = f"{n} zone vide" if n == 1 else f"{n} zones vides"
+        return ({25: 0, 30: +2, 40: +1},
+                _t("sr.score.zone_measured_0"),
+                _t("sr.score.zones_full"), _t("sr.score.zones_full.r"))
+    measured = _t("sr.score.zone_measured_1", n=n) if n == 1 else _t("sr.score.zone_measured_n", n=n)
     zlist = ", ".join(f"Z{z}" for z in empty)
     if n <= 2:
-        return (
-            {25: +1, 30: +2, 40: 0},
-            measured,
-            "Profil compact",
-            f"{measured} ({zlist}) — profil compact mais cohérent ; "
-            "30 éléments restent ajustés.",
-        )
+        return ({25: +1, 30: +2, 40: 0}, measured,
+                _t("sr.score.zones_compact"),
+                _t("sr.score.zones_compact.r", m=measured, zlist=zlist))
     if n <= 4:
-        return (
-            {25: +3, 30: 0, 40: -2},
-            measured,
-            "Vis sous-utilisée",
-            f"{measured} ({zlist}) — la vis effective est plus courte "
-            "que prévu, 25 éléments suffiraient sans gaspiller de longueur.",
-        )
-    return (
-        {25: +3, 30: -1, 40: -3},
-        measured,
-        "Vis très peu utilisée",
-        f"{measured} ({zlist}) — la vis travaille comme une vis très "
-        "courte. 25 éléments alignés avec l'usage réel.",
-    )
+        return ({25: +3, 30: 0, 40: -2}, measured,
+                _t("sr.score.zones_underused"),
+                _t("sr.score.zones_underused.r", m=measured, zlist=zlist))
+    return ({25: +3, 30: -1, 40: -3}, measured,
+            _t("sr.score.zones_very_underused"),
+            _t("sr.score.zones_very_underused.r", m=measured, zlist=zlist))
 
 
 def _confidence_from_margin(scores: dict[int, float]) -> str:
@@ -2204,14 +2026,8 @@ _FF_HIGH = 0.65                   # au-delà : saturation
 _FF_LOW = 0.18                    # en deçà : vis sous-alimentée
 _RESIDENCE_ZONE_MAX = 8.0         # s par zone — au-delà : risque cumul thermique
 
-_LENGTH_STRATEGY: dict[int, str] = {
-    25: "Conserver 25 éléments si l'objectif est production rapide et faible "
-        "résidence — compatible liants thermosensibles (PVDF, PEO).",
-    30: "Passer à 30 éléments pour un compromis stabilité / résidence — "
-        "polyvalent sur la majorité des formulations SSB.",
-    40: "Passer à 40 éléments pour une dispersion poussée des charges céramiques "
-        "— surveiller la chauffe (dégradation liant > 180-200 °C).",
-}
+def _length_strategy(n: int) -> str:
+    return _t(f"sr.count.strategy.{n}")
 
 
 def _build_action_steps(
@@ -2242,14 +2058,10 @@ def _build_action_steps(
     # ----- Cas vis vide : amorcer + cadrage défaut -----
     if n_filled == 0:
         return (
-            ActionStep(
-                "main",
-                "Placer au moins 6 à 10 éléments après le feeder pour amorcer "
-                "l'analyse procédé (homogénéité poudre active SSB).",
-            ),
+            ActionStep("main", _t("sr.action.empty_main")),
             ActionStep(
                 "option",
-                _LENGTH_STRATEGY[30],
+                _length_strategy(30),
             ),
         )
 
@@ -2270,120 +2082,90 @@ def _build_action_steps(
     main_candidates: list[ActionStep] = []
     sec_candidates: list[ActionStep] = []
 
-    # === MAIN : risque thermique liant (PVDF/PEO) ===
-    # Combinaison ff élevé + cisaillement → chauffe + dégradation liant.
     if n_knead >= 7 and ff > 0.50:
         main_candidates.append(ActionStep(
             "main",
-            f"Remplissage {ff*100:.0f} % à {rpm:.0f} rpm avec {n_knead} "
-            f"éléments de malaxage — risque de dégradation thermique du "
-            f"liant (PVDF se dégrade > 200 °C, PEO > 180 °C). Réduire à "
-            f"5-6 kneading ou intercaler du convoyage de refroidissement.",
+            _t("sr.action.thermal_binder",
+               ff=f"{ff*100:.0f}", rpm=f"{rpm:.0f}", nk=n_knead),
         ))
     elif n_knead >= 9:
         main_candidates.append(ActionStep(
             "main",
-            f"Cisaillement excessif : {n_knead} éléments de malaxage à "
-            f"{rpm:.0f} rpm — chauffe locale, risque dégradation liant SSB. "
-            f"Réduire à 5-6 kneading.",
+            _t("sr.action.excess_shear", nk=n_knead, rpm=f"{rpm:.0f}"),
         ))
 
-    # Résidence longue + cisaillement → chauffe cumulée localisée.
     if max_zone_idx >= 0 and max_zone_t > _RESIDENCE_ZONE_MAX and n_knead >= 4:
-        zone_label = f"Z{max_zone_idx}"
         main_candidates.append(ActionStep(
             "main",
-            f"Résidence {zone_label} = {max_zone_t:.1f} s avec malaxage dense "
-            f"({n_knead} kneading) — cumul thermique préjudiciable au liant. "
-            f"Répartir le mélange en aval ou intercaler du convoyage.",
+            _t("sr.action.residence_cumul",
+               zone=f"Z{max_zone_idx}", t=f"{max_zone_t:.1f}", nk=n_knead),
         ))
 
-    # Reverse abusif → fusion locale + surcouple (mécanique).
     if n_reverse >= 3:
         main_candidates.append(ActionStep(
             "main",
-            f"{n_reverse} éléments à pas inverse — fusion locale et "
-            f"surcouple à {rpm:.0f} rpm. Limiter à 1-2 max.",
+            _t("sr.action.reverse_excess", nr=n_reverse, rpm=f"{rpm:.0f}"),
         ))
 
-    # Mix-deficit critique → homogénéité poudre active compromise.
     if n_mix < 2 and n_filled >= 6:
         missing = max(2, 3 - n_mix)
         main_candidates.append(ActionStep(
             "main",
-            f"Seulement {n_mix} élément(s) de mélange à {feed:.0f} g/min — "
-            f"homogénéité poudre active insuffisante pour SSB. Ajouter au "
-            f"moins {missing} kneading ou chaotic après le feeder.",
+            _t("sr.action.mix_deficit",
+               nm=n_mix, feed=f"{feed:.0f}", missing=missing),
         ))
 
-    # Saturation critique : ff très élevé → risque mécanique + chauffe.
     if ff > 0.75:
         main_candidates.append(ActionStep(
             "main",
-            f"Remplissage {ff*100:.0f} % à {feed:.0f} g/min × densité "
-            f"{dens:.2f} g/cm³ — saturation critique, montée en couple et "
-            f"chauffe par friction. Baisser le débit feeder ou augmenter "
-            f"{rpm:.0f} → ~150 rpm pour redescendre.",
+            _t("sr.action.saturation",
+               ff=f"{ff*100:.0f}", feed=f"{feed:.0f}",
+               dens=f"{dens:.2f}", rpm=f"{rpm:.0f}"),
         ))
 
     # === SECONDARY : améliorations qualité / utilisation longueur ===
 
-    # Pas de mélange dispersif terminal → finition mélange solide insuffisante.
     if n_distrib == 0 and n_filled >= 12 and suggested >= 30:
         sec_candidates.append(ActionStep(
             "secondary",
-            "Pas d'élément dispersif terminal (toothed / special) — "
-            "homogénéité finale du mélange solide compromise. Ajouter 1 à 2 "
-            "éléments en Z6-Z7 pour finaliser la dispersion.",
+            _t("sr.action.no_dispersive"),
         ))
 
-    # Concentration mélange sur 1 zone → chauffe locale.
     if len(crowded) == 1 and n_mix >= 4:
         z = crowded[0]
         target = "Z6" if z <= 4 else "Z3"
         sec_candidates.append(ActionStep(
             "secondary",
-            f"Mélange concentré sur Z{z} ({zone_counts[z]} éléments) — "
-            f"chauffe locale, gradient thermique sur le liant. Répartir "
-            f"entre Z{z} et {target}.",
+            _t("sr.action.mix_concentrated",
+               z=z, count=zone_counts[z], target=target),
         ))
 
-    # Zones aval vides sur vis garnie → longueur sous-utilisée.
     if len(middle_empty) >= 2 and n_filled >= 12:
-        zones_str = " et ".join(f"Z{z}" for z in middle_empty[:2])
+        zones_str = _t("sr.action.zones_and").join(f"Z{z}" for z in middle_empty[:2])
         sec_candidates.append(ActionStep(
             "secondary",
-            f"{zones_str} vides : longueur procédé sous-utilisée. Étendre "
-            f"la configuration pour stabiliser la résidence et la qualité "
-            f"du mélange solide.",
+            _t("sr.action.zones_empty", zones=zones_str),
         ))
 
-    # Cisaillement modéré + peu de convoyage → besoin de refroidissement.
     if n_knead >= 7 and n_conv <= 4 and not main_candidates:
         sec_candidates.append(ActionStep(
             "secondary",
-            f"{n_knead} kneading pour seulement {n_conv} convoyage — "
-            f"intercaler du convoyage entre les blocs de malaxage pour "
-            f"refroidir avant cumul thermique sur le liant.",
+            _t("sr.action.cooling_needed", nk=n_knead, nc=n_conv),
         ))
 
-    # Procédé : fill factor hors plage cible (mais pas critique : ff > 0.75
-    # est déjà géré comme main, on évite le doublon).
     if _FF_HIGH < ff <= 0.75:
         sec_candidates.append(ActionStep(
             "secondary",
-            f"Remplissage {ff*100:.0f} % (cible {int(_FF_TARGET[0]*100)}-"
-            f"{int(_FF_TARGET[1]*100)} %) à {feed:.0f} g/min × densité "
-            f"{dens:.2f} g/cm³ — au-dessus de la plage cible. Baisser le "
-            f"débit feeder ou augmenter la vitesse vis.",
+            _t("sr.action.ff_high",
+               ff=f"{ff*100:.0f}", lo=int(_FF_TARGET[0]*100),
+               hi=int(_FF_TARGET[1]*100), feed=f"{feed:.0f}",
+               dens=f"{dens:.2f}"),
         ))
     elif ff < _FF_LOW and n_filled >= 6:
         sec_candidates.append(ActionStep(
             "secondary",
-            f"Remplissage {ff*100:.0f} % très bas à {feed:.0f} g/min — vis "
-            f"sous-alimentée, mélange peu efficace, qualité poudre active "
-            f"variable. Augmenter le débit ou vérifier la densité bulk "
-            f"({dens:.2f} g/cm³).",
+            _t("sr.action.ff_low",
+               ff=f"{ff*100:.0f}", feed=f"{feed:.0f}", dens=f"{dens:.2f}"),
         ))
 
     # ----- Sélection finale -----
@@ -2403,12 +2185,12 @@ def _build_action_steps(
         # Aucun signal : configuration saine, passer à l'essai pilote.
         actions.append(ActionStep(
             "main",
-            f"Configuration cohérente ({n_filled} éléments, remplissage "
-            f"{ff*100:.0f} % à {rpm:.0f} rpm, {feed:.0f} g/min) — passer à "
-            f"l'essai pilote pour valider l'homogénéité du mélange solide.",
+            _t("sr.action.nominal",
+               n=n_filled, ff=f"{ff*100:.0f}",
+               rpm=f"{rpm:.0f}", feed=f"{feed:.0f}"),
         ))
 
-    actions.append(ActionStep("option", _LENGTH_STRATEGY[suggested]))
+    actions.append(ActionStep("option", _length_strategy(suggested)))
     return tuple(actions)
 
 
@@ -2484,9 +2266,7 @@ def recommend_element_count(
         for c in COUNT_CANDIDATES:
             if c == suggested:
                 continue
-            summary, sentence = _COUNT_ALT_DETAIL.get(
-                (suggested, c), ("Alternative", "")
-            )
+            summary, sentence = _count_alt_detail(suggested, c)
             alts.append(CountAlternative(
                 count=c, score=scores.get(c, 0.0),
                 summary=summary, sentence=sentence,
@@ -2517,8 +2297,8 @@ def recommend_element_count(
             candidate_scores=neutral,
             criteria=criteria,
             alternatives=_build_alts(30, neutral),
-            benefits=_COUNT_BENEFITS[30],
-            risks=_COUNT_RISKS[30],
+            benefits=_count_benefits(30),
+            risks=_count_risks(30),
             action_steps=_build_action_steps(
                 suggested=30, n_filled=0,
                 n_knead=0, n_chaotic=0, n_distrib=0,
@@ -2604,42 +2384,28 @@ def recommend_element_count(
     intro = (
         f"Profil {archetype_short} × {regime_short}"
         if archetype_short != "—" else
-        f"Configuration {n_filled} éléments"
+        _t("sr.why.intro_config", n=n_filled)
     )
 
-    # Phrase 2 : implication procédé spécifique à la longueur suggérée.
     if suggested == 25:
-        why_phrase2 = (
-            f"À {rpm:.0f} rpm × {feed:.0f} g/min × ρ={dens:.2f} g/cm³, "
-            f"prolonger la vis n'apporte pas de bénéfice mélange supplémentaire — "
-            f"la matière transite trop vite ou le profil est déjà saturé en "
-            f"convoyage. Une vis 25 maximise la capacité de production sans "
-            f"pénaliser l'homogénéité atteinte."
-        )
+        why_phrase2 = _t("sr.why.25",
+                         rpm=f"{rpm:.0f}", feed=f"{feed:.0f}", dens=f"{dens:.2f}")
     elif suggested == 30:
-        why_phrase2 = (
-            f"Le profil courant ({n_mix} mélangeur(s), {n_conv+n_short} convoyage, "
-            f"FF {ff*100:.0f} %) à {rpm:.0f} rpm × {feed:.0f} g/min équilibre "
-            f"résidence et capacité. 30 éléments couvrent le besoin sans "
-            f"surdimensionner ni risquer la chauffe cumulée."
-        )
-    else:  # 40
-        why_phrase2 = (
-            f"À {rpm:.0f} rpm × {feed:.0f} g/min × ρ={dens:.2f} g/cm³ avec "
-            f"{n_knead+n_chaotic} mélangeurs dispersifs, le cisaillement cumulé "
-            f"sature une vis courte. 40 éléments donnent la marge nécessaire "
-            f"pour intercaler du convoyage de refroidissement entre les blocs "
-            f"de mélange — sécurise le liant SSB."
-        )
+        why_phrase2 = _t("sr.why.30",
+                         n_mix=n_mix, n_conv=n_conv+n_short,
+                         ff=f"{ff*100:.0f}", rpm=f"{rpm:.0f}", feed=f"{feed:.0f}")
+    else:
+        why_phrase2 = _t("sr.why.40",
+                         rpm=f"{rpm:.0f}", feed=f"{feed:.0f}", dens=f"{dens:.2f}",
+                         n_disp=n_knead+n_chaotic)
 
-    # Phrase 3 : alternative à éviter (la plus mauvaise du scoring).
     worst_count = min(candidate_scores, key=candidate_scores.get)
-    worst_label = _COUNT_TAGLINE.get(worst_count, "")
+    worst_label = _count_tagline(worst_count)
     if worst_count != suggested:
-        why_phrase3 = (
-            f"Choisir {worst_count} ({worst_label}) ferait perdre l'arbitrage : "
-            f"{_COUNT_ALT_DETAIL.get((suggested, worst_count), ('', ''))[1] or 'profil non aligné'}"
-        )
+        _alt_sentence = _count_alt_detail(suggested, worst_count)[1]
+        why_phrase3 = _t("sr.why.alt",
+                         worst=worst_count, label=worst_label,
+                         detail=_alt_sentence or "—")
     else:
         why_phrase3 = ""
 
@@ -2652,14 +2418,14 @@ def recommend_element_count(
     return CountRecommendation(
         suggested=suggested,
         rationale=rationale,
-        tagline=_COUNT_TAGLINE[suggested],
+        tagline=_count_tagline(suggested),
         severity=severity,
         confidence=confidence,
         candidate_scores=candidate_scores,
         criteria=criteria,
         alternatives=_build_alts(suggested, candidate_scores),
-        benefits=_COUNT_BENEFITS[suggested],
-        risks=_COUNT_RISKS[suggested],
+        benefits=_count_benefits(suggested),
+        risks=_count_risks(suggested),
         action_steps=_build_action_steps(
             suggested=suggested,
             n_filled=n_filled,
@@ -2850,72 +2616,47 @@ def _build_compensations(
         if z_target > 7:
             z_target = 7
         comps.append(Compensation(
-            trigger=f"Réduction kneading Z{z_hot} ({zone_knead[z_hot]} mél.)",
+            trigger=_t("sr.comp.knead_trigger_fmt", zone=z_hot, n=zone_knead[z_hot]),
             target_zone=f"Z{z_target}",
-            action=(
-                f"Ajouter 1 × **Denté** (type 11) ou **Mélange spécial** "
-                f"(type 12) en **Z{z_target}** pour récupérer la dispersion "
-                f"perdue sans ajouter de chauffe."
-            ),
-            rationale=(
-                "Le distributif terminal compense la baisse de cisaillement amont "
-                "tout en restant froid — homogénéité globale maintenue."
-            ),
+            action=_t("sr.comp.knead_action_fmt", target=z_target),
+            rationale=_t("sr.comp.knead_rationale_fmt"),
         ))
 
-    # 2) Densification proposée → vérifier l'impact Fill Factor.
     if 0 < n_filled < 15 and any(
         "densif" in r.get("action", "").lower() or "ajouter" in r.get("action", "").lower()
         for r in recs[:3]
     ):
         n_add_target = max(2, 18 - n_filled)
-        # FF est ~ proportionnel à n_filled (approximation 1er ordre).
         ff_after = ff * (1 + n_add_target / max(1, n_filled))
         in_target = 0.30 <= ff_after <= 0.55
-        verdict = (
-            f"FF passerait de {ff*100:.0f} % à ~{ff_after*100:.0f} % "
-            + ("(dans la cible 30-55 %)." if in_target
-               else f"({'au-dessus' if ff_after > 0.55 else 'en-dessous'} de la cible 30-55 %).")
+        _vrd = (
+            _t("sr.comp.densify_verdict_in") if in_target
+            else (_t("sr.comp.densify_verdict_above") if ff_after > 0.55
+                  else _t("sr.comp.densify_verdict_below"))
         )
-        action_txt = (
-            f"Avant d'ajouter {n_add_target} éléments : {verdict} "
-            + (
-                "Ajustement libre."
-                if in_target
-                else f"Ajuster le débit feeder ({feed:.0f} g/min) en parallèle "
-                     f"pour rester dans la cible."
-            )
+        verdict = _t("sr.comp.densify_ff_change",
+                      ff0=f"{ff*100:.0f}", ff1=f"{ff_after*100:.0f}", verdict=_vrd)
+        _adj = (
+            _t("sr.comp.densify_adjust_free") if in_target
+            else _t("sr.comp.densify_adjust_flow", feed=f"{feed:.0f}")
         )
         comps.append(Compensation(
-            trigger=f"Ajout de {n_add_target} éléments (densification)",
+            trigger=_t("sr.comp.densify_trigger_fmt", n=n_add_target),
             target_zone="Global",
-            action=action_txt,
-            rationale="Ajouter des éléments augmente le FF moyen — vérifier "
-                      "qu'on reste dans la plage cible procédé.",
+            action=_t("sr.comp.densify_action_fmt", n=n_add_target, verdict=verdict, adjust=_adj),
+            rationale=_t("sr.comp.densify_rationale_fmt"),
         ))
 
-    # 3) Saturation → réduction débit / hausse rpm. Compense avec rééquilibrage
-    #    mélange amont (la résidence aval augmente, le mélange amont devient
-    #    plus efficace mais ne doit pas surcharger thermiquement).
     if ff > 0.65:
         new_feed = max(5.0, feed * 0.7)
         new_rpm = rpm * 1.3
         comps.append(Compensation(
-            trigger=f"Réduction débit feeder {feed:.0f} → ~{new_feed:.0f} g/min",
+            trigger=_t("sr.comp.flow_trigger_fmt", feed0=f"{feed:.0f}", feed1=f"{new_feed:.0f}"),
             target_zone="Z2-Z3",
-            action=(
-                f"Vérifier que le mélange amont (Z2-Z3) n'est pas surchargé : "
-                f"avec {rpm:.0f} → ~{new_rpm:.0f} rpm, la résidence baisse aussi. "
-                f"Si Z2-Z3 contient déjà ≥ 3 mélangeurs, retirer 1 kneading pour "
-                f"éviter la chauffe cumulée."
-            ),
-            rationale="Une baisse débit + hausse rpm rééquilibre le FF mais "
-                      "modifie la résidence locale — ajuster le mélange en "
-                      "parallèle évite un nouveau hotspot.",
+            action=_t("sr.comp.flow_action_fmt", rpm0=f"{rpm:.0f}", rpm1=f"{new_rpm:.0f}"),
+            rationale=_t("sr.comp.flow_rationale_fmt"),
         ))
 
-    # 4) Reverse abusif → limitation. Compenser le débit sortie avec
-    #    convoyage aval pour ne pas créer une chute de débit.
     if metrics["n_reverse"] > 2:
         last_rev_zone = max(
             (z for z in range(7, 0, -1) if zone_counts.get(z, 0) > 0),
@@ -2923,23 +2664,15 @@ def _build_compensations(
         )
         z_target = min(7, last_rev_zone + 1)
         comps.append(Compensation(
-            trigger=f"Limitation des reverse à 1-2 (actuellement {metrics['n_reverse']})",
+            trigger=_t("sr.comp.reverse_trigger_fmt", n=metrics['n_reverse']),
             target_zone=f"Z{z_target}",
-            action=(
-                f"Ajouter 1-2 × **Convoyage +** (type 1) en **Z{z_target}** "
-                f"pour relancer le débit sortie. Sans rétention compensée, "
-                f"le débit ({feed:.0f} g/min) peut fluctuer."
-            ),
-            rationale="Le reverse retient la matière — en supprimer plusieurs "
-                      "sans ajouter de transport baisse le débit en sortie.",
+            action=_t("sr.comp.reverse_action_fmt", target=z_target, feed=f"{feed:.0f}"),
+            rationale=_t("sr.comp.reverse_rationale_fmt"),
         ))
 
-    # 5) Concentration locale → étalement. Vérifier que la zone receveuse a
-    #    de la place.
     crowded = [(z, n) for z, n in zone_counts.items() if n > 6 and 1 <= z <= 7]
     if crowded:
         z_src, n_src = crowded[0]
-        # Voisin avec le moins d'éléments
         candidates = [
             (zn, zone_counts.get(zn, 0)) for zn in (z_src - 1, z_src + 1)
             if 1 <= zn <= 7
@@ -2947,30 +2680,19 @@ def _build_compensations(
         if candidates:
             z_dst, n_dst = min(candidates, key=lambda x: x[1])
             comps.append(Compensation(
-                trigger=f"Déplacement de 2-3 éléments depuis Z{z_src} ({n_src} él.)",
+                trigger=_t("sr.comp.move_trigger_fmt", zone=z_src, n=n_src),
                 target_zone=f"Z{z_dst}",
-                action=(
-                    f"Vérifier que **Z{z_dst}** ({n_dst} él.) accepte la "
-                    f"redistribution sans dépasser 5-6 éléments. Sinon, "
-                    f"étaler aussi sur Z{z_dst+1 if z_dst < 7 else z_dst-1}."
-                ),
-                rationale="Le rééquilibrage spatial doit éviter de créer un "
-                          "nouveau hotspot — répartir sur 2 zones si besoin.",
+                action=_t("sr.comp.move_action_fmt", dst=z_dst, n_dst=n_dst,
+                           alt=z_dst+1 if z_dst < 7 else z_dst-1),
+                rationale=_t("sr.comp.move_rationale_fmt"),
             ))
 
-    # 6) Pas de distributif terminal alors que kneading dense → compenser.
     if n_distrib == 0 and n_knead >= 5 and n_filled >= 12:
         comps.append(Compensation(
-            trigger="Cisaillement dispersif important sans finition distributive",
+            trigger=_t("sr.comp.nodistrib_trigger"),
             target_zone="Z6-Z7",
-            action=(
-                "Ajouter 1 × **Denté** (type 11) en Z6 ou Z7 — sans cela, "
-                "la dispersion locale n'est pas diffusée à l'échelle globale "
-                "(homogénéité du film final compromise)."
-            ),
-            rationale="Dispersif et distributif sont complémentaires — "
-                      "supprimer du dispersif sans poser un distributif aval "
-                      "dégrade l'homogénéité finale.",
+            action=_t("sr.comp.nodistrib_action"),
+            rationale=_t("sr.comp.nodistrib_rationale"),
         ))
 
     return comps
@@ -2988,11 +2710,10 @@ def _build_global_checks(
     zone_counts = metrics["zone_counts"]
     zone_knead = metrics["zone_knead"]
 
-    # 1) Cohérence du profil global : ratio mélange/transport dans la plage
-    #    métier + présence de distributif si dispersif > 4.
+    _coh_lbl = _t("sr.check.coherence.label")
     if n_filled == 0:
         checks.append(GlobalCheck(
-            label="Cohérence du profil global",
+            label=_coh_lbl,
             status="watch",
             summary=_t("sr.empty.systemic_check"),
         ))
@@ -3002,131 +2723,105 @@ def _build_global_checks(
         ok_distrib = (n_knead < 5) or (n_distrib >= 1)
         if ok_ratio and ok_distrib:
             checks.append(GlobalCheck(
-                label="Cohérence du profil global",
+                label=_coh_lbl,
                 status="ok",
-                summary=f"Ratio convoyage/mélange = {ratio_mt:.1f}:1, "
-                        f"{n_distrib} distributif terminal — profil cohérent.",
+                summary=_t("sr.check.coherence.ok_full", ratio=f"{ratio_mt:.1f}", ndist=n_distrib),
             ))
         elif not ok_ratio:
             verdict = (
-                "trop de transport, mélange noyé"
-                if ratio_mt > 5.0 else "cisaillement dominant, pas assez de transport"
+                _t("sr.check.coherence.too_much_transport")
+                if ratio_mt > 5.0 else _t("sr.check.coherence.shear_dominant")
             )
             checks.append(GlobalCheck(
-                label="Cohérence du profil global",
+                label=_coh_lbl,
                 status="watch" if 0.5 <= ratio_mt <= 8.0 else "alert",
-                summary=f"Ratio convoyage/mélange = {ratio_mt:.1f}:1 — {verdict}.",
+                summary=_t("sr.check.coherence.watch", ratio=f"{ratio_mt:.1f}", verdict=verdict),
             ))
         else:
             checks.append(GlobalCheck(
-                label="Cohérence du profil global",
+                label=_coh_lbl,
                 status="watch",
-                summary=f"{n_knead} dispersif sans distributif terminal — "
-                        "ajouter au moins 1 toothed/special en Z6-Z7.",
+                summary=_t("sr.check.coherence.no_distrib", nk=n_knead),
             ))
 
-    # 2) Équilibre transport / dispersion (proportions)
+    _bal_lbl = _t("sr.check.balance.label")
     if n_filled >= 6:
         pct_disp = (n_knead + n_distrib) / n_filled
         pct_conv = n_conv / n_filled
         diff = abs(pct_disp - pct_conv)
+        _pc = f"{pct_conv*100:.0f}"
+        _pd = f"{pct_disp*100:.0f}"
         if diff < 0.20:
             checks.append(GlobalCheck(
-                label="Équilibre transport / dispersion",
-                status="ok",
-                summary=f"Transport {pct_conv*100:.0f} % vs mélange "
-                        f"{pct_disp*100:.0f} % — équilibre cohérent SSB.",
+                label=_bal_lbl, status="ok",
+                summary=_t("sr.check.balance.ok", pc=_pc, pd=_pd),
             ))
         elif diff < 0.40:
             checks.append(GlobalCheck(
-                label="Équilibre transport / dispersion",
-                status="watch",
-                summary=f"Transport {pct_conv*100:.0f} % vs mélange "
-                        f"{pct_disp*100:.0f} % — déséquilibre modéré, "
-                        "rééquilibrer si essai pilote non concluant.",
+                label=_bal_lbl, status="watch",
+                summary=_t("sr.check.balance.watch", pc=_pc, pd=_pd),
             ))
         else:
-            dom = "transport" if pct_conv > pct_disp else "mélange"
+            dom = "transport" if pct_conv > pct_disp else "mixing"
             checks.append(GlobalCheck(
-                label="Équilibre transport / dispersion",
-                status="alert",
-                summary=f"Transport {pct_conv*100:.0f} % vs mélange "
-                        f"{pct_disp*100:.0f} % — {dom} dominant, profil "
-                        "déséquilibré.",
+                label=_bal_lbl, status="alert",
+                summary=_t("sr.check.balance.alert", pc=_pc, pd=_pd, dom=dom),
             ))
 
-    # 3) Pas de dégradation en aval (résidence Z6-Z8 + mélange aval)
+    _deg_lbl = _t("sr.check.degrad.label")
     if zone_residence and len(zone_residence) >= 9:
         downstream_rt = max(zone_residence[6], zone_residence[7], zone_residence[8])
         downstream_knead = sum(zone_knead.get(z, 0) for z in (6, 7))
+        _rt = f"{downstream_rt:.1f}"
         if downstream_rt > 8.0 and downstream_knead >= 3:
             checks.append(GlobalCheck(
-                label="Risque dégradation aval",
-                status="alert",
-                summary=f"Résidence aval {downstream_rt:.1f} s × "
-                        f"{downstream_knead} mélangeurs Z6-Z7 — chauffe "
-                        "cumulée, dégradation liant probable (PVDF/PEO).",
+                label=_deg_lbl, status="alert",
+                summary=_t("sr.check.degrad.alert_rt", rt=_rt, nk=downstream_knead),
             ))
         elif downstream_rt > 6.0 and downstream_knead >= 2:
             checks.append(GlobalCheck(
-                label="Risque dégradation aval",
-                status="watch",
-                summary=f"Résidence aval {downstream_rt:.1f} s × "
-                        f"{downstream_knead} mélangeurs Z6-Z7 — surveillance "
-                        "thermique recommandée.",
+                label=_deg_lbl, status="watch",
+                summary=_t("sr.check.degrad.watch_rt", rt=_rt, nk=downstream_knead),
             ))
         else:
             checks.append(GlobalCheck(
-                label="Risque dégradation aval",
-                status="ok",
-                summary=f"Résidence aval {downstream_rt:.1f} s, mélange "
-                        f"terminal modéré — pas de risque dégradation aval.",
+                label=_deg_lbl, status="ok",
+                summary=_t("sr.check.degrad.ok_rt", rt=_rt),
             ))
     else:
-        # Sans résidence par zone, on retombe sur les comptages.
         downstream_knead = sum(zone_knead.get(z, 0) for z in (6, 7))
         if downstream_knead >= 4:
             checks.append(GlobalCheck(
-                label="Risque dégradation aval",
-                status="watch",
-                summary=f"{downstream_knead} mélangeurs en Z6-Z7 — surveiller "
-                        "la chauffe terminale (résidence non fournie).",
+                label=_deg_lbl, status="watch",
+                summary=_t("sr.check.degrad.watch_no_rt", nk=downstream_knead),
             ))
         else:
             checks.append(GlobalCheck(
-                label="Risque dégradation aval",
-                status="ok",
-                summary=f"Mélange terminal modéré ({downstream_knead} él. "
-                        "Z6-Z7) — pas de risque dégradation aval identifié.",
+                label=_deg_lbl, status="ok",
+                summary=_t("sr.check.degrad.ok_no_rt", nk=downstream_knead),
             ))
 
-    # 4) Cohérence Fill Factor avec le régime
+    _fill_lbl = _t("sr.lbl.fill_regime")
+    _ffp = f"{ff*100:.0f}"
     if 0.30 <= ff <= 0.55:
         checks.append(GlobalCheck(
-            label=_t("sr.lbl.fill_regime"),
-            status="ok",
-            summary=f"FF {ff*100:.0f} % dans la cible procédé (30-55 %).",
+            label=_fill_lbl, status="ok",
+            summary=_t("sr.check.fill.ok_target", ff=_ffp),
         ))
     elif ff < 0.18:
         checks.append(GlobalCheck(
-            label=_t("sr.lbl.fill_regime"),
-            status="alert",
-            summary=f"FF {ff*100:.0f} % — vis sous-alimentée, mélange peu "
-                    "efficace.",
+            label=_fill_lbl, status="alert",
+            summary=_t("sr.check.fill.alert_underfed", ff=_ffp),
         ))
     elif ff > 0.70:
         checks.append(GlobalCheck(
-            label=_t("sr.lbl.fill_regime"),
-            status="alert",
-            summary=f"FF {ff*100:.0f} % — saturation, risque surcouple "
-                    "et chauffe par friction.",
+            label=_fill_lbl, status="alert",
+            summary=_t("sr.check.fill.alert_saturated", ff=_ffp),
         ))
     else:
         checks.append(GlobalCheck(
-            label=_t("sr.lbl.fill_regime"),
-            status="watch",
-            summary=f"FF {ff*100:.0f} % — hors cible (30-55 %), ajustement "
-                    "débit feeder ou rpm recommandé.",
+            label=_fill_lbl, status="watch",
+            summary=_t("sr.check.fill.watch_off", ff=_ffp),
         ))
 
     return checks
@@ -3142,59 +2837,23 @@ def _build_tradeoffs(
     out: list[str] = []
     n_knead = metrics["n_knead"] + metrics["n_chaotic"]
 
-    # Trade-off 1 : kneading dense → compensé par distributif terminal.
-    if any("Réduction kneading" in c.trigger for c in comps):
-        comp = next(c for c in comps if "Réduction kneading" in c.trigger)
-        out.append(
-            f"Réduire le kneading {comp.trigger.split(' ')[2]} diminue le "
-            f"cisaillement local (dispersion -30 % env.) mais le distributif "
-            f"posé en {comp.target_zone} compense l'homogénéité globale. "
-            f"Compromis acceptable : on perd un peu de dispersion fine pour "
-            f"gagner en sécurité thermique du liant."
-        )
+    _knead_comp = next((c for c in comps if "kneading" in c.trigger.lower()), None)
+    if _knead_comp:
+        out.append(_t("sr.trade.knead", zone=_knead_comp.target_zone, target=_knead_comp.target_zone))
 
-    # Trade-off 2 : densification → ajuster FF. Si la densification fait
-    # passer en cible, c'est un gain net ; sinon, compromis avec débit.
-    if any("Densification" in c.trigger or "Ajout de" in c.trigger for c in comps):
-        comp = next(
-            c for c in comps if "Densification" in c.trigger or "Ajout de" in c.trigger
-        )
-        out.append(
-            f"Densifier la vis ({comp.trigger}) améliore le mélange et "
-            f"l'utilisation longueur, mais augmente le FF moyen. "
-            f"{comp.action.split(':')[1].strip() if ':' in comp.action else 'Vérifier la cible.'} "
-            f"Compromis selon priorité : qualité mélange (densifier) vs "
-            f"capacité production (garder court)."
-        )
+    _dens_comp = next((c for c in comps if "densif" in c.trigger.lower()), None)
+    if _dens_comp:
+        _det = _dens_comp.action.split(':')[1].strip() if ':' in _dens_comp.action else ''
+        out.append(_t("sr.trade.densify", trigger=_dens_comp.trigger, detail=_det))
 
-    # Trade-off 3 : reverse → compromis rétention/débit.
     if any("reverse" in c.trigger.lower() for c in comps):
-        out.append(
-            "Limiter les reverse améliore le débit sortie et baisse le couple, "
-            "mais réduit la rétention donc le temps de séjour utile au mélange. "
-            "Compromis : on accepte un mélange un peu moins long contre une "
-            "stabilité débit/qualité, le convoyage aval restaure la stabilité "
-            "de sortie."
-        )
+        out.append(_t("sr.trade.reverse"))
 
-    # Trade-off 4 : saturation → compromis débit / résidence.
-    if any("Réduction débit" in c.trigger for c in comps):
-        out.append(
-            "Baisser le débit feeder (et/ou monter la rpm) sort la vis de "
-            "saturation et protège du surcouple, mais réduit la capacité de "
-            "production et raccourcit la résidence — vérifier que le mélange "
-            "amont reste suffisant. Compromis sécurité procédé vs throughput."
-        )
+    if any("feeder" in c.trigger.lower() for c in comps):
+        out.append(_t("sr.trade.flow"))
 
-    # Trade-off transverse : si pas de compensation déclenchée mais kneading
-    # dense, mentionner le compromis dispersion/thermique latent.
     if not out and n_knead >= 6:
-        out.append(
-            f"{n_knead} mélangeurs dispersifs offrent une dispersion fine mais "
-            "concentrent le cisaillement et la chauffe. Surveiller la "
-            "température liant ; intercaler du convoyage si la résidence "
-            "longue est confirmée."
-        )
+        out.append(_t("sr.trade.latent", nk=n_knead))
 
     return out[:3]
 
@@ -3212,32 +2871,34 @@ def _build_synthesis(
     out: list[SynthesisAxis] = []
 
     # AXE 1 — DISPERSION
+    _disp = _t("sr.axis.dispersion")
     if n_filled == 0:
-        out.append(SynthesisAxis("Dispersion", "watch", "non évaluable"))
+        out.append(SynthesisAxis(_disp, "watch", _t("sr.axis.not_evaluable")))
     else:
         pct_disp = (n_knead + n_distrib) / n_filled
         if pct_disp < 0.10:
             out.append(SynthesisAxis(
-                "Dispersion", "alert",
-                f"insuffisante ({n_knead+n_distrib} mél. / {n_filled} él.)"
+                _disp, "alert",
+                _t("sr.axis.disp.insufficient", nk=n_knead+n_distrib, n=n_filled)
             ))
         elif pct_disp > 0.55:
             out.append(SynthesisAxis(
-                "Dispersion", "watch",
-                f"excessive ({pct_disp*100:.0f} % du profil)"
+                _disp, "watch",
+                _t("sr.axis.disp.excessive", pct=f"{pct_disp*100:.0f}")
             ))
         elif n_knead >= 4 and n_distrib == 0:
             out.append(SynthesisAxis(
-                "Dispersion", "watch",
-                f"locale OK mais finition distributive absente"
+                _disp, "watch",
+                _t("sr.axis.disp.no_distrib")
             ))
         else:
             out.append(SynthesisAxis(
-                "Dispersion", "ok",
-                f"équilibrée ({pct_disp*100:.0f} % mél., {n_distrib} distrib.)"
+                _disp, "ok",
+                _t("sr.axis.disp.balanced", nk=f"{pct_disp*100:.0f} %", ndist=n_distrib)
             ))
 
     # AXE 2 — THERMIQUE
+    _therm = _t("sr.axis.thermal")
     hot_zones = [z for z in range(1, 8) if zone_knead.get(z, 0) >= 4]
     downstream_rt = (
         max(zone_residence[6], zone_residence[7], zone_residence[8])
@@ -3245,56 +2906,59 @@ def _build_synthesis(
     )
     if hot_zones and downstream_rt > 8.0:
         out.append(SynthesisAxis(
-            "Thermique", "alert",
-            f"surcharge Z{hot_zones[0]} + résidence aval {downstream_rt:.1f} s"
+            _therm, "alert",
+            _t("sr.axis.therm.overload_downstream", zone=hot_zones[0], rt=f"{downstream_rt:.1f}")
         ))
     elif n_knead >= 8 or hot_zones:
+        _conc = _t("sr.axis.therm.concentrated", zone=hot_zones[0]) if hot_zones else ""
         out.append(SynthesisAxis(
-            "Thermique", "watch",
-            f"cisaillement cumulé {n_knead} mél." +
-            (f" — concentré Z{hot_zones[0]}" if hot_zones else "")
+            _therm, "watch",
+            _t("sr.axis.therm.cumulative", nk=n_knead) + _conc
         ))
     else:
         out.append(SynthesisAxis(
-            "Thermique", "ok",
-            f"pas de surcharge ({n_knead} mél., zones réparties)"
+            _therm, "ok",
+            _t("sr.axis.therm.no_overload", nk=n_knead)
         ))
 
     # AXE 3 — TRANSPORT
+    _trans = _t("sr.axis.transport")
     if n_filled == 0:
-        out.append(SynthesisAxis("Transport", "watch", "non évaluable"))
+        out.append(SynthesisAxis(_trans, "watch", _t("sr.axis.not_evaluable")))
     elif n_conv < 3:
         out.append(SynthesisAxis(
-            "Transport", "alert",
-            f"sous-dimensionné ({n_conv} convoyage)"
+            _trans, "alert",
+            _t("sr.axis.trans.undersized", nc=n_conv)
         ))
     elif n_conv / max(1, n_knead) < 0.5 and n_knead > 0:
         out.append(SynthesisAxis(
-            "Transport", "watch",
-            f"déficitaire ({n_conv} conv. vs {n_knead} mél.)"
+            _trans, "watch",
+            _t("sr.axis.trans.deficit_vs", nc=n_conv, nk=n_knead)
         ))
     else:
         out.append(SynthesisAxis(
-            "Transport", "ok",
-            f"maintenu ({n_conv} convoyage)"
+            _trans, "ok",
+            _t("sr.axis.trans.maintained", nc=n_conv)
         ))
 
     # AXE 4 — CAPACITÉ / DÉBIT
+    _cap = _t("sr.axis.capacity")
+    _ffp = f"{ff*100:.0f}"
     if 0.30 <= ff <= 0.55:
         out.append(SynthesisAxis(
-            "Capacité", "ok", f"FF {ff*100:.0f} % dans la cible"
+            _cap, "ok", _t("sr.axis.cap.target", ff=_ffp)
         ))
     elif ff < 0.18:
         out.append(SynthesisAxis(
-            "Capacité", "alert", f"sous-alimentée (FF {ff*100:.0f} %)"
+            _cap, "alert", _t("sr.axis.cap.underfed", ff=_ffp)
         ))
     elif ff > 0.70:
         out.append(SynthesisAxis(
-            "Capacité", "alert", f"saturation (FF {ff*100:.0f} %)"
+            _cap, "alert", _t("sr.axis.cap.saturated", ff=_ffp)
         ))
     else:
         out.append(SynthesisAxis(
-            "Capacité", "watch", f"hors cible (FF {ff*100:.0f} %)"
+            _cap, "watch", _t("sr.axis.cap.off_target", ff=_ffp)
         ))
 
     return out
@@ -3318,36 +2982,26 @@ def _systemic_overall(
     parts: list[str] = []
     for axis in synthesis:
         if axis.status == "ok":
-            parts.append(f"{axis.label.lower()} {axis.detail.split(' ')[0]}")
+            parts.append(_t("sr.axis.ok_join", label=axis.label.lower(), word=axis.detail.split(' ')[0]))
         elif axis.status == "watch":
-            parts.append(f"{axis.label.lower()} à surveiller ({axis.detail})")
+            parts.append(_t("sr.axis.watch_join", label=axis.label.lower(), detail=axis.detail))
         else:
-            parts.append(f"{axis.label.lower()} EN ALERTE ({axis.detail})")
+            parts.append(_t("sr.axis.alert_join", label=axis.label.lower(), detail=axis.detail))
 
+    parts_str = ", ".join(parts)
     if overall == "ok":
-        summary = (
-            "Profil optimisé : " + ", ".join(parts) +
-            ". Configuration cohérente, prêt pour essai pilote SSB."
-        )
+        summary = _t("sr.overall.ok", parts=parts_str)
     elif overall == "watch":
-        summary = (
-            "Profil acceptable avec points de vigilance : " + ", ".join(parts) +
-            ". Appliquer les compensations avant essai prolongé."
-        )
+        summary = _t("sr.overall.watch", parts=parts_str)
     else:
-        summary = (
-            "Profil déséquilibré : " + ", ".join(parts) +
-            ". Corriger les axes en alerte avant tout essai pilote."
-        )
+        summary = _t("sr.overall.alert", parts=parts_str)
     return overall, summary
 
 
 # Verdict global injecté en fin de phrase compromis selon overall_status.
-_ENRICHED_VERDICT = {
-    "ok":    "garantit la stabilité globale du procédé",
-    "watch": "préserve un équilibre acceptable sous surveillance ciblée",
-    "alert": "demande une validation en essai pilote avant production",
-}
+def _enriched_verdict(status: str) -> str:
+    _key = {"ok": "sr.verdict.ok", "watch": "sr.verdict.watch", "alert": "sr.verdict.alert"}
+    return _t(_key.get(status, "sr.verdict.fallback"))
 
 
 def _build_why_enriched(
@@ -3371,71 +3025,40 @@ def _build_why_enriched(
         return base_why
     if not comps:
         if overall_status == "ok":
-            return (
-                f"{base_why} Compromis : aucune action critique à compenser — "
-                "l'équilibre global est déjà atteint sur cette configuration."
-            )
+            return f"{base_why} {_t('sr.enrich.no_comp')}"
         return base_why
 
     main = comps[0]
     trigger_lc = main.trigger.lower()
     target = main.target_zone
 
-    # Mapping trigger → (cost Y, gain Z). Aligné mot-à-mot sur les triggers
-    # produits par _build_compensations.
     if trigger_lc.startswith("réduction kneading"):
-        # "Réduction kneading Z4 (3 mél.)" → zone source = 3e token
         parts = main.trigger.split()
         z_src = parts[2] if len(parts) >= 3 else "amont"
-        cost = f"un léger excès de cisaillement local en {z_src}"
-        gain = (
-            f"un distributif posé en {target} qui restaure l'homogénéité aval "
-            "sans ajouter de chauffe"
-        )
+        cost = _t("sr.enrich.cost.knead", z_src=z_src)
+        gain = _t("sr.enrich.gain.knead", target=target)
     elif "ajout de" in trigger_lc and "densification" in trigger_lc:
-        cost = "une hausse du fill factor moyen liée à la densification"
-        gain = (
-            "l'ajustement débit feeder en parallèle, qui maintient le régime "
-            "de remplissage dans la cible procédé (30-55 %)"
-        )
+        cost = _t("sr.enrich.cost.densif")
+        gain = _t("sr.enrich.gain.densif")
     elif trigger_lc.startswith("réduction débit"):
-        cost = "une baisse de la capacité de production"
-        gain = (
-            f"le rééquilibrage du mélange en {target}, qui évite un nouveau "
-            "hotspot lié à la résidence raccourcie"
-        )
+        cost = _t("sr.enrich.cost.flow")
+        gain = _t("sr.enrich.gain.flow", target=target)
     elif trigger_lc.startswith("limitation des reverse"):
-        cost = "une rétention plus courte (mélange un peu moins long)"
-        gain = (
-            f"le convoyage compensateur en {target}, qui stabilise le débit "
-            "de sortie et baisse le couple"
-        )
+        cost = _t("sr.enrich.cost.reverse")
+        gain = _t("sr.enrich.gain.reverse", target=target)
     elif trigger_lc.startswith("déplacement"):
-        # "Déplacement de 2-3 éléments depuis Z3 (7 él.)"
         parts = main.trigger.split()
         z_src = parts[5] if len(parts) >= 6 else "amont"
-        cost = f"la redistribution depuis {z_src}"
-        gain = (
-            f"la zone {target} qui absorbe sans dépasser la densité limite, "
-            "pas de nouveau hotspot créé"
-        )
+        cost = _t("sr.enrich.cost.move", z_src=z_src)
+        gain = _t("sr.enrich.gain.move", target=target)
     elif "cisaillement dispersif" in trigger_lc:
-        cost = "une dispersion fine qui resterait sinon cantonnée localement"
-        gain = (
-            f"un toothed/special terminal en {target} qui la diffuse à "
-            "l'échelle globale, à coût thermique nul"
-        )
+        cost = _t("sr.enrich.cost.dispersive")
+        gain = _t("sr.enrich.gain.dispersive", target=target)
     else:
-        # Trigger non reconnu : ne pas inventer.
         return base_why
 
-    # Élision « de » → « d' » devant voyelle (a, e, i, o, u, h, é, è, …).
-    de_prefix = "d'" if cost[:1].lower() in "aeiouhâéèêîô" else "de "
-    verdict = _ENRICHED_VERDICT.get(overall_status, "reste à valider en essai pilote")
-    sentence = (
-        f"Compromis assumé : on choisit {suggested} éléments au prix "
-        f"{de_prefix}{cost}, compensé par {gain}, ce qui {verdict}."
-    )
+    verdict = _enriched_verdict(overall_status)
+    sentence = _t("sr.enrich.sentence", n=suggested, cost=cost, gain=gain, verdict=verdict)
     return f"{base_why} {sentence}"
 
 
@@ -3479,43 +3102,20 @@ def _decision_action_phrase(main: Compensation, suggested: int) -> str:
     if trigger_lc.startswith("réduction kneading"):
         parts = main.trigger.split()
         z_src = parts[2] if len(parts) >= 3 else "amont"
-        return (
-            f"Conserver {suggested} éléments, réduire le kneading en {z_src} "
-            f"et poser un distributif en {target} pour stabiliser le "
-            f"cisaillement local."
-        )
+        return _t("sr.decide.keep_knead", n=suggested, z_src=z_src, target=target)
     if "ajout de" in trigger_lc and "densification" in trigger_lc:
-        return (
-            f"Passer à {suggested} éléments en densifiant la vis et ajuster "
-            f"le débit feeder pour maintenir le fill factor dans la cible "
-            f"30-55 %."
-        )
+        return _t("sr.decide.densify", n=suggested)
     if trigger_lc.startswith("réduction débit"):
-        return (
-            f"Conserver {suggested} éléments et réduire légèrement le débit "
-            f"feeder pour sortir la vis de saturation, en surveillant {target}."
-        )
+        return _t("sr.decide.reduce_flow", n=suggested, target=target)
     if trigger_lc.startswith("limitation des reverse"):
-        return (
-            f"Limiter les reverse à 1-2 et compenser avec du convoyage en "
-            f"{target} pour stabiliser le débit ({suggested} éléments)."
-        )
+        return _t("sr.decide.limit_reverse", n=suggested, target=target)
     if trigger_lc.startswith("déplacement"):
         parts = main.trigger.split()
         z_src = parts[5] if len(parts) >= 6 else "amont"
-        return (
-            f"Étaler les éléments concentrés depuis {z_src} vers {target} "
-            f"pour casser le hotspot local ({suggested} éléments)."
-        )
+        return _t("sr.decide.spread", n=suggested, z_src=z_src, target=target)
     if "cisaillement dispersif" in trigger_lc:
-        return (
-            f"Conserver {suggested} éléments et ajouter un toothed/special "
-            f"en {target} pour finir la dispersion à l'échelle globale."
-        )
-    return (
-        f"Appliquer la compensation prioritaire en {target} sur "
-        f"{suggested} éléments."
-    )
+        return _t("sr.decide.add_dispersive", n=suggested, target=target)
+    return _t("sr.decide.generic", n=suggested, target=target)
 
 
 def _decision_next_step(
@@ -3523,22 +3123,18 @@ def _decision_next_step(
 ) -> str:
     """Action immédiate à enclencher selon le niveau de confiance."""
     if confidence == "high":
-        return "Lancer un essai pilote avec cette configuration."
+        return _t("sr.next.pilot")
     if confidence == "medium":
         if comps:
-            return (
-                f"Valider la stabilité en {comps[0].target_zone} sur un essai "
-                "pilote court avant montée en production."
-            )
-        return "Valider sur essai pilote court avant montée en production."
-    # low
+            return _t("sr.next.validate_zone", zone=comps[0].target_zone)
+        return _t("sr.next.validate_short")
     critique = next((r for r in recs if r.get("severity") == "critique"), None)
     if critique is not None:
         zone = (critique.get("zone") or "").strip()
-        # Zone "Global"/vide → formulation procédé.
-        target = "le procédé" if zone in ("", "Global", "global") else zone
-        return f"Stabiliser {target} en priorité avant tout essai pilote."
-    return "Stabiliser le procédé en priorité avant tout essai pilote."
+        if zone in ("", "Global", "global"):
+            return _t("sr.next.stabilize_process")
+        return _t("sr.next.stabilize_target", target=zone)
+    return _t("sr.next.stabilize_process")
 
 
 def _build_decision_layer(
@@ -3554,10 +3150,7 @@ def _build_decision_layer(
     if n_filled == 0:
         decision = _t("sr.empty.decision")
     elif not comps:
-        decision = (
-            f"Conserver la configuration {suggested} éléments — l'équilibre "
-            "global est validé, aucune compensation requise."
-        )
+        decision = _t("sr.decide.keep_config", n=suggested)
     else:
         decision = _decision_action_phrase(comps[0], suggested)
 
@@ -3582,57 +3175,18 @@ def _operator_summary_from_comp(main: Compensation) -> tuple[str, str, str]:
     trigger_lc = main.trigger.lower()
 
     if trigger_lc.startswith("réduction kneading"):
-        return (
-            "Réduire le mélange en début de vis et finir plus loin.",
-            "Trop d'éléments mélangeurs sont concentrés au début — la matière "
-            "chauffe trop à cet endroit.",
-            "Retirer 1 mélangeur en amont, ajouter 1 élément de finition "
-            "vers la sortie.",
-        )
+        return (_t("sr.op.knead.decision"), _t("sr.op.knead.why"), _t("sr.op.knead.action"))
     if "ajout de" in trigger_lc and "densification" in trigger_lc:
-        return (
-            "Allonger la vis pour mieux travailler la matière.",
-            "Le profil est trop court : la matière n'a pas le temps d'être "
-            "correctement mélangée.",
-            "Ajouter quelques éléments et ajuster légèrement le débit pour "
-            "garder un bon remplissage.",
-        )
+        return (_t("sr.op.densify.decision"), _t("sr.op.densify.why"), _t("sr.op.densify.action"))
     if trigger_lc.startswith("réduction débit"):
-        return (
-            "Baisser le débit pour sortir la vis de saturation.",
-            "La vis est trop chargée — la matière n'a plus la place de "
-            "s'écouler correctement.",
-            "Réduire le débit feeder et monter légèrement les tours/minute.",
-        )
+        return (_t("sr.op.flow.decision"), _t("sr.op.flow.why"), _t("sr.op.flow.action"))
     if trigger_lc.startswith("limitation des reverse"):
-        return (
-            "Limiter les éléments de rétention et relancer le transport.",
-            "Trop d'éléments retiennent la matière — le débit en sortie "
-            "devient instable.",
-            "Garder 1 à 2 reverse maximum et ajouter un élément de transport "
-            "vers la sortie.",
-        )
+        return (_t("sr.op.reverse.decision"), _t("sr.op.reverse.why"), _t("sr.op.reverse.action"))
     if trigger_lc.startswith("déplacement"):
-        return (
-            "Étaler la zone surchargée sur les zones voisines.",
-            "Trop d'éléments sont concentrés au même endroit — la matière "
-            "chauffe localement.",
-            "Déplacer 2 à 3 éléments vers la zone voisine la moins remplie.",
-        )
+        return (_t("sr.op.spread.decision"), _t("sr.op.spread.why"), _t("sr.op.spread.action"))
     if "cisaillement dispersif" in trigger_lc:
-        return (
-            "Ajouter une finition de mélange en sortie.",
-            "Le mélange est intense en amont mais rien ne finalise "
-            "l'homogénéisation avant la sortie.",
-            "Poser 1 élément de finition (denté ou mélange spécial) juste "
-            "avant la sortie.",
-        )
-    # Fallback générique : on garde le sens sans inventer.
-    return (
-        "Appliquer la compensation prioritaire avant tout essai.",
-        "Le profil et les paramètres ne sont pas encore équilibrés.",
-        "Suivre la première compensation listée plus bas.",
-    )
+        return (_t("sr.op.dispersive.decision"), _t("sr.op.dispersive.why"), _t("sr.op.dispersive.action"))
+    return (_t("sr.op.fallback.decision"), _t("sr.op.fallback.why"), _t("sr.op.fallback.action"))
 
 
 def _build_decision_summary(
@@ -3652,11 +3206,9 @@ def _build_decision_summary(
     # rien d'autre ne doit être conseillé tant qu'il n'est pas restauré.
     if tip_status == "missing":
         return DecisionSummary(
-            decision="Restaurer la pointe en fin de vis avant toute analyse.",
-            why="La pointe de sortie est absente du profil — c'est un "
-                "élément physique obligatoire, non remplaçable.",
-            action="Recharger une configuration de base : la pointe est "
-                   "automatiquement repositionnée en fin de vis.",
+            decision=_t("sr.summary.tip_missing.decision"),
+            why=_t("sr.summary.tip_missing.why"),
+            action=_t("sr.summary.tip_missing.action"),
         )
     if n_filled == 0:
         return DecisionSummary(
@@ -3667,33 +3219,27 @@ def _build_decision_summary(
     if not comps:
         if overall_status == "ok":
             ds = DecisionSummary(
-                decision=f"Configuration validée — {suggested} éléments, "
-                         "vous pouvez lancer.",
-                why="L'équilibre transport / mélange / chauffe est correct.",
-                action="Lancer un essai pilote avec cette configuration.",
+                decision=_t("sr.summary.ok.decision", n=suggested),
+                why=_t("sr.summary.ok.why"),
+                action=_t("sr.next.pilot"),
             )
         else:
             ds = DecisionSummary(
-                decision=f"Garder {suggested} éléments mais surveiller le procédé.",
-                why="Le profil tient, mais des points de vigilance subsistent.",
-                action="Lancer un essai pilote court et surveiller "
-                       "débit + chauffe.",
+                decision=_t("sr.summary.watch.decision", n=suggested),
+                why=_t("sr.summary.watch.why"),
+                action=_t("sr.summary.watch.action"),
             )
     else:
         decision, why, action = _operator_summary_from_comp(comps[0])
         ds = DecisionSummary(decision=decision, why=why, action=action)
 
-    # Note de dédoublonnage — non bloquant, juste informatif : l'invariant
-    # est restauré côté backend, on en informe l'opérateur en suffixe d'action.
     if tip_status == "deduplicated" and tip_stray_count > 0:
-        n_word = "doublon" if tip_stray_count == 1 else "doublons"
+        n_word = (_t("sr.summary.dedup_singular") if tip_stray_count == 1
+                  else _t("sr.summary.dedup_plural"))
         return DecisionSummary(
-            decision=ds.decision,
-            why=ds.why,
-            action=(
-                f"{ds.action} (note : {tip_stray_count} {n_word} de pointe "
-                "détecté(s) en amont, nettoyé(s) automatiquement)."
-            ),
+            decision=ds.decision, why=ds.why,
+            action=_t("sr.summary.dedup", action=ds.action,
+                       count=tip_stray_count, word=n_word),
         )
     return ds
 
@@ -3820,11 +3366,19 @@ def analyze_systemic(
 # Rendu HTML — bloc systémique unique. Pas de Streamlit ici (UI-agnostic).
 # Les pages appellent st.html(build_systemic_html(systemic)) — DOM atomique.
 # ---------------------------------------------------------------------------
-_SYSTEMIC_STATUS_STYLE: dict[str, tuple[str, str, str, str]] = {
-    "ok":    ("#0f2b1d", "#bbf7d0", "#10B981", "OK"),
-    "watch": ("#3b2c0a", "#fde68a", "#F59E0B", "VIGILANCE"),
-    "alert": ("#3b1212", "#fecaca", "#EF4444", "ALERTE"),
+_SYSTEMIC_STATUS_COLORS: dict[str, tuple[str, str, str]] = {
+    "ok":    ("#0f2b1d", "#bbf7d0", "#10B981"),
+    "watch": ("#3b2c0a", "#fde68a", "#F59E0B"),
+    "alert": ("#3b1212", "#fecaca", "#EF4444"),
 }
+
+def _systemic_style(status: str) -> tuple[str, str, str, str]:
+    bg, fg, acc = _SYSTEMIC_STATUS_COLORS.get(status, _SYSTEMIC_STATUS_COLORS["watch"])
+    badge_key = {"ok": "sr.sys.badge_ok", "watch": "sr.sys.badge_watch", "alert": "sr.sys.badge_alert"}
+    badge = _t(badge_key.get(status, "sr.sys.badge_watch"))
+    return bg, fg, acc, badge
+
+_SYSTEMIC_STATUS_STYLE = _SYSTEMIC_STATUS_COLORS  # keep for color lookups
 
 # Style et clé i18n du libellé du bloc DÉCISION AGENT selon `decision_confidence`.
 _DECISION_STYLE: dict[str, tuple[str, str]] = {
@@ -3908,9 +3462,7 @@ def build_decision_summary_html(sa: SystemicAnalysis) -> str:
 
 def build_systemic_html(sa: SystemicAnalysis) -> str:
     """Rendu compact du bloc systémique (cohérent avec _build_recs_html style)."""
-    bg, fg, acc, badge = _SYSTEMIC_STATUS_STYLE.get(
-        sa.overall_status, _SYSTEMIC_STATUS_STYLE["watch"]
-    )
+    bg, fg, acc, badge = _systemic_style(sa.overall_status)
 
     # En-tête : statut global + résumé une phrase
     header = (
@@ -3919,7 +3471,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
         f'<div style="display:flex;align-items:center;gap:0.55rem;flex-wrap:wrap;">'
         f'<span style="background:{acc};color:#0B0F14;font-weight:700;'
         f'font-size:0.68rem;padding:0.12rem 0.5rem;border-radius:0.2rem;'
-        f'letter-spacing:0.06em;">SYSTÈME · {badge}</span>'
+        f'letter-spacing:0.06em;">{_t("sr.sys.header_prefix")} · {badge}</span>'
         f'<span style="color:{fg};font-weight:600;font-size:0.92rem;">'
         f'{_t("sr.lbl.global_reasoning")}</span>'
         f'</div>'
@@ -3935,7 +3487,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
             f'border-bottom:1px solid #1F2937;font-size:0.83rem;">'
             f'<div style="flex:0 0 38%;color:#D1D5DB;">'
             f'<div style="color:#9CA3AF;font-size:0.68rem;font-weight:600;'
-            f'letter-spacing:0.04em;">DÉCLENCHEUR</div>{c.trigger}</div>'
+            f'letter-spacing:0.04em;">{_t("sr.sys.trigger_label")}</div>{c.trigger}</div>'
             f'<div style="flex:0 0 12%;">'
             f'<span style="background:rgba(59,130,246,0.12);color:#bfdbfe;'
             f'border:1px solid #3B82F6;font-weight:700;font-size:0.7rem;'
@@ -3943,7 +3495,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
             f'</div>'
             f'<div style="flex:1;color:#F9FAFB;line-height:1.45;">'
             f'<div style="color:#9CA3AF;font-size:0.68rem;font-weight:600;'
-            f'letter-spacing:0.04em;">COMPENSATION</div>{c.action}'
+            f'letter-spacing:0.04em;">{_t("sr.sys.comp_label")}</div>{c.action}'
             f'<div style="color:#9CA3AF;font-style:italic;font-size:0.74rem;'
             f'margin-top:0.2rem;">{c.rationale}</div></div>'
             f'</div>'
@@ -3953,9 +3505,9 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
             f'<div style="background:#0B0F14;border:1px solid #1F2937;'
             f'border-radius:0.3rem;padding:0.55rem 0.85rem;margin-bottom:0.5rem;">'
             f'<div style="color:#D1D5DB;font-weight:600;font-size:0.78rem;'
-            f'margin-bottom:0.15rem;">⇄ Compensations proposées'
+            f'margin-bottom:0.15rem;">⇄ {_t("sr.sys.comp_title")}'
             f'<span style="color:#6B7280;font-weight:400;font-size:0.72rem;'
-            f'margin-left:0.4rem;">— rééquilibrage du système</span></div>'
+            f'margin-left:0.4rem;">— {_t("sr.sys.comp_sub")}</span></div>'
             f'{rows}</div>'
         )
     else:
@@ -3963,8 +3515,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
             '<div style="background:#0B0F14;border:1px solid #1F2937;'
             'border-radius:0.3rem;padding:0.5rem 0.85rem;margin-bottom:0.5rem;'
             'color:#9CA3AF;font-size:0.82rem;font-style:italic;">'
-            "Aucune compensation requise — actions locales sans impact "
-            "systémique majeur."
+            f'{_t("sr.sys.no_comp")}'
             "</div>"
         )
 
@@ -3985,13 +3536,13 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
                 f'line-height:1.4;margin-top:0.2rem;">{ck.summary}</div>'
                 f'</div>'
             )
-        )(*_SYSTEMIC_STATUS_STYLE.get(ck.status, _SYSTEMIC_STATUS_STYLE["watch"]))
+        )(*_systemic_style(ck.status))
         for ck in sa.global_checks
     )
     checks_block = (
         f'<div style="margin-bottom:0.5rem;">'
         f'<div style="color:#D1D5DB;font-weight:600;font-size:0.78rem;'
-        f'margin-bottom:0.3rem;">✓ Vérification globale après recommandations'
+        f'margin-bottom:0.3rem;">✓ {_t("sr.sys.checks_title")}'
         f'</div>'
         f'<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">{check_cards}</div>'
         f'</div>'
@@ -4033,7 +3584,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
                 f'line-height:1.35;margin-top:0.2rem;">{ax.detail}</div>'
                 f'</div>'
             )
-        )(*_SYSTEMIC_STATUS_STYLE.get(ax.status, _SYSTEMIC_STATUS_STYLE["watch"]))
+        )(*_systemic_style(ax.status))
         for ax in sa.synthesis
     )
     syn_block = (
@@ -4041,7 +3592,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
         f'border-radius:0.3rem;padding:0.6rem 0.85rem;">'
         f'<div style="color:{acc};font-weight:700;font-size:0.72rem;'
         f'letter-spacing:0.05em;margin-bottom:0.4rem;">{_t("sr.lbl.synthesis")}'
-        f'PROFIL OPTIMISÉ</div>'
+        f'{_t("sr.sys.synthesis_prefix")}</div>'
         f'<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">{syn_cards}</div>'
         f'</div>'
     )

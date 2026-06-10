@@ -54,10 +54,9 @@ def test_current_default_status_is_with_assumptions():
 
 
 def test_no_unvalidated_result_labeled_as_validated():
-    # Le libellé de formule ne doit PAS dire « validée » tant que DB/manager non OK.
     label = formula_status_label()
-    assert "validée" not in label.lower() or "utilisée" in label.lower()
-    assert "à confirmer" in label.lower()
+    assert "validated" not in label.lower() or "used" in label.lower()
+    assert "to be confirmed" in label.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -67,42 +66,41 @@ def test_audit_panel_distinguishes_feed_machine_output_polymer_flow():
     rows = flow_taxonomy_rows(feed_effective_g_h=300.0, machine_max_capacity_g_h=1000.0,
                               output_flow_g_h=300.0)
     variables = [r["variable"] for r in rows]
-    assert any("feeder utilisé" in v for v in variables)
-    assert any("machine maximal" in v for v in variables)
-    assert any("sortie filière" in v for v in variables)
-    assert any("polymère sec" in v for v in variables)
-    assert any("humidité" in v.lower() for v in variables)
+    assert any("eeder flow used" in v for v in variables)
+    assert any("machine max" in v.lower() for v in variables)
+    assert any("die output" in v.lower() for v in variables)
+    assert any("dry polymer" in v.lower() for v in variables)
+    assert any("moisture" in v.lower() for v in variables)
 
 
 def test_machine_capacity_not_confused_with_feeder_flow():
     rows = flow_taxonomy_rows(300.0, 1000.0, 300.0)
-    feed = next(r for r in rows if "feeder utilisé" in r["variable"])
-    mach = next(r for r in rows if "machine maximal" in r["variable"])
-    assert feed["used_in_ff"] == "Oui"
-    assert mach["used_in_ff"] == "Non"           # capacité machine PAS dans le FF
+    feed = next(r for r in rows if "eeder flow used" in r["variable"])
+    mach = next(r for r in rows if "machine max" in r["variable"].lower())
+    assert feed["used_in_ff"] == "Yes"
+    assert mach["used_in_ff"] == "No"
     assert "300" in feed["valeur"] and "1000" in mach["valeur"]
 
 
 def test_output_flow_not_confused_with_input_feed():
     rows = flow_taxonomy_rows(300.0, None, 300.0)
-    out = next(r for r in rows if "sortie filière" in r["variable"])
-    assert out["used_in_ff"] == "Non"
-    assert "régime permanent" in out["commentaire"].lower()
+    out = next(r for r in rows if "die output" in r["variable"].lower())
+    assert out["used_in_ff"] == "No"
+    assert "steady-state" in out["commentaire"].lower()
 
 
 def test_1kg_h_capacity_does_not_override_300g_h_feed():
-    # Capacité 1 kg/h fournie : le débit feeder utilisé reste 300 g/h.
     rows = flow_taxonomy_rows(feed_effective_g_h=300.0, machine_max_capacity_g_h=1000.0,
                               output_flow_g_h=300.0)
-    feed = next(r for r in rows if "feeder utilisé" in r["variable"])
+    feed = next(r for r in rows if "eeder flow used" in r["variable"])
     assert "300" in feed["valeur"] and "1000" not in feed["valeur"]
-    mach = next(r for r in rows if "machine maximal" in r["variable"])
-    assert "n'écrase pas" in mach["commentaire"].lower()
+    mach = next(r for r in rows if "machine max" in r["variable"].lower())
+    assert "does not override" in mach["commentaire"].lower()
 
 
 def test_polymer_and_humidity_not_available():
     rows = flow_taxonomy_rows(300.0, None, 300.0)
-    poly = next(r for r in rows if "polymère sec" in r["variable"])
-    hum = next(r for r in rows if "humidité" in r["variable"].lower())
-    assert poly["valeur"] == "Non disponible"
-    assert hum["valeur"] == "Non disponible"
+    poly = next(r for r in rows if "dry polymer" in r["variable"].lower())
+    hum = next(r for r in rows if "moisture" in r["variable"].lower())
+    assert poly["valeur"] == "Not available"
+    assert hum["valeur"] == "Not available"

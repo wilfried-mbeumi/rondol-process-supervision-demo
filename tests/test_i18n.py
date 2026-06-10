@@ -37,14 +37,14 @@ def _placeholders(s: str) -> set[str]:
 # ---------------------------------------------------------------------------
 # Langue par défaut
 # ---------------------------------------------------------------------------
-def test_default_lang_is_french():
-    assert i18n.DEFAULT_LANG == "fr"
-    assert i18n_messages.DEFAULT_LANG == "fr"
+def test_default_lang_is_english():
+    assert i18n.DEFAULT_LANG == "en"
+    assert i18n_messages.DEFAULT_LANG == "en"
 
 
-def test_current_lang_defaults_to_fr_without_session():
-    # Hors contexte Streamlit, current_lang() doit dégrader vers "fr".
-    assert i18n.current_lang() == "fr"
+def test_current_lang_defaults_to_en_without_session():
+    # Outside Streamlit context, current_lang() degrades to DEFAULT_LANG ("en").
+    assert i18n.current_lang() == "en"
 
 
 def test_supported_langs_are_fr_en():
@@ -59,14 +59,13 @@ def test_t_unknown_key_returns_raw_key():
     assert i18n.t("clef.inexistante") == "clef.inexistante"
 
 
-def test_t_known_key_returns_fr_by_default():
-    assert i18n.t("lang.selector_label") == "Langue"
+def test_t_known_key_returns_en_by_default():
+    assert i18n.t("lang.selector_label") == "Language"
 
 
 def test_t_format_missing_param_is_safe():
-    # Aucune clé n'utilise de placeholder en B0 ; on vérifie juste que passer
-    # des kwargs sur une clé sans placeholder ne casse pas.
-    assert i18n.t("lang.selector_label", foo=1) == "Langue"
+    # No key uses a placeholder here; just verify passing kwargs is safe.
+    assert i18n.t("lang.selector_label", foo=1) == "Language"
 
 
 # ---------------------------------------------------------------------------

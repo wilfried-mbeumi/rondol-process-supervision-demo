@@ -85,7 +85,7 @@ from feeder_ui import render_multi_feeder_calibration  # noqa: E402
 from operator_store import capture_operator_state, restore_operator_state  # noqa: E402
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
-from rondol_i18n import language_selector, t  # noqa: E402
+from rondol_i18n import current_lang, language_selector, t  # noqa: E402
 
 # Historique procédé PERSISTANT (disque) — figement des KPIs moteur au commit.
 # Le rapport moteur est construit via le helper PARTAGÉ (mêmes valeurs que la
@@ -392,7 +392,7 @@ with col_left:
         + hmi_kv(t("settings.kv.thermal_peak"), f"{_gz.zone}", "", _lim_c)
         + hmi_kv(t("settings.kv.ceiling"), f"{_gz.t_limit_C:.0f}", "°C", _lim_c)
         + hmi_kv(t("settings.kv.ceiling_src"),
-                 _gz.limit_source.upper() if _gz.limit_source else "PROCÉDÉ", "")
+                 _gz.limit_source.upper() if _gz.limit_source else t("settings.kv.process_fallback"), "")
         + hmi_kv(t("settings.kv.t_real"), f"{_gz.t_est_C:.0f}", "°C", _lim_c)
         + hmi_kv(t("settings.kv.dt_dissip"), f"+{_gz.dT_C:.0f}", "°C")
         + hmi_kv(t("settings.kv.instability"), f"{cooling_model.instability_index:.2f}", "",
@@ -499,10 +499,10 @@ with col_left:
         st.html(
             f'<div style="font-family:Consolas,monospace;font-size:0.66rem;'
             f'color:{_die_c};padding:0.15rem 0.3rem;">'
-            f'Filière {_ndie} zone(s) · '
+            f'{t("settings.die.label")} {_ndie} zone(s) · '
             + " → ".join(f"{v:.0f}°C" for v in _die_vals)
-            + (' · ✓ rampe décroissante' if _die_ok
-               else ' · ⚠ profil die non décroissant (cf. alertes IA)')
+            + (f' · ✓ {t("settings.die.ramp_ok")}' if _die_ok
+               else f' · ⚠ {t("settings.die.ramp_nok")}')
             + '</div>'
         )
 
@@ -740,7 +740,7 @@ st.html(
     + hmi_kv(t("settings.kv.alerts"), f"{len(report.alerts)}", "",
              ACC if not report.alerts else (WARN if len(report.alerts) < 3 else CRIT))
     + hmi_kv(t("settings.kv.score"), f"{report.risk_score}", "/100", _state_color)
-    + hmi_kv(t("settings.kv.state"), report.state, "", _state_color)
+    + hmi_kv(t("settings.kv.state"), t(f"home.agent.state.{report.state}"), "", _state_color)
     + '</div>'
 )
 
@@ -799,7 +799,7 @@ def _op_card_html(alert: Alert, reco: Recommendation | None) -> str:
         # Lignes 2-5 — clé : valeur
         f'<table style="width:100%;margin-top:0.45rem;border-collapse:collapse;">'
         f'<tr><td style="color:{border};font-size:0.66rem;font-weight:700;letter-spacing:0.06em;'
-        f'padding:0.1rem 0.5rem 0.1rem 0;width:5.5rem;vertical-align:top;">ALERTE</td>'
+        f'padding:0.1rem 0.5rem 0.1rem 0;width:5.5rem;vertical-align:top;">{t("settings.card.alert")}</td>'
         f'<td style="color:{TEXT};font-size:0.86rem;font-weight:600;padding:0.1rem 0;">'
         f'{alert.title}</td></tr>'
         f'<tr><td style="color:{SUB};font-size:0.66rem;font-weight:700;letter-spacing:0.06em;'
@@ -807,7 +807,7 @@ def _op_card_html(alert: Alert, reco: Recommendation | None) -> str:
         f'<td style="color:{TEXT};font-size:0.8rem;line-height:1.4;padding:0.1rem 0;">'
         f'{cause}</td></tr>'
         f'<tr><td style="color:{ACC};font-size:0.66rem;font-weight:700;letter-spacing:0.06em;'
-        f'padding:0.1rem 0.5rem 0.1rem 0;vertical-align:top;">ACTION</td>'
+        f'padding:0.1rem 0.5rem 0.1rem 0;vertical-align:top;">{t("settings.card.action")}</td>'
         f'<td style="color:{TEXT};font-size:0.82rem;font-weight:600;padding:0.1rem 0;">'
         f'{action}</td></tr>'
         f'<tr><td style="color:{ACC};font-size:0.66rem;font-weight:700;letter-spacing:0.06em;'
@@ -822,12 +822,29 @@ def _op_card_html(alert: Alert, reco: Recommendation | None) -> str:
 
 
 # Section alertes / recommandations
+def _settings_diag_text() -> str:
+    if current_lang() == "fr":
+        return report.diagnostic
+    _nc = sum(1 for a in report.alerts if a.severity == "critical")
+    _nw = sum(1 for a in report.alerts if a.severity == "warning")
+    k = state.kpis
+    if report.state == "STABLE" and k:
+        return t("home.agent.diag.stable",
+                 n_act=sum(1 for f in state.feeders if getattr(f, 'active', False)),
+                 ff=f"{k.fill_factor*100:.1f} %", rt=f"{k.residence_time_s:.1f}",
+                 sme=f"{k.sme_kwh_per_kg:.2f}")
+    if report.state == "SURVEILLER":
+        return t("home.agent.diag.watch", n_warn=_nw, n_crit=_nc)
+    if report.state == "CRITIQUE":
+        return t("home.agent.diag.critical", score=report.risk_score, n_crit=_nc, n_warn=_nw)
+    return report.diagnostic
+
 st.html(
     f'<div style="margin-top:0.7rem;display:flex;align-items:center;gap:0.5rem;">'
     f'<div style="background:{_state_color};color:#0B0F14;font-weight:700;'
     f'font-size:0.74rem;padding:0.2rem 0.6rem;border-radius:0.2rem;'
-    f'letter-spacing:0.06em;">AGENT IA · {report.state}</div>'
-    f'<div style="color:{SUB};font-size:0.78rem;">{report.diagnostic}</div>'
+    f'letter-spacing:0.06em;">AGENT IA · {t(f"home.agent.state.{report.state}")}</div>'
+    f'<div style="color:{SUB};font-size:0.78rem;">{_settings_diag_text()}</div>'
     f'</div>'
 )
 

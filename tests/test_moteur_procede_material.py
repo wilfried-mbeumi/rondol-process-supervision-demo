@@ -96,8 +96,7 @@ def test_no_lifepo4_displayed_without_user_input():
     at = _load_with_profile(demo_mode=False)
     assert not at.exception, [str(e.value) for e in at.exception]
     text = _rendered_text(at)
-    assert "Non renseigné" in text
-    # Mode client : AUCUN nom de chimie où que ce soit dans le rendu.
+    assert "Not entered" in text or "Non renseigné" in text
     for token in ("LiFePO4", "LFP", "LATP", "cathode", "nanotube", "CNT"):
         assert token not in text, f"« {token} » présent en mode client : {text[:400]}"
 

@@ -21,10 +21,15 @@ DEMO_ML_METRIC_COLUMNS = (
     "run_duration_min", "target_horizon_sec", "bad_run",
 )
 
-_BANNER_DEFAULT = (
-    "Indicateurs issus du <b>dataset ML d'essais (avril 2026)</b> — données de "
-    "<b>démonstration</b>, non un run opérateur live."
-)
+def _banner_default() -> str:
+    try:
+        from rondol_i18n import t as _t
+        return _t("demo.ml.banner_default")
+    except Exception:
+        return (
+            "Indicateurs issus du <b>dataset ML d'essais (avril 2026)</b> — données de "
+            "<b>démonstration</b>, non un run opérateur live."
+        )
 
 
 def demo_ml_badge_html() -> str:
@@ -37,7 +42,7 @@ def demo_ml_badge_html() -> str:
 
 def demo_ml_banner_html(text: str | None = None) -> str:
     """Bandeau violet « DEMO ML » — à placer au-dessus de toute donnée ML."""
-    body = text or _BANNER_DEFAULT
+    body = text or _banner_default()
     return (
         '<div style="display:flex;align-items:center;gap:0.5rem;'
         'background:rgba(124,58,237,0.10);border:1px solid rgba(124,58,237,0.35);'
