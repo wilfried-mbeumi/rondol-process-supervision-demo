@@ -77,13 +77,17 @@ def demo_mode_toggle(st_module, *, location=None) -> bool:
     container = location if location is not None else st_module.sidebar
     if DEMO_MODE_KEY not in st_module.session_state:
         st_module.session_state[DEMO_MODE_KEY] = False
-    container.toggle(
-        "Mode démonstration",
-        key=DEMO_MODE_KEY,
-        help=(
+    # i18n FR/EN (stabilisation globale 2026-06-10) — import défensif : le
+    # module reste testable sur un dict sans Streamlit (repli FR).
+    try:
+        from rondol_i18n import t as _t
+        _label, _help = _t("app_mode.toggle"), _t("app_mode.toggle_help")
+    except Exception:  # pragma: no cover
+        _label = "Mode démonstration"
+        _help = (
             "OFF = mode client : seules les données réellement saisies sont "
             "affichées (sinon « Non renseigné »). ON = données fictives de "
             "démonstration, marquées DEMO."
-        ),
-    )
+        )
+    container.toggle(_label, key=DEMO_MODE_KEY, help=_help)
     return is_demo_mode(st_module.session_state)

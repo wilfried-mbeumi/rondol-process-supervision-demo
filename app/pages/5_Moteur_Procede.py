@@ -42,10 +42,21 @@ from engine.report_params import (  # noqa: E402
     build_report_from_flat_params,
 )
 from app_mode import (  # noqa: E402
+    NOT_PROVIDED,
     demo_badge_html,
     demo_mode_toggle,
     material_label,
 )
+# i18n FR/EN (stabilisation globale 2026-06-10) — uniquement pour le libellé
+# « Non renseigné » : en anglais, l'écran doit afficher « Not entered ».
+# Modification STRICTEMENT textuelle (aucune logique moteur touchée).
+from rondol_i18n import t as _t  # noqa: E402
+
+
+def _material_label_i18n(name, demo_mode_flag):
+    """material_label + traduction du libellé « Non renseigné » selon la langue."""
+    lbl = material_label(name, demo_mode_flag)
+    return _t("historique.comp_not_entered") if lbl == NOT_PROVIDED else lbl
 from calc_audit import (  # noqa: E402
     MACHINE_MAX_CAPACITY_KEY,
     fill_factor_validation_status,
@@ -415,8 +426,8 @@ with st.container(border=True):
         # Matière : « Non renseigné » en mode client (aucune saisie matière
         # réelle n'existe encore) ; nom chimique nominal + badge DEMO en démo.
         _chip("Feeder 1",
-              f"{material_label(report.feeder1_material, demo_mode)} {demo_badge_html()}"
-              if demo_mode else material_label(report.feeder1_material, demo_mode)),
+              f"{_material_label_i18n(report.feeder1_material, demo_mode)} {demo_badge_html()}"
+              if demo_mode else _material_label_i18n(report.feeder1_material, demo_mode)),
     ]
     if demo_mode and report.feeder2_material:
         _chips.append(_chip("Feeder 2", f"{report.feeder2_material} {demo_badge_html()}"))
@@ -484,7 +495,7 @@ for z in report.zones:
         "γ̇ max": z.max_shear_rate_s,
         "T max": z.max_temperature_c,
         # Mode client : pas de matière chimique inventée → « Non renseigné ».
-        "Matière dominante": material_label(z.dominant_material, demo_mode),
+        "Matière dominante": _material_label_i18n(z.dominant_material, demo_mode),
         "Résidence": z.residence_time_s,
     })
 st.dataframe(
@@ -573,7 +584,7 @@ with st.container(border=True):
         _coeff_src, _coeff_stat = "USER_INPUT", "Étalonnage externe (= Mass_flow_rate PLC, g/tour×60)"
     else:
         _dem = _eff_gh = _eff_gmin = _eff_gs = "Non calculable"
-        _coeff = "Non renseigné"
+        _coeff = _t("historique.comp_not_entered")
         _coeff_src, _coeff_stat = "NOT_AVAILABLE", "Étalonnage requis"
 
     _rows = [
@@ -624,7 +635,7 @@ with st.container(border=True):
     # les hypothèses, PAS comme vérité métier définitive) + condition FF→100 %.
     if feeder_flow.calibrated and _cap_main > 0:
         st.info(
-            f"**Pourquoi FF = {_ff_main * 100:.0f} % ?** *Résultat cohérent avec les "
+            f"**{_t('moteur.why_ff', ff=f'{_ff_main * 100:.0f}')}** *Résultat cohérent avec les "
             f"paramètres actuels (débit {feeder_flow.effective_g_h:.0f} g/h, densité "
             f"{bulk_density:.2f}, {screw_rpm:.0f} rpm, capacité vis issue PLC/DB à "
             f"confirmer).* Au main feeder, `Q_vol = {_qvol:.3f} cm³/s` alimenté contre "
@@ -730,7 +741,7 @@ with st.expander("ℹ️ Hypothèses, limites et statut du modèle", expanded=Tr
     else:
         _mat_section = (
             "**Matière**\n"
-            "- **Non renseigné** : aucune saisie matière dédiée n'existe encore "
+            f"- **{_t('historique.comp_not_entered')}** : aucune saisie matière dédiée n'existe encore "
             "dans l'interface. Le couple / la SME / le remplissage sont calculés à "
             "partir de la **géométrie de vis** et des **paramètres procédé** "
             "(vitesse, débit, densité bulk), sans hypothèse de chimie spécifique.\n"

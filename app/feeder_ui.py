@@ -112,7 +112,14 @@ def feeder_audit_rows(
 
     add("RPM feeder", f"{ff.feeder_rpm:.0f} RPM", USER_INPUT)
     if not ff.calibrated:
-        add("Coefficient étalonnage", "Non renseigné", NOT_AVAILABLE)
+        # i18n : « Non renseigné » → « Not entered » en anglais (import défensif,
+        # le module reste importable hors contexte Streamlit avec repli FR).
+        try:
+            from rondol_i18n import t as _t_i18n
+            _not_entered = _t_i18n("historique.comp_not_entered")
+        except Exception:  # pragma: no cover
+            _not_entered = "Non renseigné"
+        add("Coefficient étalonnage", _not_entered, NOT_AVAILABLE)
         add("Débit réel", "Non calculable — étalonnage externe requis", NOT_AVAILABLE)
         add("Densité apparente", f"{density_g_cm3:.3f} g/cm³", density_provenance)
         add("Débit volumique", "Non calculable", NOT_AVAILABLE)

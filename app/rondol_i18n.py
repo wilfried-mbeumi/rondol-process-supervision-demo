@@ -531,6 +531,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     },
     "profile.reco.do_now": {"fr": "À FAIRE MAINTENANT", "en": "DO NOW"},
     "profile.reco.confidence": {"fr": "Confiance", "en": "Confidence"},
+    "profile.reco.why_choice": {"fr": "Pourquoi ce choix", "en": "Why this choice"},
     "profile.reco.why_optimal": {
         "fr": "POURQUOI CE CHOIX EST OPTIMAL", "en": "WHY THIS CHOICE IS OPTIMAL",
     },
@@ -942,6 +943,226 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
                             "en": "Mean thermal profile (mean T°C per zone)"},
     "analyse.tbl.t_mean": {"fr": "T°C moy.", "en": "Mean T°C"},
     "analyse.tbl.sigma_mean": {"fr": "sigma moy.", "en": "Mean sigma"},
+
+    # ===================================================================
+    # RENDU VIS / LECTURE IA (screw_render) — stabilisation globale 2026-06-10
+    # ===================================================================
+    "common.elements_unit": {"fr": "éléments", "en": "elements"},
+    "common.extruder": {"fr": "Extrudeuse 10,5 mm", "en": "10.5 mm extruder"},
+    "common.impact": {"fr": "Impact", "en": "Impact"},
+    "common.action": {"fr": "Action", "en": "Action"},
+    # Régimes procédé.
+    "sr.regime.saturated": {"fr": "Régime saturé", "en": "Saturated regime"},
+    "sr.regime.saturated.short": {"fr": "saturé", "en": "saturated"},
+    "sr.regime.saturated.sum": {
+        "fr": "Fill Factor {ff} % — vis proche de saturation, risque surcouple "
+              "et chauffe par friction. Privilégier 40 ou réduire le débit.",
+        "en": "Fill factor {ff}% — screw close to saturation, risk of "
+              "overtorque and friction heating. Prefer 40 or reduce the flow."},
+    "sr.regime.starved": {"fr": "Régime sous-alimenté", "en": "Starved regime"},
+    "sr.regime.starved.short": {"fr": "sous-alimenté", "en": "starved"},
+    "sr.regime.starved.sum": {
+        "fr": "Fill Factor {ff} % — vis quasi vide, mélange peu efficace. "
+              "Augmenter le débit feeder ou réduire la vitesse vis.",
+        "en": "Fill factor {ff}% — screw nearly empty, mixing inefficient. "
+              "Increase feeder flow or reduce screw speed."},
+    "sr.regime.fast": {"fr": "Régime rapide", "en": "Fast regime"},
+    "sr.regime.fast.short": {"fr": "rapide", "en": "fast"},
+    "sr.regime.fast.sum": {
+        "fr": "À {rpm} rpm × {feed} g/min — transit rapide, résidence courte. "
+              "L'agent biaisera vers une vis plus courte (25) si le mélange suffit.",
+        "en": "At {rpm} rpm × {feed} g/min — fast transit, short residence. "
+              "The agent will bias toward a shorter screw (25) if mixing suffices."},
+    "sr.regime.slow": {"fr": "Régime lent", "en": "Slow regime"},
+    "sr.regime.slow.short": {"fr": "lent", "en": "slow"},
+    "sr.regime.slow.sum": {
+        "fr": "À {rpm} rpm × {feed} g/min — résidence longue, cumul thermique "
+              "possible. Surveiller dégradation liant si beaucoup de kneading.",
+        "en": "At {rpm} rpm × {feed} g/min — long residence, possible thermal "
+              "build-up. Watch binder degradation with heavy kneading."},
+    "sr.regime.moderate": {"fr": "Régime modéré", "en": "Moderate regime"},
+    "sr.regime.moderate.short": {"fr": "modéré", "en": "moderate"},
+    "sr.regime.moderate.sum": {
+        "fr": "À {rpm} rpm × {feed} g/min × ρ={dens} g/cm³ — régime nominal, "
+              "l'agent peut arbitrer librement entre 25/30/40.",
+        "en": "At {rpm} rpm × {feed} g/min × ρ={dens} g/cm³ — nominal regime, "
+              "the agent can freely arbitrate between 25/30/40."},
+    # Archétypes de profil.
+    "sr.arch.empty": {"fr": "Vis vide", "en": "Empty screw"},
+    "sr.arch.empty.short": {"fr": "vide", "en": "empty"},
+    "sr.arch.empty.sum": {
+        "fr": "Aucun élément placé après le main feeder. Configurez la vis "
+              "dans Profile pour activer l'analyse procédé.",
+        "en": "No element placed after the main feeder. Configure the screw "
+              "in Profile to enable the process analysis."},
+    "sr.arch.empty.risk": {"fr": "aucune analyse possible", "en": "no analysis possible"},
+    "sr.arch.minimal": {"fr": "Profil minimaliste", "en": "Minimalist profile"},
+    "sr.arch.minimal.short": {"fr": "minimaliste", "en": "minimalist"},
+    "sr.arch.minimal.sum": {
+        "fr": "{n} éléments seulement — vis trop courte pour homogénéiser une "
+              "formulation SSB (cible 18-30 éléments). Densifier la "
+              "configuration avant tout essai pilote.",
+        "en": "Only {n} elements — screw too short to homogenise an SSB "
+              "formulation (target 18-30 elements). Densify the configuration "
+              "before any pilot trial."},
+    "sr.arch.minimal.risk1": {"fr": "mélange insuffisant", "en": "insufficient mixing"},
+    "sr.arch.minimal.risk2": {"fr": "résidence trop courte", "en": "residence too short"},
+    "sr.arch.imbalanced": {"fr": "Profil déséquilibré spatial", "en": "Spatially imbalanced profile"},
+    "sr.arch.imbalanced.short": {"fr": "déséquilibré", "en": "imbalanced"},
+    "sr.arch.imbalanced.sum": {
+        "fr": "{nmax}/{n} éléments concentrés dans Z{z} ({pct} %). La vis "
+              "fonctionne comme une vis courte avec tube vide en amont/aval — "
+              "capacité utile gaspillée.{bulk}",
+        "en": "{nmax}/{n} elements concentrated in Z{z} ({pct}%). The screw "
+              "behaves like a short screw with an empty barrel up/downstream — "
+              "useful capacity wasted.{bulk}"},
+    "sr.arch.imbalanced.risk1": {"fr": "longueur sous-utilisée", "en": "under-used length"},
+    "sr.arch.imbalanced.risk2": {"fr": "pic couple local", "en": "local torque peak"},
+    "sr.arch.chaotic": {"fr": "Profil chaotique", "en": "Chaotic profile"},
+    "sr.arch.chaotic.short": {"fr": "chaotique", "en": "chaotic"},
+    "sr.arch.chaotic.sum": {
+        "fr": "{n} éléments chaotiques ({pct} %) — mélange à effet "
+              "bidirectionnel (losange) dominant. Adapté aux formulations SSB "
+              "nécessitant une dispersion fine + distribution simultanée, mais "
+              "coûteux en couple.{bulk}",
+        "en": "{n} chaotic elements ({pct}%) — bidirectional (diamond) mixing "
+              "dominant. Suited to SSB formulations needing fine dispersion + "
+              "simultaneous distribution, but torque-expensive.{bulk}"},
+    "sr.arch.chaotic.risk1": {"fr": "couple moteur élevé", "en": "high motor torque"},
+    "sr.arch.chaotic.risk2": {"fr": "résidence accrue", "en": "increased residence"},
+    "sr.arch.dispersive": {"fr": "Profil dispersif intense", "en": "Intense dispersive profile"},
+    "sr.arch.dispersive.short": {"fr": "dispersif", "en": "dispersive"},
+    "sr.arch.dispersive.sum": {
+        "fr": "{n} mélangeurs dispersifs/chaotiques ({pct} % du profil). "
+              "Cisaillement cumulé important → risque dégradation thermique "
+              "liant SSB (PVDF > 200 °C, PEO > 180 °C). Intercaler du "
+              "convoyage de refroidissement entre les blocs.{bulk}",
+        "en": "{n} dispersive/chaotic mixers ({pct}% of the profile). High "
+              "cumulated shear → risk of thermal degradation of the SSB binder "
+              "(PVDF > 200 °C, PEO > 180 °C). Interleave cooling conveying "
+              "between blocks.{bulk}"},
+    "sr.arch.dispersive.risk1": {"fr": "dégradation liant", "en": "binder degradation"},
+    "sr.arch.dispersive.risk2": {"fr": "surcouple", "en": "overtorque"},
+    "sr.arch.dispersive.risk3": {"fr": "chauffe locale", "en": "local heating"},
+    "sr.arch.convective": {"fr": "Profil convectif dominant", "en": "Conveying-dominant profile"},
+    "sr.arch.convective.short": {"fr": "convectif", "en": "conveying"},
+    "sr.arch.convective.sum": {
+        "fr": "{n} éléments de transport ({pct} %) pour seulement {nmix} "
+              "mélangeur(s). La matière transite trop vite, peu cisaillée — "
+              "homogénéité insuffisante pour SSB.{bulk}",
+        "en": "{n} transport elements ({pct}%) for only {nmix} mixer(s). "
+              "Material transits too fast with little shear — homogeneity "
+              "insufficient for SSB.{bulk}"},
+    "sr.arch.convective.risk1": {"fr": "homogénéité insuffisante", "en": "insufficient homogeneity"},
+    "sr.arch.convective.risk2": {"fr": "dispersion liant médiocre", "en": "poor binder dispersion"},
+    "sr.arch.distributive": {"fr": "Profil distributif", "en": "Distributive profile"},
+    "sr.arch.distributive.short": {"fr": "distributif", "en": "distributive"},
+    "sr.arch.distributive.sum": {
+        "fr": "{n} éléments distributifs/chaotiques ({pct} %). Profil orienté "
+              "homogénéisation globale plutôt que cisaillement local — adapté "
+              "aux mélanges déjà pré-dispersés.{bulk}",
+        "en": "{n} distributive/chaotic elements ({pct}%). Profile oriented "
+              "toward global homogenisation rather than local shear — suited "
+              "to already pre-dispersed blends.{bulk}"},
+    "sr.arch.distributive.risk1": {"fr": "dispersion locale faible", "en": "weak local dispersion"},
+    "sr.arch.underused": {"fr": "Profil sous-utilisé", "en": "Under-used profile"},
+    "sr.arch.underused.short": {"fr": "sous-utilisé", "en": "under-used"},
+    "sr.arch.underused.sum": {
+        "fr": "{n} zones procédé vides sur 7 — la vis effective est plus "
+              "courte que prévu. Étendre la configuration sur l'ensemble "
+              "Z1..Z7 pour utiliser tout le volume utile.{bulk}",
+        "en": "{n} empty process zones out of 7 — the effective screw is "
+              "shorter than intended. Spread the configuration across Z1..Z7 "
+              "to use the full working volume.{bulk}"},
+    "sr.arch.underused.risk1": {"fr": "longueur effective courte", "en": "short effective length"},
+    "sr.arch.underused.risk2": {"fr": "résidence variable", "en": "variable residence"},
+    "sr.arch.balanced": {"fr": "Profil équilibré", "en": "Balanced profile"},
+    "sr.arch.balanced.short": {"fr": "équilibré", "en": "balanced"},
+    "sr.arch.balanced.sum": {
+        "fr": "Convoyage : {nconv} · Mélange : {nmix} · Rétention : {nrev} · "
+              "Fill {ff} %. Profil cohérent pour HME / SSB dry — passer à "
+              "l'essai pilote pour valider l'homogénéité.{bulk}",
+        "en": "Conveying: {nconv} · Mixing: {nmix} · Retention: {nrev} · "
+              "Fill {ff}%. Profile consistent for HME / dry SSB — move to the "
+              "pilot trial to validate homogeneity.{bulk}"},
+    "sr.bulk_note": {
+        "fr": " Densité ρ={dens} g/cm³ → formulation chargée (céramique "
+              "active), vigilance sur l'abrasion des malaxeurs.",
+        "en": " Density ρ={dens} g/cm³ → loaded formulation (active ceramic), "
+              "watch mixer abrasion."},
+    # Vis vide — reco / décision / check systémique.
+    "sr.empty.rec_impact": {
+        "fr": "Aucune analyse procédé possible", "en": "No process analysis possible"},
+    "sr.empty.rec_action": {
+        "fr": "Ajoutez des éléments via +1 / +4, ou cliquez « Configuration "
+              "démo » dans la barre latérale pour démarrer l'analyse.",
+        "en": "Add elements with +1 / +4, or click “Demo configuration” in "
+              "the sidebar to start the analysis."},
+    "sr.empty.rec_evidence": {"fr": "0 / 39 éléments", "en": "0 / 39 elements"},
+    "sr.empty.count_summary": {"fr": "Aucun élément placé", "en": "No element placed"},
+    "sr.empty.count_reasoning": {
+        "fr": "Aucun élément placé après le feeder : pas de signal métier "
+              "exploitable. Par défaut 30 éléments.",
+        "en": "No element placed after the feeder: no usable process signal. "
+              "Defaulting to 30 elements."},
+    "sr.empty.count_rationale": {
+        "fr": "Vis vide — placez quelques éléments puis relancez l'analyse "
+              "pour une recommandation fondée.",
+        "en": "Empty screw — place a few elements then rerun the analysis "
+              "for a grounded recommendation."},
+    "sr.empty.count_tagline": {"fr": "configuration vide", "en": "empty configuration"},
+    "sr.empty.decision": {
+        "fr": "Configurer la vis avant analyse : placez quelques éléments "
+              "puis relancez l'agent.",
+        "en": "Configure the screw before analysis: place a few elements "
+              "then rerun the agent.",
+    },
+    "sr.empty.summary_decision": {
+        "fr": "Configurer la vis avant de lancer l'analyse.",
+        "en": "Configure the screw before running the analysis.",
+    },
+    "sr.empty.summary_why": {
+        "fr": "Aucun élément n'est posé : l'agent ne peut rien évaluer.",
+        "en": "No element is placed: the agent has nothing to assess.",
+    },
+    "sr.empty.summary_action": {
+        "fr": "Placer quelques éléments dans le profil puis relancer l'analyse.",
+        "en": "Place a few elements in the profile then rerun the analysis.",
+    },
+    "sr.empty.systemic_check": {
+        "fr": "Vis vide — aucune cohérence à évaluer. Configurer la vis puis "
+              "relancer l'analyse.",
+        "en": "Empty screw — no consistency to assess. Configure the screw "
+              "then rerun the analysis."},
+    # Labels de blocs décision / systémique.
+    "sr.lbl.decision_agent": {"fr": "DÉCISION AGENT", "en": "AGENT DECISION"},
+    "sr.lbl.confidence": {"fr": "Confiance", "en": "Confidence"},
+    "sr.lbl.next_step": {"fr": "PROCHAINE ÉTAPE", "en": "NEXT STEP"},
+    "sr.lbl.operator_read": {"fr": "LECTURE OPÉRATEUR — 3 SECONDES",
+                             "en": "OPERATOR READ — 3 SECONDS"},
+    "sr.lbl.row_decision": {"fr": "Décision", "en": "Decision"},
+    "sr.lbl.row_why": {"fr": "Pourquoi", "en": "Why"},
+    "sr.lbl.row_action": {"fr": "Action", "en": "Action"},
+    "sr.lbl.global_reasoning": {"fr": "Raisonnement global procédé",
+                                "en": "Global process reasoning"},
+    "sr.lbl.tradeoffs": {"fr": "TRADE-OFFS — CE QU'ON GAGNE / CE QU'ON PERD",
+                         "en": "TRADE-OFFS — WHAT WE GAIN / WHAT WE LOSE"},
+    "sr.lbl.synthesis": {"fr": "SYNTHÈSE FINALE — ", "en": "FINAL SYNTHESIS — "},
+    "moteur.why_ff": {"fr": "Pourquoi FF = {ff} % ?", "en": "Why is FF = {ff}%?"},
+    "app_mode.toggle": {"fr": "Mode démonstration", "en": "Demonstration mode"},
+    "app_mode.toggle_help": {
+        "fr": "OFF = mode client : seules les données réellement saisies sont "
+              "affichées (sinon « Non renseigné »). ON = données fictives de "
+              "démonstration, marquées DEMO.",
+        "en": "OFF = client mode: only data actually entered is shown "
+              "(otherwise “Not entered”). ON = fictitious demonstration data, "
+              "marked DEMO.",
+    },
+    "sr.lbl.fill_regime": {"fr": "Régime de remplissage", "en": "Fill regime"},
+    "sr.lbl.process_regime": {"fr": "Régime procédé", "en": "Process regime"},
+    "sr.decision.high": {"fr": "PRODUCTION POSSIBLE", "en": "PRODUCTION POSSIBLE"},
+    "sr.decision.medium": {"fr": "TEST PILOTE RECOMMANDÉ", "en": "PILOT TEST RECOMMENDED"},
+    "sr.decision.low": {"fr": "CONFIGURATION INSTABLE", "en": "UNSTABLE CONFIGURATION"},
 }
 
 

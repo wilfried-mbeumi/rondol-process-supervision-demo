@@ -52,6 +52,17 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage
 
+# i18n FR/EN (stabilisation globale 2026-06-10) : les libellés courts de la
+# lecture IA (archétypes, régimes, labels de blocs, textes vis vide) passent
+# par rondol_i18n.t. Import défensif : hors contexte app (batch/preview sans
+# Streamlit installé), repli identité → les clés FR du catalogue restent
+# lisibles via le fallback fr de t() quand rondol_i18n est importable.
+try:  # pragma: no cover - dépend de l'environnement d'exécution
+    from rondol_i18n import t as _t
+except Exception:  # pragma: no cover
+    def _t(key: str, **kwargs: object) -> str:  # type: ignore[misc]
+        return key
+
 # ---------------------------------------------------------------------------
 # Paramètres visuels (utilisés par 1_Profile.py et build_preview_screw.py)
 # ---------------------------------------------------------------------------
@@ -1121,38 +1132,29 @@ def _classify_regime(rpm: float, feed: float, dens: float, ff: float) -> tuple[s
     # Règle saturation / sous-alimentation domine sur le couple rpm·débit.
     if ff > 0.70:
         return (
-            "Régime saturé",
-            "saturé",
-            f"Fill Factor {ff*100:.0f} % — vis proche de saturation, risque "
-            f"surcouple et chauffe par friction. Privilégier 40 ou réduire le débit.",
+            _t("sr.regime.saturated"), _t("sr.regime.saturated.short"),
+            _t("sr.regime.saturated.sum", ff=f"{ff*100:.0f}"),
         )
     if 0 < ff < 0.18:
         return (
-            "Régime sous-alimenté",
-            "sous-alimenté",
-            f"Fill Factor {ff*100:.0f} % — vis quasi vide, mélange peu efficace. "
-            f"Augmenter le débit feeder ou réduire la vitesse vis.",
+            _t("sr.regime.starved"), _t("sr.regime.starved.short"),
+            _t("sr.regime.starved.sum", ff=f"{ff*100:.0f}"),
         )
     # Régime nominal : croisement rpm × débit.
     if rpm >= 200 and feed >= 50:
         return (
-            "Régime rapide",
-            "rapide",
-            f"À {rpm:.0f} rpm × {feed:.0f} g/min — transit rapide, résidence "
-            f"courte. L'agent biaisera vers une vis plus courte (25) si le mélange suffit.",
+            _t("sr.regime.fast"), _t("sr.regime.fast.short"),
+            _t("sr.regime.fast.sum", rpm=f"{rpm:.0f}", feed=f"{feed:.0f}"),
         )
     if rpm <= 80 and feed <= 15:
         return (
-            "Régime lent",
-            "lent",
-            f"À {rpm:.0f} rpm × {feed:.0f} g/min — résidence longue, cumul "
-            f"thermique possible. Surveiller dégradation liant si beaucoup de kneading.",
+            _t("sr.regime.slow"), _t("sr.regime.slow.short"),
+            _t("sr.regime.slow.sum", rpm=f"{rpm:.0f}", feed=f"{feed:.0f}"),
         )
     return (
-        "Régime modéré",
-        "modéré",
-        f"À {rpm:.0f} rpm × {feed:.0f} g/min × ρ={dens:.2f} g/cm³ — régime "
-        f"nominal, l'agent peut arbitrer librement entre 25/30/40.",
+        _t("sr.regime.moderate"), _t("sr.regime.moderate.short"),
+        _t("sr.regime.moderate.sum",
+           rpm=f"{rpm:.0f}", feed=f"{feed:.0f}", dens=f"{dens:.2f}"),
     )
 
 
@@ -1225,129 +1227,120 @@ def analyze_profile(
     # ---- Archetype : prioritisé du plus aigu au plus nominal ----
     if n_filled == 0:
         return ProcessProfile(
-            archetype="Vis vide",
-            archetype_short="vide",
+            archetype=_t("sr.arch.empty"),
+            archetype_short=_t("sr.arch.empty.short"),
             archetype_severity="info",
-            summary="Aucun élément placé après le main feeder. Configurez la "
-                    "vis dans Profile pour activer l'analyse procédé.",
+            summary=_t("sr.arch.empty.sum"),
             regime=regime, regime_short=regime_short, regime_summary=regime_summary,
-            risks=("aucune analyse possible",),
+            risks=(_t("sr.arch.empty.risk"),),
             metrics=metrics,
         )
 
     if n_filled < 8:
         return ProcessProfile(
-            archetype="Profil minimaliste",
-            archetype_short="minimaliste",
+            archetype=_t("sr.arch.minimal"),
+            archetype_short=_t("sr.arch.minimal.short"),
             archetype_severity="warning",
-            summary=f"{n_filled} éléments seulement — vis trop courte pour "
-                    "homogénéiser une formulation SSB (cible 18-30 éléments). "
-                    "Densifier la configuration avant tout essai pilote.",
+            summary=_t("sr.arch.minimal.sum", n=n_filled),
             regime=regime, regime_short=regime_short, regime_summary=regime_summary,
-            risks=("mélange insuffisant", "résidence trop courte"),
+            risks=(_t("sr.arch.minimal.risk1"), _t("sr.arch.minimal.risk2")),
             metrics=metrics,
         )
 
     # Densité bulk élevée → mention spécifique (charges céramiques)
     bulk_note = (
-        f" Densité ρ={dens:.2f} g/cm³ → formulation chargée (céramique active),"
-        " vigilance sur l'abrasion des malaxeurs."
-        if dens >= 1.5 else ""
+        _t("sr.bulk_note", dens=f"{dens:.2f}") if dens >= 1.5 else ""
     )
 
     if spatial_imbalance > 0.60:
         max_zone = max(zone_counts, key=zone_counts.get)
         return ProcessProfile(
-            archetype="Profil déséquilibré spatial",
-            archetype_short="déséquilibré",
+            archetype=_t("sr.arch.imbalanced"),
+            archetype_short=_t("sr.arch.imbalanced.short"),
             archetype_severity="warning",
-            summary=f"{spatial_max}/{n_filled} éléments concentrés dans Z{max_zone} "
-                    f"({spatial_imbalance*100:.0f} %). La vis fonctionne comme une "
-                    f"vis courte avec tube vide en amont/aval — capacité utile "
-                    f"gaspillée.{bulk_note}",
+            summary=_t("sr.arch.imbalanced.sum",
+                       nmax=spatial_max, n=n_filled, z=max_zone,
+                       pct=f"{spatial_imbalance*100:.0f}", bulk=bulk_note),
             regime=regime, regime_short=regime_short, regime_summary=regime_summary,
-            risks=("longueur sous-utilisée", "pic couple local"),
+            risks=(_t("sr.arch.imbalanced.risk1"), _t("sr.arch.imbalanced.risk2")),
             metrics=metrics,
         )
 
     if n_chaotic >= 4 and n_chaotic / n_filled >= 0.20:
         return ProcessProfile(
-            archetype="Profil chaotique",
-            archetype_short="chaotique",
+            archetype=_t("sr.arch.chaotic"),
+            archetype_short=_t("sr.arch.chaotic.short"),
             archetype_severity="info",
-            summary=f"{n_chaotic} éléments chaotiques ({n_chaotic/n_filled*100:.0f} %) "
-                    f"— mélange à effet bidirectionnel (losange) dominant. Adapté "
-                    f"aux formulations SSB nécessitant une dispersion fine + "
-                    f"distribution simultanée, mais coûteux en couple.{bulk_note}",
+            summary=_t("sr.arch.chaotic.sum",
+                       n=n_chaotic, pct=f"{n_chaotic/n_filled*100:.0f}",
+                       bulk=bulk_note),
             regime=regime, regime_short=regime_short, regime_summary=regime_summary,
-            risks=("couple moteur élevé", "résidence accrue"),
+            risks=(_t("sr.arch.chaotic.risk1"), _t("sr.arch.chaotic.risk2")),
             metrics=metrics,
         )
 
     if (n_knead + n_chaotic) / n_filled >= 0.45:
         return ProcessProfile(
-            archetype="Profil dispersif intense",
-            archetype_short="dispersif",
+            archetype=_t("sr.arch.dispersive"),
+            archetype_short=_t("sr.arch.dispersive.short"),
             archetype_severity="critique",
-            summary=f"{n_knead+n_chaotic} mélangeurs dispersifs/chaotiques "
-                    f"({(n_knead+n_chaotic)/n_filled*100:.0f} % du profil). "
-                    f"Cisaillement cumulé important → risque dégradation thermique "
-                    f"liant SSB (PVDF > 200 °C, PEO > 180 °C). Intercaler du "
-                    f"convoyage de refroidissement entre les blocs.{bulk_note}",
+            summary=_t("sr.arch.dispersive.sum",
+                       n=n_knead + n_chaotic,
+                       pct=f"{(n_knead+n_chaotic)/n_filled*100:.0f}",
+                       bulk=bulk_note),
             regime=regime, regime_short=regime_short, regime_summary=regime_summary,
-            risks=("dégradation liant", "surcouple", "chauffe locale"),
+            risks=(_t("sr.arch.dispersive.risk1"), _t("sr.arch.dispersive.risk2"),
+                   _t("sr.arch.dispersive.risk3")),
             metrics=metrics,
         )
 
     if (n_conv + n_short) / n_filled >= 0.65 and n_mix / n_filled < 0.20:
         return ProcessProfile(
-            archetype="Profil convectif dominant",
-            archetype_short="convectif",
+            archetype=_t("sr.arch.convective"),
+            archetype_short=_t("sr.arch.convective.short"),
             archetype_severity="warning",
-            summary=f"{n_conv+n_short} éléments de transport "
-                    f"({(n_conv+n_short)/n_filled*100:.0f} %) pour seulement "
-                    f"{n_mix} mélangeur(s). La matière transite trop vite, peu "
-                    f"cisaillée — homogénéité insuffisante pour SSB.{bulk_note}",
+            summary=_t("sr.arch.convective.sum",
+                       n=n_conv + n_short,
+                       pct=f"{(n_conv+n_short)/n_filled*100:.0f}",
+                       nmix=n_mix, bulk=bulk_note),
             regime=regime, regime_short=regime_short, regime_summary=regime_summary,
-            risks=("homogénéité insuffisante", "dispersion liant médiocre"),
+            risks=(_t("sr.arch.convective.risk1"), _t("sr.arch.convective.risk2")),
             metrics=metrics,
         )
 
     if (n_distrib + n_chaotic) / n_filled >= 0.30:
         return ProcessProfile(
-            archetype="Profil distributif",
-            archetype_short="distributif",
+            archetype=_t("sr.arch.distributive"),
+            archetype_short=_t("sr.arch.distributive.short"),
             archetype_severity="info",
-            summary=f"{n_distrib+n_chaotic} éléments distributifs/chaotiques "
-                    f"({(n_distrib+n_chaotic)/n_filled*100:.0f} %). Profil orienté "
-                    f"homogénéisation globale plutôt que cisaillement local — "
-                    f"adapté aux mélanges déjà pré-dispersés.{bulk_note}",
+            summary=_t("sr.arch.distributive.sum",
+                       n=n_distrib + n_chaotic,
+                       pct=f"{(n_distrib+n_chaotic)/n_filled*100:.0f}",
+                       bulk=bulk_note),
             regime=regime, regime_short=regime_short, regime_summary=regime_summary,
-            risks=("dispersion locale faible",),
+            risks=(_t("sr.arch.distributive.risk1"),),
             metrics=metrics,
         )
 
     if empty_zones >= 3:
         return ProcessProfile(
-            archetype="Profil sous-utilisé",
-            archetype_short="sous-utilisé",
+            archetype=_t("sr.arch.underused"),
+            archetype_short=_t("sr.arch.underused.short"),
             archetype_severity="warning",
-            summary=f"{empty_zones} zones procédé vides sur 7 — la vis effective "
-                    f"est plus courte que prévu. Étendre la configuration sur "
-                    f"l'ensemble Z1..Z7 pour utiliser tout le volume utile.{bulk_note}",
+            summary=_t("sr.arch.underused.sum", n=empty_zones, bulk=bulk_note),
             regime=regime, regime_short=regime_short, regime_summary=regime_summary,
-            risks=("longueur effective courte", "résidence variable"),
+            risks=(_t("sr.arch.underused.risk1"), _t("sr.arch.underused.risk2")),
             metrics=metrics,
         )
 
     # Aucun motif aigu → équilibré.
     return ProcessProfile(
-        archetype="Profil équilibré",
-        archetype_short="équilibré",
+        archetype=_t("sr.arch.balanced"),
+        archetype_short=_t("sr.arch.balanced.short"),
         archetype_severity="ok",
-        summary=f"Convoyage : {n_conv+n_short} · Mélange : {n_mix} · Rétention : "
-                f"{n_reverse} · Fill {ff*100:.0f} %. Profil cohérent pour HME / "
-                f"SSB dry — passer à l'essai pilote pour valider l'homogénéité.{bulk_note}",
+        summary=_t("sr.arch.balanced.sum",
+                   nconv=n_conv + n_short, nmix=n_mix, nrev=n_reverse,
+                   ff=f"{ff*100:.0f}", bulk=bulk_note),
         regime=regime, regime_short=regime_short, regime_summary=regime_summary,
         risks=(),
         metrics=metrics,
@@ -1471,11 +1464,10 @@ def compute_recommendations(
     # Vis vide
     if n_filled == 0:
         recs.append(_rec(
-            "info", "—", "Vis vide",
-            "Aucune analyse procédé possible",
-            "Ajoutez des éléments via +1 / +4, ou cliquez « Configuration démo » "
-            "dans la barre latérale pour démarrer l'analyse.",
-            evidence="0 / 39 éléments",
+            "info", "—", _t("sr.arch.empty"),
+            _t("sr.empty.rec_impact"),
+            _t("sr.empty.rec_action"),
+            evidence=_t("sr.empty.rec_evidence"),
         ))
         return recs
 
@@ -2511,17 +2503,15 @@ def recommend_element_count(
             CountScoringCriterion(
                 name="Configuration",
                 measured="—",
-                summary="Aucun élément placé",
+                summary=_t("sr.empty.count_summary"),
                 scores=neutral,
-                reasoning="Aucun élément placé après le feeder : pas de "
-                          "signal métier exploitable. Par défaut 30 éléments.",
+                reasoning=_t("sr.empty.count_reasoning"),
             )
         ]
         return CountRecommendation(
             suggested=30,
-            rationale="Vis vide — placez quelques éléments puis relancez "
-                      "l'analyse pour une recommandation fondée.",
-            tagline="configuration vide",
+            rationale=_t("sr.empty.count_rationale"),
+            tagline=_t("sr.empty.count_tagline"),
             severity="warning",
             confidence="low",
             candidate_scores=neutral,
@@ -2557,9 +2547,9 @@ def recommend_element_count(
     if rpm >= 200 and feed >= 50:
         process_scores = {25: +2, 30: 0, 40: -1}
         criteria.append(CountScoringCriterion(
-            name="Régime procédé",
+            name=_t("sr.lbl.process_regime"),
             measured=f"{rpm:.0f} rpm · {feed:.0f} g/min",
-            summary="Régime rapide",
+            summary=_t("sr.regime.fast"),
             scores=process_scores,
             reasoning="Vitesse vis et débit élevés — transit rapide, le "
                       "bénéfice d'une vis longue est limité.",
@@ -3004,8 +2994,7 @@ def _build_global_checks(
         checks.append(GlobalCheck(
             label="Cohérence du profil global",
             status="watch",
-            summary="Vis vide — aucune cohérence à évaluer. Configurer la vis "
-                    "puis relancer l'analyse.",
+            summary=_t("sr.empty.systemic_check"),
         ))
     else:
         ratio_mt = n_conv / max(1, n_knead) if n_knead else 99.0
@@ -3114,27 +3103,27 @@ def _build_global_checks(
     # 4) Cohérence Fill Factor avec le régime
     if 0.30 <= ff <= 0.55:
         checks.append(GlobalCheck(
-            label="Régime de remplissage",
+            label=_t("sr.lbl.fill_regime"),
             status="ok",
             summary=f"FF {ff*100:.0f} % dans la cible procédé (30-55 %).",
         ))
     elif ff < 0.18:
         checks.append(GlobalCheck(
-            label="Régime de remplissage",
+            label=_t("sr.lbl.fill_regime"),
             status="alert",
             summary=f"FF {ff*100:.0f} % — vis sous-alimentée, mélange peu "
                     "efficace.",
         ))
     elif ff > 0.70:
         checks.append(GlobalCheck(
-            label="Régime de remplissage",
+            label=_t("sr.lbl.fill_regime"),
             status="alert",
             summary=f"FF {ff*100:.0f} % — saturation, risque surcouple "
                     "et chauffe par friction.",
         ))
     else:
         checks.append(GlobalCheck(
-            label="Régime de remplissage",
+            label=_t("sr.lbl.fill_regime"),
             status="watch",
             summary=f"FF {ff*100:.0f} % — hors cible (30-55 %), ajustement "
                     "débit feeder ou rpm recommandé.",
@@ -3563,10 +3552,7 @@ def _build_decision_layer(
     confidence = _decision_confidence(overall_status, len(comps), recs, n_filled)
 
     if n_filled == 0:
-        decision = (
-            "Configurer la vis avant analyse : placez quelques éléments "
-            "puis relancez l'agent."
-        )
+        decision = _t("sr.empty.decision")
     elif not comps:
         decision = (
             f"Conserver la configuration {suggested} éléments — l'équilibre "
@@ -3674,10 +3660,9 @@ def _build_decision_summary(
         )
     if n_filled == 0:
         return DecisionSummary(
-            decision="Configurer la vis avant de lancer l'analyse.",
-            why="Aucun élément n'est posé : l'agent ne peut rien évaluer.",
-            action="Placer quelques éléments dans le profil puis relancer "
-                   "l'analyse.",
+            decision=_t("sr.empty.summary_decision"),
+            why=_t("sr.empty.summary_why"),
+            action=_t("sr.empty.summary_action"),
         )
     if not comps:
         if overall_status == "ok":
@@ -3841,11 +3826,11 @@ _SYSTEMIC_STATUS_STYLE: dict[str, tuple[str, str, str, str]] = {
     "alert": ("#3b1212", "#fecaca", "#EF4444", "ALERTE"),
 }
 
-# Style et libellé du bloc DÉCISION AGENT selon `decision_confidence`.
+# Style et clé i18n du libellé du bloc DÉCISION AGENT selon `decision_confidence`.
 _DECISION_STYLE: dict[str, tuple[str, str]] = {
-    "high":   ("#10B981", "PRODUCTION POSSIBLE"),
-    "medium": ("#F59E0B", "TEST PILOTE RECOMMANDÉ"),
-    "low":    ("#EF4444", "CONFIGURATION INSTABLE"),
+    "high":   ("#10B981", "sr.decision.high"),
+    "medium": ("#F59E0B", "sr.decision.medium"),
+    "low":    ("#EF4444", "sr.decision.low"),
 }
 
 
@@ -3856,7 +3841,7 @@ def build_decision_html(sa: SystemicAnalysis) -> str:
     if not sa.main_decision:
         # Slot maintenu pour stabilité DOM Streamlit (hauteur 0).
         return '<div style="height:0;overflow:hidden;margin:0;"></div>'
-    color, badge_label = _DECISION_STYLE.get(
+    color, badge_key = _DECISION_STYLE.get(
         sa.decision_confidence, _DECISION_STYLE["medium"]
     )
     return (
@@ -3866,9 +3851,9 @@ def build_decision_html(sa: SystemicAnalysis) -> str:
         f'flex-wrap:wrap;margin-bottom:0.4rem;">'
         f'<span style="background:{color};color:#0B0F14;font-weight:700;'
         f'font-size:0.7rem;padding:0.15rem 0.55rem;border-radius:0.25rem;'
-        f'letter-spacing:0.06em;">DÉCISION AGENT · {badge_label}</span>'
+        f'letter-spacing:0.06em;">{_t("sr.lbl.decision_agent")} · {_t(badge_key)}</span>'
         f'<span style="color:#9CA3AF;font-size:0.72rem;font-weight:500;">'
-        f'Confiance {sa.decision_confidence.upper()}</span>'
+        f'{_t("sr.lbl.confidence")} {sa.decision_confidence.upper()}</span>'
         f'</div>'
         f'<div style="color:#F9FAFB;font-weight:600;font-size:1.05rem;'
         f'line-height:1.4;">{sa.main_decision}</div>'
@@ -3876,7 +3861,7 @@ def build_decision_html(sa: SystemicAnalysis) -> str:
         f'margin-top:0.45rem;">'
         f'<span style="color:{color};font-weight:600;font-size:0.66rem;'
         f'letter-spacing:0.04em;text-transform:uppercase;'
-        f'margin-right:0.3rem;">PROCHAINE ÉTAPE</span>{sa.next_step}</div>'
+        f'margin-right:0.3rem;">{_t("sr.lbl.next_step")}</span>{sa.next_step}</div>'
         f'</div>'
     )
 
@@ -3906,9 +3891,9 @@ def build_decision_summary_html(sa: SystemicAnalysis) -> str:
         )
 
     rows = (
-        _row("Décision", ds.decision, color)
-        + _row("Pourquoi", ds.why, "#9CA3AF")
-        + _row("Action", ds.action, color)
+        _row(_t("sr.lbl.row_decision"), ds.decision, color)
+        + _row(_t("sr.lbl.row_why"), ds.why, "#9CA3AF")
+        + _row(_t("sr.lbl.row_action"), ds.action, color)
     )
     return (
         f'<div style="background:#0B0F14;border-left:3px solid {color};'
@@ -3916,7 +3901,7 @@ def build_decision_summary_html(sa: SystemicAnalysis) -> str:
         f'margin:0.4rem 0;">'
         f'<div style="color:{color};font-size:0.66rem;font-weight:700;'
         f'letter-spacing:0.06em;margin-bottom:0.1rem;">'
-        f'LECTURE OPÉRATEUR — 3 SECONDES</div>'
+        f'{_t("sr.lbl.operator_read")}</div>'
         f'{rows}</div>'
     )
 
@@ -3936,7 +3921,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
         f'font-size:0.68rem;padding:0.12rem 0.5rem;border-radius:0.2rem;'
         f'letter-spacing:0.06em;">SYSTÈME · {badge}</span>'
         f'<span style="color:{fg};font-weight:600;font-size:0.92rem;">'
-        f'Raisonnement global procédé</span>'
+        f'{_t("sr.lbl.global_reasoning")}</span>'
         f'</div>'
         f'<div style="color:{fg};opacity:0.9;font-size:0.85rem;line-height:1.5;'
         f'margin-top:0.35rem;">{sa.overall_summary}</div>'
@@ -4027,7 +4012,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
             f'padding:0.5rem 0.85rem;margin-bottom:0.5rem;">'
             f'<div style="color:#F59E0B;font-size:0.72rem;font-weight:700;'
             f'letter-spacing:0.04em;margin-bottom:0.2rem;">'
-            f'TRADE-OFFS — CE QU\'ON GAGNE / CE QU\'ON PERD</div>'
+            f'{_t("sr.lbl.tradeoffs")}</div>'
             f'{trade_rows}</div>'
         )
     else:
@@ -4055,7 +4040,7 @@ def build_systemic_html(sa: SystemicAnalysis) -> str:
         f'<div style="background:#0B0F14;border:1px solid {acc};'
         f'border-radius:0.3rem;padding:0.6rem 0.85rem;">'
         f'<div style="color:{acc};font-weight:700;font-size:0.72rem;'
-        f'letter-spacing:0.05em;margin-bottom:0.4rem;">SYNTHÈSE FINALE — '
+        f'letter-spacing:0.05em;margin-bottom:0.4rem;">{_t("sr.lbl.synthesis")}'
         f'PROFIL OPTIMISÉ</div>'
         f'<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">{syn_cards}</div>'
         f'</div>'

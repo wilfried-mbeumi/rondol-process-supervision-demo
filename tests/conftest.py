@@ -39,6 +39,12 @@ _RUN_STATE_PATH = _ISOLATED_DIR / "current_run_state.json"
 _PREVIOUS_RUN_STATE_ENV = os.environ.get(_RUN_STATE_PATH_ENV)
 os.environ[_RUN_STATE_PATH_ENV] = str(_RUN_STATE_PATH)
 
+# Miroir disque du snapshot validé (applied_state) — même isolation.
+_APPLIED_PATH_ENV = "RONDOL_APPLIED_STATE_PATH"
+_APPLIED_PATH = _ISOLATED_DIR / "applied_state.json"
+_PREVIOUS_APPLIED_ENV = os.environ.get(_APPLIED_PATH_ENV)
+os.environ[_APPLIED_PATH_ENV] = str(_APPLIED_PATH)
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_history_store():
@@ -64,6 +70,10 @@ def _isolate_history_store():
         os.environ.pop(_RUN_STATE_PATH_ENV, None)
     else:
         os.environ[_RUN_STATE_PATH_ENV] = _PREVIOUS_RUN_STATE_ENV
+    if _PREVIOUS_APPLIED_ENV is None:
+        os.environ.pop(_APPLIED_PATH_ENV, None)
+    else:
+        os.environ[_APPLIED_PATH_ENV] = _PREVIOUS_APPLIED_ENV
 
 
 @pytest.fixture(autouse=True)
@@ -76,6 +86,11 @@ def _clear_run_state_file():
     try:
         if _RUN_STATE_PATH.exists():
             _RUN_STATE_PATH.unlink()
+    except Exception:
+        pass
+    try:
+        if _APPLIED_PATH.exists():
+            _APPLIED_PATH.unlink()
     except Exception:
         pass
     yield

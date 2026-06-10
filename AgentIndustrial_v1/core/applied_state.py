@@ -28,8 +28,11 @@ sera en pratique `st.session_state`.
 from __future__ import annotations
 
 import copy
+import json
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Mapping, MutableMapping
 
 from .coercion import safe_float, safe_int
@@ -43,6 +46,109 @@ APPLIED_KEY = "applied_state"
 HISTORY_KEY = "applied_history"
 # Plafond historique pour éviter la croissance illimitée en session longue.
 HISTORY_MAX = 30
+
+# ---------------------------------------------------------------------------
+# Miroir DISQUE du snapshot validé (stabilisation globale 2026-06-10).
+#
+# Cause racine prod : le snapshot validé (« Enregistrer ») ne vivait QUE dans
+# st.session_state. Tout refresh navigateur / nouvel onglet / redéploiement
+# Streamlit Cloud = session neuve → la sauvegarde disparaissait : Supervision
+# repassait en « profil vide / analyse indicative », l'Agent IA retombait sur
+# les défauts, Settings re-seedait ses widgets sans snapshot — alors que
+# l'Historique (déjà sur disque) gardait, lui, la trace du commit.
+#
+# Le miroir est un état VOLATILE LOCAL (data/run_state/, .gitignoré — même
+# famille que operator_store) : il n'écrase JAMAIS une session vivante
+# (restauration setdefault-only) et n'est PAS une source de vérité concurrente,
+# seulement la survie du dernier commit opérateur.
+# ---------------------------------------------------------------------------
+_ENV_APPLIED_PATH = "RONDOL_APPLIED_STATE_PATH"
+_DEFAULT_APPLIED_PATH = (
+    Path(__file__).resolve().parent.parent.parent
+    / "data" / "run_state" / "applied_state.json"
+)
+
+
+def _applied_disk_path() -> Path:
+    raw = os.environ.get(_ENV_APPLIED_PATH)
+    return Path(raw) if raw else _DEFAULT_APPLIED_PATH
+
+
+def snapshot_to_dict(snap: AppliedSnapshot) -> dict[str, Any]:
+    """Sérialisation JSON-safe du snapshot (dataclass → dict)."""
+    return asdict(snap)
+
+
+def snapshot_from_dict(d: Mapping[str, Any]) -> AppliedSnapshot:
+    """Désérialisation défensive d'un snapshot (champs inconnus ignorés,
+    champs manquants → défauts du dataclass). Ne lève jamais sur un dict sain."""
+    return AppliedSnapshot(
+        timestamp_iso=str(d.get("timestamp_iso", "") or ""),
+        label=str(d.get("label", "") or ""),
+        screw_config=[int(v) for v in (d.get("screw_config") or [])],
+        screw_rpm=safe_float(d.get("screw_rpm", 120.0), 120.0, 1.0, 3000.0),
+        zone_temps_C={
+            str(k): safe_float(v, default_zone_target(str(k)), 0.0, 400.0)
+            for k, v in dict(d.get("zone_temps_C") or {}).items()
+        },
+        n_die_zones=safe_int(d.get("n_die_zones", 1), 1, 0, 4),
+        feeders=[dict(f) for f in (d.get("feeders") or []) if isinstance(f, Mapping)],
+        torque_pct=d.get("torque_pct"),
+        pressure_die_bar=d.get("pressure_die_bar"),
+    )
+
+
+def _disk_save_applied(snap: AppliedSnapshot) -> None:
+    """Sauvegarde best-effort du snapshot validé (ne lève jamais)."""
+    try:
+        p = _applied_disk_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            json.dumps(snapshot_to_dict(snap), ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception:  # pragma: no cover - persistance best-effort
+        pass
+
+
+def _disk_load_applied() -> AppliedSnapshot | None:
+    """Charge le dernier snapshot validé depuis le miroir disque (None si absent
+    ou illisible — jamais d'exception)."""
+    try:
+        p = _applied_disk_path()
+        if not p.exists():
+            return None
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and data.get("screw_config") is not None:
+            return snapshot_from_dict(data)
+    except Exception:  # pragma: no cover
+        return None
+    return None
+
+
+def restore_applied(session: MutableMapping[str, Any]) -> AppliedSnapshot | None:
+    """Restaure le snapshot validé depuis le miroir disque si la session n'en a
+    PAS (session neuve / refresh navigateur).
+
+    Règle stricte : setdefault-only — ne remplace JAMAIS un snapshot déjà
+    présent en session (un commit vivant prime toujours sur le disque).
+    Retourne le snapshot effectif (session ou restauré), None si aucun.
+    """
+    existing = _safe_get(session, APPLIED_KEY)
+    if isinstance(existing, AppliedSnapshot):
+        return existing
+    snap = _disk_load_applied()
+    if snap is None:
+        return None
+    try:
+        session[APPLIED_KEY] = snap
+        # L'historique session repart du snapshot restauré (l'historique
+        # complet persistant vit dans history_store, sur disque).
+        if HISTORY_KEY not in session or not _safe_get(session, HISTORY_KEY):
+            session[HISTORY_KEY] = [snap]
+    except Exception:  # pragma: no cover - proxy session hors contexte
+        return snap
+    return snap
 
 
 @dataclass
@@ -174,15 +280,27 @@ def commit(
     if len(history) > HISTORY_MAX:
         history = history[-HISTORY_MAX:]
     session[HISTORY_KEY] = history
+    # Miroir disque : la sauvegarde validée survit au refresh navigateur /
+    # nouvelle session (stabilisation globale 2026-06-10). Best-effort.
+    _disk_save_applied(snap)
     return snap
 
 
 def get_applied(session: Mapping[str, Any]) -> AppliedSnapshot | None:
-    """Retourne le snapshot validé courant — None si rien n'a encore été commité."""
+    """Retourne le snapshot validé courant — None si rien n'a encore été commité.
+
+    Session neuve (refresh navigateur / redéploiement) : tente d'abord la
+    restauration depuis le miroir disque (setdefault-only via restore_applied)
+    pour que TOUS les consommateurs (Supervision, Agent IA, seed Settings)
+    revoient la dernière sauvegarde opérateur sans action manuelle.
+    """
     snap = _safe_get(session, APPLIED_KEY)
     if isinstance(snap, AppliedSnapshot):
         return snap
-    return None
+    # Session neuve : restauration disque. restore_applied est défensif (toute
+    # écriture session est protégée) — fonctionne aussi sur un proxy Streamlit
+    # qui n'est pas formellement un MutableMapping.
+    return restore_applied(session)  # type: ignore[arg-type]
 
 
 def get_history(session: Mapping[str, Any]) -> list[AppliedSnapshot]:

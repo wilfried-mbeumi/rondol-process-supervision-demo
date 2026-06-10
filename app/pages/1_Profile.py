@@ -997,7 +997,7 @@ def _build_count_rec_html(cr, why_optimal_override: str = "") -> str:
     reasons_block = (
         f'<div style="margin-bottom:0.8rem;">'
         f'<div style="color:#9CA3AF;font-size:0.78rem;font-weight:600;'
-        f'margin-bottom:0.25rem;">Pourquoi ce choix</div>'
+        f'margin-bottom:0.25rem;">{t("profile.reco.why_choice")}</div>'
         f'{reason_rows}'
         f'</div>'
     )

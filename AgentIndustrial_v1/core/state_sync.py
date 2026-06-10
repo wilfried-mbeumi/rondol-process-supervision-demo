@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from .applied_state import APPLIED_KEY, AppliedSnapshot, _safe_get, hydrate_state
+from .applied_state import AppliedSnapshot, _safe_get, get_applied, hydrate_state
 from .coercion import safe_float, safe_int
 from .feeders import new_feeder_bank
 from .process import ProcessState, default_zone_target
@@ -80,7 +80,10 @@ def state_from_session(session: Mapping[str, Any]) -> ProcessState:
     Priorité au snapshot validé (`applied_state`). À défaut, fallback rétro-compat.
     Les KPIs sont rafraîchis avant retour.
     """
-    snap = _safe_get(session, APPLIED_KEY)
+    # get_applied tente la restauration disque (setdefault-only) si la session
+    # est neuve — la sauvegarde validée survit ainsi au refresh navigateur
+    # (stabilisation globale 2026-06-10).
+    snap = get_applied(session)
     if isinstance(snap, AppliedSnapshot):
         state = hydrate_state(snap)
     else:

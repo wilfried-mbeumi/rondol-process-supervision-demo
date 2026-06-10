@@ -255,7 +255,7 @@ with st.sidebar:
         st.image(str(LOGO_PATH), width=145)
     else:
         st.markdown("**RONDOL**")
-    st.caption("Extrudeuse 10,5 mm")
+    st.caption(t("common.extruder"))
     st.divider()
 
     selected_run = st.selectbox(
@@ -619,7 +619,7 @@ with _dec_col2:
             f'<div style="color:#D1D5DB;font-size:0.78rem;line-height:1.4;'
             f'margin-top:0.25rem;"><span style="color:#9CA3AF;font-weight:600;'
             f'font-size:0.66rem;letter-spacing:0.04em;text-transform:uppercase;'
-            f'margin-right:0.3rem;">Impact</span>{impact}</div>'
+            f'margin-right:0.3rem;">{t("common.impact")}</span>{impact}</div>'
             if impact else ""
         )
         ev_html = (
@@ -644,7 +644,7 @@ with _dec_col2:
             f'margin-top:0.3rem;">'
             f'<span style="color:{accent};font-weight:600;font-size:0.66rem;'
             f'letter-spacing:0.04em;text-transform:uppercase;margin-right:0.3rem;">'
-            f'Action</span>{action}</div>'
+            f'{t("common.action")}</span>{action}</div>'
             f'{ev_html}'
             f'</div>'
         )
