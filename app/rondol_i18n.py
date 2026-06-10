@@ -434,6 +434,92 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "historique.comp_col.density": {"fr": "ρ (g/cm³)", "en": "ρ (g/cm³)"},
     "historique.comp_col.tdeg": {"fr": "T° dégradation (°C)", "en": "Degradation T° (°C)"},
     "historique.comp_not_entered": {"fr": "Non renseigné", "en": "Not entered"},
+    # Phase S2 — Historique : agrégats par zone + statut agent (i18n complet).
+    "historique.zones_title": {
+        "fr": "Agrégats par zone (figés au commit)",
+        "en": "Per-zone aggregates (frozen at commit)",
+    },
+    "historique.zones_absent": {
+        "fr": "Agrégats par zone non disponibles pour ce procédé.",
+        "en": "Per-zone aggregates unavailable for this run.",
+    },
+    "historique.zones_not_significant": {
+        "fr": "Agrégats par zone non significatifs au moment du commit "
+              "(vis vide ou débit nul) — table masquée pour ne pas afficher "
+              "des zéros trompeurs.",
+        "en": "Per-zone aggregates not meaningful at commit time "
+              "(empty screw or zero flow) — table hidden to avoid showing "
+              "misleading zeros.",
+    },
+    "historique.zones_col.zone": {"fr": "Zone", "en": "Zone"},
+    "historique.zones_col.fill_mean": {"fr": "Fill moyen", "en": "Mean fill"},
+    "historique.zones_col.fill_peak": {"fr": "Fill crête", "en": "Peak fill"},
+    "historique.zones_col.residence": {"fr": "Résidence (s)", "en": "Residence (s)"},
+    "historique.zones_col.material": {"fr": "Matière dominante", "en": "Dominant material"},
+    "historique.agent_title": {"fr": "Statut agent (figé)", "en": "Agent status (frozen)"},
+    "historique.agent_absent": {
+        "fr": "Statut agent (décision / score / alertes) : non disponible — "
+              "non figé au moment de l'enregistrement.",
+        "en": "Agent status (decision / score / alerts): unavailable — "
+              "not frozen at save time.",
+    },
+    # Phase S2 — Profile : bannières capacité + messages d'action (i18n).
+    "profile.banner.empty": {
+        "fr": "<b>Vis vide.</b> Aucun élément après le main feeder — "
+              "les indicateurs Fill Factor et Résidence valent 0. "
+              "Ajoutez des éléments via <b>+1 / +4</b> ci-dessous, "
+              "ou cliquez <b>⊕ Configuration démo</b> dans la barre latérale.",
+        "en": "<b>Empty screw.</b> No element after the main feeder — "
+              "the Fill Factor and Residence indicators are 0. "
+              "Add elements with <b>+1 / +4</b> below, "
+              "or click <b>⊕ Demo configuration</b> in the sidebar.",
+    },
+    "profile.banner.full": {
+        "fr": "<b>Capacité maximale atteinte</b> ({n} / {max} éléments). "
+              "Retirez un élément avec <b>−1</b> pour libérer un slot.",
+        "en": "<b>Maximum capacity reached</b> ({n} / {max} elements). "
+              "Remove an element with <b>−1</b> to free a slot.",
+    },
+    "profile.banner.almost_full": {
+        "fr": "<b>Capacité presque pleine</b> : {n} slot(s) restant(s). "
+              "Le bouton <b>+4</b> reste désactivé tant qu'il y a moins de "
+              "4 slots libres.",
+        "en": "<b>Capacity almost full</b>: {n} slot(s) left. "
+              "The <b>+4</b> button stays disabled while fewer than "
+              "4 slots are free.",
+    },
+    "profile.msg.reset": {
+        "fr": "Configuration réinitialisée — vis vide.",
+        "en": "Configuration reset — empty screw.",
+    },
+    "profile.msg.demo_loaded": {
+        "fr": "Configuration démo chargée.",
+        "en": "Demo configuration loaded.",
+    },
+    "profile.msg.demo_chaotic": {
+        "fr": "Demo chaotic — vérifie l'effet losange sur la zone orange.",
+        "en": "Chaotic demo — check the diamond effect on the orange zone.",
+    },
+    "profile.msg.removed_one": {
+        "fr": "1 × {lbl} retiré.",
+        "en": "1 × {lbl} removed.",
+    },
+    "profile.msg.added_one": {
+        "fr": "1 × {lbl} ajouté.",
+        "en": "1 × {lbl} added.",
+    },
+    "profile.msg.added_four": {
+        "fr": "4 × {lbl} ajoutés.",
+        "en": "4 × {lbl} added.",
+    },
+    "profile.msg.add_impossible": {
+        "fr": "Ajout impossible — pas de position libre pour {lbl}.",
+        "en": "Cannot add — no free position for {lbl}.",
+    },
+    "profile.msg.add4_blocked": {
+        "fr": "+4 bloqué — capacité ou positions insuffisantes pour 4 × {lbl}.",
+        "en": "+4 blocked — insufficient capacity or positions for 4 × {lbl}.",
+    },
     # Phase 6 — Étalonnage feeders (Settings expander + bloc Profile sidebar)
     "settings.expander.feedcal": {
         "fr": "⚙️ Étalonnage feeders — RPM × coefficient g/h/RPM → débit réel",

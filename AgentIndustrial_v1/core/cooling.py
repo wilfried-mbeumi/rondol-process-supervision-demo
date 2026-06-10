@@ -46,7 +46,7 @@ from .feeders import POSITION_TO_LEGACY_ZONE, active_feeders
 from .process import (
     DEFAULT_ZONE_TARGETS_C,
     ProcessState,
-    SME_CRITICAL_KWH_PER_KG,
+    SME_INSTABILITY_NORM_KWH_PER_KG,
     THERMAL_REG_BAND_C,
 )
 
@@ -444,7 +444,7 @@ def compute_cooling(state: ProcessState) -> CoolingModel:
             hottest = zone
 
     instability = (
-        0.30 * _clamp(sme / SME_CRITICAL_KWH_PER_KG, 0.0, 1.0)
+        0.30 * _clamp(sme / SME_INSTABILITY_NORM_KWH_PER_KG, 0.0, 1.0)
         + 0.25 * _clamp(ff / 0.65, 0.0, 1.0)
         + 0.25 * _clamp(max_dT / 45.0, 0.0, 1.0)
         + 0.20 * tload

@@ -84,3 +84,6 @@ references/*
 !references/screw_elements/
 # Fichier au nom non professionnel, non utilisé par le code :
 references/screw_elements/00 merde.png
+
+# État de run local (jamais committé — exigence manager S2)
+data/run_state/

@@ -25,7 +25,6 @@ from .process import (
     FF_TARGET_LOW,
     PROCESS_ZONE_ORDER,
     ProcessState,
-    SME_CRITICAL_KWH_PER_KG,
     SME_WARNING_KWH_PER_KG,
     THERMAL_REG_BAND_C,
 )
@@ -821,9 +820,12 @@ def build_recommendations(
     # Garde stricte : retirer toute reco qui cite un type d'élément ABSENT de la
     # configuration courante (ex. « substituer Kneading 90° » sans malaxage).
     # Les recos élément-agnostiques (baisser rpm, ajuster T°, réduire débit)
-    # subsistent → repli garanti. N'agit que si la config est connue.
+    # subsistent → repli garanti.
+    # Manager 2026-06-10 : la garde s'applique AUSSI quand la config est vide
+    # ou inconnue — une vis vide ne contient aucun kneading, et une config non
+    # vérifiable ne justifie jamais de citer un élément précis.
     config = list(getattr(state, "screw_config", []) or [])
-    if _cites_absent is not None and config:
+    if _cites_absent is not None:
         def _reco_text(r: Recommendation) -> str:
             return " ".join((r.title, r.rationale, r.action, r.delta_label))
         recos = [r for r in recos if not _cites_absent(_reco_text(r), config)]

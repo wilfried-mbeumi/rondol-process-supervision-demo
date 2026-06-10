@@ -1,8 +1,13 @@
-"""Tests P4 — l'alerte seuil 0.40 est une alerte SME procédé, jamais « matière ».
+"""Tests SME — wording procédé (P4) + suppression du seuil critique 0.40 (S2).
 
-Exigence manager : le manager a cru que le seuil 0.40 concernait des carbon
-nanotubes / une matière. Le texte ne doit RIEN laisser croire de tel. Le seuil
-0.40 reste un seuil SME procédé.
+Exigence manager 2026-06-08 (P4) : l'alerte SME est une alerte PROCÉDÉ, jamais
+« matière » (pas de carbon nanotubes / cathode dans le texte).
+
+Exigence manager 2026-06-10 (S2) : la limite critique fixe 0.40 kWh/kg est
+SUPPRIMÉE. SME > 0.40 ne déclenche PLUS d'alerte critique automatique si rien
+d'autre ne le justifie. Le seuil de vigilance (warning, 0.30) reste actif. Le
+seuil critique redevient actif uniquement si SME_CRITICAL_KWH_PER_KG est
+configuré (float) dans AgentIndustrial_v1/core/process.py.
 """
 
 from __future__ import annotations
@@ -16,11 +21,14 @@ for _p in (ROOT, APP):
     if str(_p) not in sys.path:
         sys.path.insert(0, str(_p))
 
+from AgentIndustrial_v1.core import process as process_mod  # noqa: E402
 from AgentIndustrial_v1.core.process import (  # noqa: E402
     ProcessState,
     ScrewKPIs,
     SME_CRITICAL_KWH_PER_KG,
+    SME_WARNING_KWH_PER_KG,
 )
+from AgentIndustrial_v1.core import rules as rules_mod  # noqa: E402
 from AgentIndustrial_v1.core.rules import evaluate  # noqa: E402
 
 _FORBIDDEN = ("carbon nanotube", "nanotube", "cnt", "cathode", "anode",
@@ -28,7 +36,7 @@ _FORBIDDEN = ("carbon nanotube", "nanotube", "cnt", "cathode", "anode",
 
 
 def _sme_alert_blob(state: ProcessState) -> str:
-    """Texte des SEULES alertes SME (le sujet du seuil 0.40)."""
+    """Texte des SEULES alertes SME."""
     report = evaluate(state)
     return " ".join(
         f"{a.title} {a.description} {a.evidence}"
@@ -36,29 +44,57 @@ def _sme_alert_blob(state: ProcessState) -> str:
     ).lower()
 
 
-def test_sme_critical_above_threshold_triggers_without_material_words():
-    # Aucune matière saisie ; SME au-delà de 0.40 → l'alerte SME doit exister…
+def _state_with_sme(sme: float) -> ProcessState:
     state = ProcessState(screw_config=[], screw_rpm=120.0)
-    state.kpis = ScrewKPIs(sme_kwh_per_kg=SME_CRITICAL_KWH_PER_KG + 0.10)
-    report = evaluate(state)
-    codes = {a.code for a in report.alerts}
-    assert "SME_CRITICAL" in codes
-    # …mais l'alerte SME elle-même ne doit citer AUCUNE matière / CNT / cathode.
+    state.kpis = ScrewKPIs(sme_kwh_per_kg=sme)
+    return state
+
+
+def test_sme_critical_threshold_removed_by_default():
+    """S2 — par défaut le seuil critique est désactivé (None)."""
+    assert SME_CRITICAL_KWH_PER_KG is None
+
+
+def test_sme_above_040_no_automatic_critical():
+    """S2 — SME > 0.40 kWh/kg ne déclenche plus de critique automatique."""
+    state = _state_with_sme(0.55)
+    codes = {a.code for a in evaluate(state).alerts}
+    assert "SME_CRITICAL" not in codes
+    # Le seuil de vigilance reste actif (information, pas critique).
+    assert "SME_WARNING" in codes
+
+
+def test_sme_warning_still_active_above_030():
+    state = _state_with_sme(SME_WARNING_KWH_PER_KG + 0.05)
+    codes = {a.code for a in evaluate(state).alerts}
+    assert "SME_WARNING" in codes
+    assert "SME_CRITICAL" not in codes
+
+
+def test_sme_warning_without_material_words():
+    """P4 — l'alerte SME ne cite jamais de matière / CNT / cathode."""
+    state = _state_with_sme(0.55)
     blob = _sme_alert_blob(state)
+    assert blob, "une alerte SME (warning) est attendue"
     for token in _FORBIDDEN:
         assert token not in blob, f"« {token} » présent dans l'alerte SME : {blob}"
 
 
-def test_sme_alert_mentions_process_threshold():
-    state = ProcessState(screw_config=[], screw_rpm=120.0)
-    state.kpis = ScrewKPIs(sme_kwh_per_kg=SME_CRITICAL_KWH_PER_KG + 0.10)
-    blob = _sme_alert_blob(state)
-    assert "seuil procédé" in blob and "énergie mécanique spécifique" in blob
+def test_sme_critical_reactivable_via_configured_threshold(monkeypatch):
+    """S2 — le seuil critique redevient actif s'il est explicitement configuré."""
+    monkeypatch.setattr(process_mod, "SME_CRITICAL_KWH_PER_KG", 0.80)
+    monkeypatch.setattr(rules_mod, "SME_CRITICAL_KWH_PER_KG", 0.80)
+    state = _state_with_sme(0.90)
+    report = evaluate(state)
+    crit = [a for a in report.alerts if a.code == "SME_CRITICAL"]
+    assert crit, "SME_CRITICAL attendu quand un seuil configuré est dépassé"
+    # Evidence traçable : valeur lue + seuil + source.
+    ev = crit[0].evidence.lower()
+    assert "sme=0.90" in ev and "0.80" in ev and "source" in ev
 
 
-def test_sme_below_threshold_no_critical():
-    state = ProcessState(screw_config=[], screw_rpm=120.0)
-    state.kpis = ScrewKPIs(sme_kwh_per_kg=0.10)  # sous tous les seuils
+def test_sme_below_threshold_no_alert():
+    state = _state_with_sme(0.10)
     codes = {a.code for a in evaluate(state).alerts}
     assert "SME_CRITICAL" not in codes
     assert "SME_WARNING" not in codes

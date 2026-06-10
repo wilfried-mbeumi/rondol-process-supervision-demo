@@ -52,6 +52,9 @@ from demo_ml_run import demo_ml_banner_html  # noqa: E402
 from operator_store import restore_operator_state  # noqa: E402
 # i18n FR/EN (Phase 6 manager 2026-06-09) — Historique doit aussi être traduit.
 from rondol_i18n import t  # noqa: E402
+# Mode client vs démonstration (Phase S2) : aucune chimie nominale (LFP/LATP)
+# ne doit s'afficher en mode client — même convention que Moteur Procédé.
+from app_mode import is_demo_mode  # noqa: E402
 
 restore_operator_state(st.session_state)
 
@@ -283,31 +286,57 @@ else:
                 st.caption(t("historique.comp_absent"))
 
             _zones = _sel.get("zones")
-            if _zones:
-                st.markdown("##### Agrégats par zone (figés au commit)")
+            # Phase S2 manager 2026-06-10 :
+            #  - des agrégats TOUS à zéro (vis vide / débit nul au commit) ne
+            #    sont PAS des résultats physiques → statut clair, pas de table
+            #    de 0 trompeuse ;
+            #  - la matière dominante est un label NOMINAL moteur (powder de
+            #    démonstration) : en mode client elle est masquée via
+            #    material_label (« Non renseigné ») — jamais de LFP inventé.
+            _demo = is_demo_mode(st.session_state)
+
+            def _zones_all_zero(zones: list) -> bool:
+                """True si aucun agrégat n'est significatif (fill et résidence
+                nuls sur toutes les zones)."""
+                try:
+                    return all(
+                        float(z.get("fill_crete") or 0.0) <= 0.0
+                        and float(z.get("residence_s") or 0.0) <= 0.0
+                        for z in zones
+                    )
+                except (TypeError, ValueError):
+                    return False
+
+            if _zones and not _zones_all_zero(_zones):
+                st.markdown("##### " + t("historique.zones_title"))
                 _zdf = pd.DataFrame([
                     {
-                        "Zone": z.get("zone"),
-                        "Fill moyen": _fmt_num(z.get("fill_moyen"), 2),
-                        "Fill crête": _fmt_num(z.get("fill_crete"), 2),
-                        "Résidence (s)": _fmt_num(z.get("residence_s"), 1),
-                        "Matière dominante": z.get("matiere_dominante") or "—",
+                        t("historique.zones_col.zone"): z.get("zone"),
+                        t("historique.zones_col.fill_mean"): _fmt_num(z.get("fill_moyen"), 2),
+                        t("historique.zones_col.fill_peak"): _fmt_num(z.get("fill_crete"), 2),
+                        t("historique.zones_col.residence"): _fmt_num(z.get("residence_s"), 1),
+                        t("historique.zones_col.material"): (
+                            "—" if not z.get("matiere_dominante")
+                            else (
+                                z.get("matiere_dominante") if _demo
+                                else t("historique.comp_not_entered")
+                            )
+                        ),
                     }
                     for z in _zones
                 ])
                 st.dataframe(_zdf, use_container_width=True, hide_index=True)
+            elif _zones:
+                st.caption(t("historique.zones_not_significant"))
             else:
-                st.caption("Agrégats par zone non disponibles pour ce procédé.")
+                st.caption(t("historique.zones_absent"))
 
             # Statut agent : non figé au commit → affiché honnêtement comme absent.
             if _sel.get("agent"):
-                st.markdown("##### Statut agent (figé)")
+                st.markdown("##### " + t("historique.agent_title"))
                 st.json(_sel["agent"])
             else:
-                st.caption(
-                    "Statut agent (décision / score / alertes) : non disponible — "
-                    "non figé au moment de l'enregistrement."
-                )
+                st.caption(t("historique.agent_absent"))
 
     if _load.skipped:
         st.caption(f"Note : {_load.skipped} entrée(s) illisible(s) ignorée(s).")

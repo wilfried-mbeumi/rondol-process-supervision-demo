@@ -290,11 +290,17 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
 
 
 def _rule_sme(state: ProcessState) -> list[Alert]:
-    """R5 — Specific Mechanical Energy trop élevé (seuil procédé)."""
+    """R5 — Specific Mechanical Energy trop élevé (seuil procédé).
+
+    Manager 2026-06-10 : la limite critique fixe 0.40 kWh/kg est supprimée.
+    Une alerte CRITIQUE SME n'est émise QUE si un seuil critique procédé est
+    explicitement configuré (SME_CRITICAL_KWH_PER_KG ≠ None). Le seuil de
+    vigilance (warning) reste actif — il informe sans dégrader en critique.
+    """
     sme = state.kpis.sme_kwh_per_kg
     if sme <= 0.0:
         return []
-    if sme > SME_CRITICAL_KWH_PER_KG:
+    if SME_CRITICAL_KWH_PER_KG is not None and sme > SME_CRITICAL_KWH_PER_KG:
         return [Alert(
             code="SME_CRITICAL",
             severity=SEVERITY_CRITICAL,
@@ -305,7 +311,10 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
                 f"({SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg). Sollicitation "
                 f"thermomécanique excessive de la matière transformée."
             ),
-            evidence=f"SME={sme:.2f} kWh/kg",
+            evidence=(
+                f"SME={sme:.2f} kWh/kg · seuil critique configuré="
+                f"{SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg · source=KPIs vis (état appliqué)"
+            ),
             target="Global vis",
         )]
     if sme > SME_WARNING_KWH_PER_KG:
@@ -319,7 +328,10 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
                 f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg. Surveiller la stabilité "
                 f"thermique et la dispersion en sortie."
             ),
-            evidence=f"SME={sme:.2f} kWh/kg",
+            evidence=(
+                f"SME={sme:.2f} kWh/kg · seuil vigilance="
+                f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg · source=KPIs vis (état appliqué)"
+            ),
             target="Global vis",
         )]
     return []

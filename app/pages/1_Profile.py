@@ -225,11 +225,11 @@ with st.sidebar:
     st.divider()
     if st.button(t("profile.btn.reset"), use_container_width=True, key="btn_reset"):
         st.session_state["screw_config"] = new_empty_configuration()
-        st.session_state["last_action_msg"] = ("info", "Configuration réinitialisée — vis vide.")
+        st.session_state["last_action_msg"] = ("info", t("profile.msg.reset"))
         st.rerun()
     if st.button(t("profile.btn.demo"), use_container_width=True, key="btn_demo"):
         st.session_state["screw_config"] = _init_default_config()
-        st.session_state["last_action_msg"] = ("success", "Configuration démo chargée.")
+        st.session_state["last_action_msg"] = ("success", t("profile.msg.demo_loaded"))
         st.rerun()
     if st.button(t("profile.btn.demo_chaotic"), use_container_width=True, key="btn_demo_chaotic"):
         cfg_chaotic = new_empty_configuration()
@@ -240,7 +240,7 @@ with st.sidebar:
         add_element(cfg_chaotic, 1, count=3)    # forward final
         st.session_state["screw_config"] = cfg_chaotic
         st.session_state["last_action_msg"] = (
-            "success", "Demo chaotic — vérifie l'effet losange sur la zone orange."
+            "success", t("profile.msg.demo_chaotic")
         )
         st.rerun()
     st.divider()
@@ -568,28 +568,19 @@ def _build_status_banner_html(
             kind = "info"
         parts.append(_banner_line(kind, txt))
 
-    # Ligne 2 : statut capacité (toujours présente)
+    # Ligne 2 : statut capacité (toujours présente) — i18n FR/EN (Phase S2).
     if n_added_v <= 0:
-        parts.append(_banner_line(
-            "info",
-            "<b>Vis vide.</b> Aucun élément après le main feeder — "
-            "les indicateurs Fill Factor et Résidence valent 0. "
-            "Ajoutez des éléments via <b>+1 / +4</b> ci-dessous, "
-            "ou cliquez <b>⊕ Configuration démo</b> dans la barre latérale.",
-        ))
+        parts.append(_banner_line("info", t("profile.banner.empty")))
     elif n_remaining_v <= 0:
         parts.append(_banner_line(
             "warning",
-            f"<b>Capacité maximale atteinte</b> ({_fmt_count(n_added_v)} / "
-            f"{_fmt_count(MAX_USER_ELEMENTS)} éléments). "
-            "Retirez un élément avec <b>−1</b> pour libérer un slot.",
+            t("profile.banner.full",
+              n=_fmt_count(n_added_v), max=_fmt_count(MAX_USER_ELEMENTS)),
         ))
     elif n_remaining_v < 4:
         parts.append(_banner_line(
             "info",
-            f"<b>Capacité presque pleine</b> : "
-            f"{_fmt_count(n_remaining_v)} slot(s) restant(s). "
-            "Le bouton <b>+4</b> reste désactivé tant qu'il y a moins de 4 slots libres.",
+            t("profile.banner.almost_full", n=_fmt_count(n_remaining_v)),
         ))
     else:
         # État nominal : ligne minimale (présence DOM préservée, hauteur nulle)
@@ -686,25 +677,31 @@ for row_idx, row in enumerate(SLOT_LAYOUT):
                 disable_m = is_tip or (count_here == 0)
                 if bcol_m.button("−1", key=f"minus_{type_id}", use_container_width=True, disabled=disable_m):
                     if _remove_last_of_type(type_id):
-                        st.session_state["last_action_msg"] = ("info", f"1 × {et.label} retiré.")
+                        st.session_state["last_action_msg"] = (
+                            "info", t("profile.msg.removed_one", lbl=et.label)
+                        )
                     st.rerun()
                 if bcol_p1.button("+1", key=f"plus1_{type_id}", use_container_width=True, disabled=disable_p1):
                     placed = _add_element(type_id, count=1)
                     if placed > 0:
-                        st.session_state["last_action_msg"] = ("success", f"1 × {et.label} ajouté.")
+                        st.session_state["last_action_msg"] = (
+                            "success", t("profile.msg.added_one", lbl=et.label)
+                        )
                     else:
                         st.session_state["last_action_msg"] = (
                             "warning",
-                            f"Ajout impossible — pas de position libre pour {et.label}."
+                            t("profile.msg.add_impossible", lbl=et.label),
                         )
                     st.rerun()
                 if bcol_p4.button("+4", key=f"plus4_{type_id}", use_container_width=True, disabled=disable_p4):
                     if _add_elements_atomic(type_id, 4):
-                        st.session_state["last_action_msg"] = ("success", f"4 × {et.label} ajoutés.")
+                        st.session_state["last_action_msg"] = (
+                            "success", t("profile.msg.added_four", lbl=et.label)
+                        )
                     else:
                         st.session_state["last_action_msg"] = (
                             "warning",
-                            f"+4 bloqué — capacité ou positions insuffisantes pour 4 × {et.label}."
+                            t("profile.msg.add4_blocked", lbl=et.label),
                         )
                     st.rerun()
 

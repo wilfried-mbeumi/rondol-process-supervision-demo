@@ -69,11 +69,18 @@ FF_TARGET_LOW: float = 0.30
 FF_TARGET_HIGH: float = 0.55
 
 # SME — Specific Mechanical Energy (énergie mécanique spécifique, kWh/kg).
-# Seuils PROCÉDÉ configurés (ordre de grandeur compounding fin) : au-delà du
-# seuil critique, sollicitation thermomécanique excessive. Ce sont des seuils
-# de PROCÉDÉ, PAS un critère lié à une matière/additif particulier (ex. CNT).
+# Seuil de VIGILANCE procédé (ordre de grandeur compounding fin). Ce sont des
+# seuils de PROCÉDÉ, PAS un critère lié à une matière/additif particulier.
 SME_WARNING_KWH_PER_KG: float = 0.30
-SME_CRITICAL_KWH_PER_KG: float = 0.40
+# Seuil CRITIQUE SME — manager 2026-06-10 : la limite fixe 0.40 kWh/kg est
+# SUPPRIMÉE (trop basse / trop rigide pour le produit). None = aucune alerte
+# critique automatique sur le seul critère SME ; renseigner un float ici pour
+# réactiver un seuil critique procédé (même logique que RT_MIN_S/RT_MAX_S).
+SME_CRITICAL_KWH_PER_KG: float | None = None
+# Échelle de NORMALISATION de la contribution SME à l'index d'instabilité
+# thermique (cooling.py). C'est une échelle de calcul, PAS un seuil d'alerte —
+# conservée à 0.40 pour ne pas changer le comportement des autres alertes.
+SME_INSTABILITY_NORM_KWH_PER_KG: float = 0.40
 
 # Residence time — fenêtre acceptable extrusion fine SSB.
 RT_MIN_S: float = 5.0
