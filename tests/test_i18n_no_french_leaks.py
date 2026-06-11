@@ -74,6 +74,11 @@ FORBIDDEN_FR = [
     "SURVEILLER",
     "Seuil 80",
     "Équations différées",
+    "Matière (",
+    "saisie matière",
+    "limites et statut",
+    "Historique procédé",
+    "Surcharge",
 ]
 
 PAGES = {
@@ -311,3 +316,31 @@ def test_feeder_calibration_250gh_visible_everywhere_after_save():
     at.session_state["screw_rpm"] = 120.0
     at = at.run(timeout=120)
     assert not at.exception, [str(e.value) for e in at.exception]
+
+
+@pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
+def test_agent_uses_saved_profile_not_empty_defaults():
+    """Agent IA must use saved profile state, not empty defaults."""
+    from AgentIndustrial_v1.core.applied_state import commit, get_applied
+    from AgentIndustrial_v1.core.state_sync import state_from_session
+    from AgentIndustrial_v1.core.rules import evaluate
+
+    at = AppTest.from_file(PAGES["Supervision"])
+    at.session_state["ui_lang"] = "en"
+    at.session_state["demo_mode"] = True
+    cfg = [0] * 81
+    cfg[10] = 3
+    cfg[11] = 3
+    cfg[20] = 5
+    cfg[21] = 5
+    at.session_state["screw_config"] = cfg
+    at.session_state["screw_rpm"] = 100.0
+    at.session_state["bulk_density"] = 0.55
+
+    state = state_from_session(at.session_state)
+    snap = commit(at.session_state, state, label="agent-test")
+    assert snap is not None
+    assert snap.screw_config == cfg, "Snapshot must contain the custom screw config"
+
+    report = evaluate(state, lang="en")
+    assert report is not None, "Agent must produce a report from saved state"
