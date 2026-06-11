@@ -929,6 +929,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "settings.mat.tdeg": {"fr": "T° dégradation (°C)", "en": "Degradation T° (°C)"},
     "settings.mat.tdeg_help": {"fr": "Si > 0, prend le pas sur la borne famille matière.",
                                "en": "If > 0, overrides the material-family bound."},
+    "settings.mat.tmax_eff": {
+        "fr": "→ Borne haute effective IA : **{tmax} °C** (source : {src}) · facteur viscosité ×{vf}",
+        "en": "→ Effective AI upper bound: **{tmax} °C** (source: {src}) · viscosity factor ×{vf}",
+    },
+    "settings.mat.tmax_src_tdeg": {"fr": "T° dégradation opérateur", "en": "operator degradation T°"},
+    "settings.mat.tmax_src_tga": {"fr": "ATG onset", "en": "TGA onset"},
+    "settings.mat.tmax_src_family": {
+        "fr": "famille matière « {label} »",
+        "en": "material family \"{label}\"",
+    },
     "settings.mat.tga": {"fr": "ATG/TGA onset (°C)", "en": "TGA onset (°C)"},
     "settings.mat.tga_help": {"fr": "Onset perte massique mesurée ATG.",
                               "en": "Measured TGA mass-loss onset."},

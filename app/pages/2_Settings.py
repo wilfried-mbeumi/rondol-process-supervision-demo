@@ -669,17 +669,17 @@ with col_left:
                     min_value=-200.0, max_value=600.0,
                     step=5.0, key=f"fd_tglass_{fid}",
                 )
-            # Lecture effective utilisée par l'IA (traçabilité).
             _tmax_eff = f.effective_t_max_C()
-            st.caption(
-                f"→ Borne haute effective IA : **{_tmax_eff:.0f} °C** "
-                f"(source : "
-                + ("T° dégradation opérateur"
-                   if f.t_degradation_C and f.t_degradation_C > 0
-                   else ("ATG onset" if f.tga_onset_C and f.tga_onset_C > 0
-                         else f"famille matière « {f.material.label_fr} »"))
-                + f") · facteur viscosité ×{f.viscosity_factor():.2f}"
-            )
+            if f.t_degradation_C and f.t_degradation_C > 0:
+                _tmax_src = t("settings.mat.tmax_src_tdeg")
+            elif f.tga_onset_C and f.tga_onset_C > 0:
+                _tmax_src = t("settings.mat.tmax_src_tga")
+            else:
+                _tmax_src = t("settings.mat.tmax_src_family", label=f.material.label_fr)
+            st.caption(t("settings.mat.tmax_eff",
+                         tmax=f"{_tmax_eff:.0f}",
+                         src=_tmax_src,
+                         vf=f"{f.viscosity_factor():.2f}"))
 
     # Vitesse vis + torque + pressure (V2 placeholders) — widgets key-only.
     with flow_cols[5]:

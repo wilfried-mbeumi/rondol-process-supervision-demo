@@ -239,7 +239,7 @@ def _rule_powder_overload(state: ProcessState) -> list[Alert]:
                 f"Imminent over-torque and risk of blockage in mixing zone.",
             ),
             evidence=f"ṁ={powder_flow:.0f} g/min · cap={capacity_g_per_min:.0f} g/min",
-            target="Global feeders",
+            target=_b("Global feeders", "Global feeders"),
         ))
     elif load_pct > 0.80:
         out.append(Alert(
@@ -256,7 +256,7 @@ def _rule_powder_overload(state: ProcessState) -> list[Alert]:
                 f"Reduced margin against flow fluctuations.",
             ),
             evidence=f"charge={load_pct * 100:.0f} % de capacité",
-            target="Global feeders",
+            target=_b("Global feeders", "Global feeders"),
         ))
     return out
 
@@ -276,7 +276,7 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
                 "is active and positioned at Z0.",
             ),
             evidence="FF=0 %",
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         )]
     out: list[Alert] = []
     if ff > 0.65:
@@ -291,7 +291,7 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
                 f"Over-torque, heating and pressure pulsations expected.",
             ),
             evidence=f"FF={_fmt_pct(ff)} · cible {FF_TARGET_LOW*100:.0f}-{FF_TARGET_HIGH*100:.0f} %",
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         ))
     elif ff > FF_TARGET_HIGH:
         out.append(Alert(
@@ -307,7 +307,7 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
                 f"compromised.",
             ),
             evidence=f"FF={_fmt_pct(ff)}",
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         ))
     elif ff < 0.10:
         out.append(Alert(
@@ -321,7 +321,7 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
                 f"random mixing, residues at the bottom of the screw.",
             ),
             evidence=f"FF={_fmt_pct(ff)}",
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         ))
     elif ff < FF_TARGET_LOW:
         out.append(Alert(
@@ -335,7 +335,7 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
                 f"High local shear, possible product degradation.",
             ),
             evidence=f"FF={_fmt_pct(ff)}",
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         ))
     return out
 
@@ -370,7 +370,7 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
                 f"SME={sme:.2f} kWh/kg · seuil critique configuré="
                 f"{SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg · source=KPIs vis (état appliqué)"
             ),
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         )]
     if sme > SME_WARNING_KWH_PER_KG:
         return [Alert(
@@ -391,7 +391,7 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
                 f"SME={sme:.2f} kWh/kg · seuil vigilance="
                 f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg · source=KPIs vis (état appliqué)"
             ),
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         )]
     return []
 
@@ -413,7 +413,7 @@ def _rule_residence_time(state: ProcessState) -> list[Alert]:
                 f"product homogeneity not guaranteed.",
             ),
             evidence=f"RT={rt:.1f} s",
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         )]
     if rt > RT_MAX_S:
         return [Alert(
@@ -427,7 +427,7 @@ def _rule_residence_time(state: ProcessState) -> list[Alert]:
                 f"overheating possible, especially for heat-sensitive materials.",
             ),
             evidence=f"RT={rt:.1f} s",
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         )]
     return []
 
@@ -580,7 +580,7 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                 f"barrel and risk of motor safety trip.",
             ),
             evidence=f"torque={m.torque_load * 100:.0f} % ({src_fr})",
-            target="Global vis",
+            target=_b("Global vis", "Global screw"),
         ))
 
     # --- Global : risque d'instabilité thermique --------------------------
@@ -603,7 +603,7 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                 f"and thermal drift expected.",
             ),
             evidence=f"idx_instab={m.instability_index:.2f} · zone chaude={m.hottest_zone}",
-            target="Global procédé",
+            target=_b("Global procédé", "Global process"),
         ))
     elif m.instability_index >= 0.50:
         out.append(Alert(
@@ -622,7 +622,7 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                 f"increasing throughput.",
             ),
             evidence=f"idx_instab={m.instability_index:.2f}",
-            target="Global procédé",
+            target=_b("Global procédé", "Global process"),
         ))
 
     # --- Incompatibilité poudre / T_réelle sur tout le trajet -------------
@@ -764,7 +764,7 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
                    ". Smooth the profile into a monotonic ramp."),
             ),
             evidence=f"inversions={flips} · SME={sme:.2f} kWh/kg",
-            target="Profil thermique",
+            target=_b("Profil thermique", "Thermal profile"),
         ))
 
     # --- Refroidissement prématuré (avant fin du plateau de fusion) ------
