@@ -40,6 +40,16 @@ from .process import (
 
 
 # ---------------------------------------------------------------------------
+# i18n — bilingual helper (text-only, no logic change)
+# ---------------------------------------------------------------------------
+_LANG = "en"
+
+
+def _b(fr: str, en: str) -> str:
+    return en if _LANG == "en" else fr
+
+
+# ---------------------------------------------------------------------------
 # Modèle de sortie
 # ---------------------------------------------------------------------------
 SEVERITY_CRITICAL = "critical"
@@ -110,11 +120,17 @@ def _rule_feeder_position(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="FEEDER_LOCATION_BAD",
                 severity=SEVERITY_CRITICAL,
-                title=f"Feeder {_feeder_label(f)} mal positionné",
-                description=(
+                title=_b(
+                    f"Feeder {_feeder_label(f)} mal positionné",
+                    f"Feeder {_feeder_label(f)} mispositioned",
+                ),
+                description=_b(
                     f"Matière « {f.material.label_fr} » injectée en {f.position} : "
                     f"physiquement incorrect. Positions valides pour cette phase "
-                    f"({f.material.phase}) : {allowed_str}."
+                    f"({f.material.phase}) : {allowed_str}.",
+                    f"Material \"{f.material.label_fr}\" injected at {f.position}: "
+                    f"physically incorrect. Valid positions for this phase "
+                    f"({f.material.phase}): {allowed_str}.",
                 ),
                 evidence=f"position={f.position} · phase={f.material.phase}",
                 target=f"Feeder #{f.feeder_id}",
@@ -138,12 +154,19 @@ def _rule_thermal_compat(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="THERMAL_INCOMPAT_HIGH",
                 severity=SEVERITY_CRITICAL,
-                title=f"Surchauffe matière au feeder {_feeder_label(f)}",
-                description=(
+                title=_b(
+                    f"Surchauffe matière au feeder {_feeder_label(f)}",
+                    f"Material overheat at feeder {_feeder_label(f)}",
+                ),
+                description=_b(
                     f"T_{f.position} = {t_zone:.0f} °C dépasse la borne haute "
                     f"sûre de la matière « {f.material.label_fr} » "
                     f"({t_max:.0f} °C). Risque de dégradation thermique / "
-                    f"flash boiling (liquides) / décomposition de la matière."
+                    f"flash boiling (liquides) / décomposition de la matière.",
+                    f"T_{f.position} = {t_zone:.0f} °C exceeds the safe upper bound "
+                    f"of material \"{f.material.label_fr}\" "
+                    f"({t_max:.0f} °C). Risk of thermal degradation / "
+                    f"flash boiling (liquids) / material decomposition.",
                 ),
                 evidence=f"T={t_zone:.0f} °C · T_max={t_max:.0f} °C",
                 target=f"Feeder #{f.feeder_id}",
@@ -152,11 +175,17 @@ def _rule_thermal_compat(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="THERMAL_INCOMPAT_LOW",
                 severity=SEVERITY_WARNING,
-                title=f"Température trop basse au feeder {_feeder_label(f)}",
-                description=(
+                title=_b(
+                    f"Température trop basse au feeder {_feeder_label(f)}",
+                    f"Temperature too low at feeder {_feeder_label(f)}",
+                ),
+                description=_b(
                     f"T_{f.position} = {t_zone:.0f} °C inférieure à la borne "
                     f"basse opérationnelle ({t_min:.0f} °C). "
-                    f"Risque condensation (gaz/scCO₂) ou matière non fluide."
+                    f"Risque condensation (gaz/scCO₂) ou matière non fluide.",
+                    f"T_{f.position} = {t_zone:.0f} °C below the operational "
+                    f"lower bound ({t_min:.0f} °C). "
+                    f"Risk of condensation (gas/scCO₂) or non-fluid material.",
                 ),
                 evidence=f"T={t_zone:.0f} °C · T_min={t_min:.0f} °C",
                 target=f"Feeder #{f.feeder_id}",
@@ -197,11 +226,17 @@ def _rule_powder_overload(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="POWDER_OVERLOAD",
             severity=SEVERITY_CRITICAL,
-            title="Surcharge poudre — capacité vis dépassée",
-            description=(
+            title=_b(
+                "Surcharge poudre — capacité vis dépassée",
+                "Powder overload — screw capacity exceeded",
+            ),
+            description=_b(
                 f"Débit poudre cumulé {powder_flow:.0f} g/min > capacité estimée "
                 f"{capacity_g_per_min:.0f} g/min (charge {load_pct * 100:.0f} %). "
-                f"Surcouple imminent et risque de bouchage en zone de mélange."
+                f"Surcouple imminent et risque de bouchage en zone de mélange.",
+                f"Cumulative powder flow {powder_flow:.0f} g/min > estimated capacity "
+                f"{capacity_g_per_min:.0f} g/min (load {load_pct * 100:.0f} %). "
+                f"Imminent over-torque and risk of blockage in mixing zone.",
             ),
             evidence=f"ṁ={powder_flow:.0f} g/min · cap={capacity_g_per_min:.0f} g/min",
             target="Global feeders",
@@ -210,10 +245,15 @@ def _rule_powder_overload(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="POWDER_HIGH_LOAD",
             severity=SEVERITY_WARNING,
-            title="Chargement poudre élevé",
-            description=(
+            title=_b(
+                "Chargement poudre élevé",
+                "High powder load",
+            ),
+            description=_b(
                 f"Charge solide à {load_pct * 100:.0f} % de la capacité estimée. "
-                f"Marge réduite face aux fluctuations de débit."
+                f"Marge réduite face aux fluctuations de débit.",
+                f"Solid load at {load_pct * 100:.0f} % of estimated capacity. "
+                f"Reduced margin against flow fluctuations.",
             ),
             evidence=f"charge={load_pct * 100:.0f} % de capacité",
             target="Global feeders",
@@ -228,10 +268,12 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
         return [Alert(
             code="FF_ZERO",
             severity=SEVERITY_WARNING,
-            title="Fill Factor nul",
-            description=(
+            title=_b("Fill Factor nul", "Fill Factor is zero"),
+            description=_b(
                 "Aucune matière calculée dans la vis. Vérifier qu'un feeder "
-                "solide est actif et que sa position est Z0."
+                "solide est actif et que sa position est Z0.",
+                "No material calculated in the screw. Check that a solid feeder "
+                "is active and positioned at Z0.",
             ),
             evidence="FF=0 %",
             target="Global vis",
@@ -241,10 +283,12 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="FF_SATURATION",
             severity=SEVERITY_CRITICAL,
-            title="Fill Factor en saturation",
-            description=(
+            title=_b("Fill Factor en saturation", "Fill Factor in saturation"),
+            description=_b(
                 f"FF={_fmt_pct(ff)} > 65 % — la vis travaille en régime gavé. "
-                f"Surcouple, échauffement et pulsations de pression attendus."
+                f"Surcouple, échauffement et pulsations de pression attendus.",
+                f"FF={_fmt_pct(ff)} > 65 % — screw operating in flood-fed regime. "
+                f"Over-torque, heating and pressure pulsations expected.",
             ),
             evidence=f"FF={_fmt_pct(ff)} · cible {FF_TARGET_LOW*100:.0f}-{FF_TARGET_HIGH*100:.0f} %",
             target="Global vis",
@@ -253,11 +297,14 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="FF_HIGH",
             severity=SEVERITY_WARNING,
-            title="Fill Factor au-dessus de la cible",
-            description=(
+            title=_b("Fill Factor au-dessus de la cible", "Fill Factor above target"),
+            description=_b(
                 f"FF={_fmt_pct(ff)} > cible haute ({_fmt_pct(FF_TARGET_HIGH)}). "
                 f"Mélange devient majoritairement convectif, dispersion fine "
-                f"compromise."
+                f"compromise.",
+                f"FF={_fmt_pct(ff)} > upper target ({_fmt_pct(FF_TARGET_HIGH)}). "
+                f"Mixing becomes mainly convective, fine dispersion "
+                f"compromised.",
             ),
             evidence=f"FF={_fmt_pct(ff)}",
             target="Global vis",
@@ -266,10 +313,12 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="FF_STARVATION",
             severity=SEVERITY_CRITICAL,
-            title="Vis sous-alimentée",
-            description=(
+            title=_b("Vis sous-alimentée", "Starved screw"),
+            description=_b(
                 f"FF={_fmt_pct(ff)} < 10 % — régime de famine. Transport "
-                f"erratique, mélange aléatoire, résidus en fond de vis."
+                f"erratique, mélange aléatoire, résidus en fond de vis.",
+                f"FF={_fmt_pct(ff)} < 10 % — starvation regime. Erratic transport, "
+                f"random mixing, residues at the bottom of the screw.",
             ),
             evidence=f"FF={_fmt_pct(ff)}",
             target="Global vis",
@@ -278,10 +327,12 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="FF_LOW",
             severity=SEVERITY_WARNING,
-            title="Fill Factor sous la cible",
-            description=(
+            title=_b("Fill Factor sous la cible", "Fill Factor below target"),
+            description=_b(
                 f"FF={_fmt_pct(ff)} < cible basse ({_fmt_pct(FF_TARGET_LOW)}). "
-                f"Cisaillement local élevé, possible dégradation produit."
+                f"Cisaillement local élevé, possible dégradation produit.",
+                f"FF={_fmt_pct(ff)} < lower target ({_fmt_pct(FF_TARGET_LOW)}). "
+                f"High local shear, possible product degradation.",
             ),
             evidence=f"FF={_fmt_pct(ff)}",
             target="Global vis",
@@ -304,12 +355,16 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
         return [Alert(
             code="SME_CRITICAL",
             severity=SEVERITY_CRITICAL,
-            title="SME au-delà du seuil procédé",
-            description=(
+            title=_b("SME au-delà du seuil procédé", "SME above process threshold"),
+            description=_b(
                 f"SME élevée : énergie mécanique spécifique {sme:.2f} kWh/kg "
                 f"supérieure au seuil procédé configuré "
                 f"({SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg). Sollicitation "
-                f"thermomécanique excessive de la matière transformée."
+                f"thermomécanique excessive de la matière transformée.",
+                f"High SME: specific mechanical energy {sme:.2f} kWh/kg "
+                f"exceeds configured process threshold "
+                f"({SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg). Excessive "
+                f"thermomechanical stress on the processed material.",
             ),
             evidence=(
                 f"SME={sme:.2f} kWh/kg · seuil critique configuré="
@@ -321,12 +376,16 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
         return [Alert(
             code="SME_WARNING",
             severity=SEVERITY_WARNING,
-            title="SME élevé",
-            description=(
+            title=_b("SME élevé", "High SME"),
+            description=_b(
                 f"SME élevée : énergie mécanique spécifique {sme:.2f} kWh/kg "
                 f"supérieure au seuil de vigilance "
                 f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg. Surveiller la stabilité "
-                f"thermique et la dispersion en sortie."
+                f"thermique et la dispersion en sortie.",
+                f"High SME: specific mechanical energy {sme:.2f} kWh/kg "
+                f"exceeds the watch threshold "
+                f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg. Monitor thermal stability "
+                f"and output dispersion.",
             ),
             evidence=(
                 f"SME={sme:.2f} kWh/kg · seuil vigilance="
@@ -346,10 +405,12 @@ def _rule_residence_time(state: ProcessState) -> list[Alert]:
         return [Alert(
             code="RT_TOO_SHORT",
             severity=SEVERITY_WARNING,
-            title="Temps de résidence trop court",
-            description=(
+            title=_b("Temps de résidence trop court", "Residence time too short"),
+            description=_b(
                 f"RT={rt:.1f} s < {RT_MIN_S:.0f} s. Mélange insuffisant — "
-                f"homogénéité produit non garantie."
+                f"homogénéité produit non garantie.",
+                f"RT={rt:.1f} s < {RT_MIN_S:.0f} s. Insufficient mixing — "
+                f"product homogeneity not guaranteed.",
             ),
             evidence=f"RT={rt:.1f} s",
             target="Global vis",
@@ -358,10 +419,12 @@ def _rule_residence_time(state: ProcessState) -> list[Alert]:
         return [Alert(
             code="RT_TOO_LONG",
             severity=SEVERITY_WARNING,
-            title="Temps de résidence trop long",
-            description=(
+            title=_b("Temps de résidence trop long", "Residence time too long"),
+            description=_b(
                 f"RT={rt:.1f} s > {RT_MAX_S:.0f} s. Sur-cisaillement et "
-                f"sur-chauffe possibles, notamment pour les matières thermosensibles."
+                f"sur-chauffe possibles, notamment pour les matières thermosensibles.",
+                f"RT={rt:.1f} s > {RT_MAX_S:.0f} s. Over-shearing and "
+                f"overheating possible, especially for heat-sensitive materials.",
             ),
             evidence=f"RT={rt:.1f} s",
             target="Global vis",
@@ -385,10 +448,15 @@ def _rule_die_temp_monotony(state: ProcessState) -> list[Alert]:
         return [Alert(
             code="THERMAL_PROFILE_INVERTED",
             severity=SEVERITY_WARNING,
-            title="Profil thermique inversé en filière",
-            description=(
+            title=_b(
+                "Profil thermique inversé en filière",
+                "Inverted thermal profile at die",
+            ),
+            description=_b(
                 f"T_die={t_die:.0f} °C > T_Z5={t_z5:.0f} °C de plus de 15 °C. "
-                f"Inhabituel en compounding — vérifier la consigne filière."
+                f"Inhabituel en compounding — vérifier la consigne filière.",
+                f"T_die={t_die:.0f} °C > T_Z5={t_z5:.0f} °C by more than 15 °C. "
+                f"Unusual in compounding — check die setpoint.",
             ),
             evidence=f"T_die={t_die:.0f} °C · T_Z5={t_z5:.0f} °C",
             target="Die",
@@ -414,12 +482,19 @@ def _rule_duplicate_position(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="DUPLICATE_SOLID_POSITION",
                 severity=SEVERITY_WARNING,
-                title=f"Plusieurs solides en {pos}",
-                description=(
+                title=_b(
+                    f"Plusieurs solides en {pos}",
+                    f"Multiple solids at {pos}",
+                ),
+                description=_b(
                     f"Feeders {labels} injectent tous des solides en {pos}. "
                     f"Risque d'agglomération à l'entrée — envisager de "
                     f"décaler l'un d'eux en aval (Z2 ou Z3) pour ménager "
-                    f"une étape de fluidification avant ajout du second."
+                    f"une étape de fluidification avant ajout du second.",
+                    f"Feeders {labels} all inject solids at {pos}. "
+                    f"Risk of agglomeration at inlet — consider shifting "
+                    f"one of them downstream (Z2 or Z3) to allow "
+                    f"a fluidization step before adding the second.",
                 ),
                 evidence=f"position={pos} · n_solides={len(solids)}",
                 target=f"Position {pos}",
@@ -449,14 +524,22 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="HOTTEST_ZONE_OVERLOAD",
                 severity=SEVERITY_CRITICAL,
-                title=f"Surcharge thermique {hot_name}",
-                description=(
+                title=_b(
+                    f"Surcharge thermique {hot_name}",
+                    f"Thermal overload {hot_name}",
+                ),
+                description=_b(
                     f"{hot_name} = zone la plus chaude du fourreau. T estimée "
                     f"{hot.t_est_C:.0f} °C (consigne {hot.t_target_C:.0f} °C, "
                     f"+{hot.dT_C:.0f} °C par dissipation visqueuse). Besoin de "
                     f"refroidissement {hot.cooling_demand_pct:.0f} %. Risque de "
                     f"dégradation thermique de la matière et de bouchage en sortie "
-                    f"de plateau de mélange."
+                    f"de plateau de mélange.",
+                    f"{hot_name} = hottest barrel zone. Estimated T "
+                    f"{hot.t_est_C:.0f} °C (setpoint {hot.t_target_C:.0f} °C, "
+                    f"+{hot.dT_C:.0f} °C from viscous dissipation). Cooling demand "
+                    f"{hot.cooling_demand_pct:.0f} %. Risk of material thermal "
+                    f"degradation and blockage at mixing plateau exit.",
                 ),
                 evidence=f"T_{hot_name}≈{hot.t_est_C:.0f} °C · ΔT=+{hot.dT_C:.0f} °C",
                 target=f"Zone {hot_name}",
@@ -465,10 +548,15 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="HOTTEST_ZONE_HEAT_RISING",
                 severity=SEVERITY_WARNING,
-                title=f"Échauffement {hot_name} en montée",
-                description=(
+                title=_b(
+                    f"Échauffement {hot_name} en montée",
+                    f"Rising heat {hot_name}",
+                ),
+                description=_b(
                     f"{hot_name} +{hot.dT_C:.0f} °C au-dessus de la consigne — "
-                    f"marge thermique réduite sur la zone la plus sollicitée."
+                    f"marge thermique réduite sur la zone la plus sollicitée.",
+                    f"{hot_name} +{hot.dT_C:.0f} °C above setpoint — "
+                    f"reduced thermal margin on the most stressed zone.",
                 ),
                 evidence=f"ΔT_{hot_name}=+{hot.dT_C:.0f} °C · froid={hot.cooling_demand_pct:.0f} %",
                 target=f"Zone {hot_name}",
@@ -477,17 +565,21 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
     # --- Global : couple excessif -----------------------------------------
     if (m.torque_measured and m.torque_load > 0.85) or m.torque_load > 0.92:
         sev = SEVERITY_CRITICAL if m.torque_load > 0.97 else SEVERITY_WARNING
-        src = "mesuré" if m.torque_measured else "estimé"
+        src_fr = "mesuré" if m.torque_measured else "estimé"
+        src_en = "measured" if m.torque_measured else "estimated"
         out.append(Alert(
             code="TORQUE_EXCESS",
             severity=sev,
-            title="Couple vis excessif",
-            description=(
-                f"Charge couple {src} à {m.torque_load * 100:.0f} % du nominal. "
+            title=_b("Couple vis excessif", "Excessive screw torque"),
+            description=_b(
+                f"Charge couple {src_fr} à {m.torque_load * 100:.0f} % du nominal. "
                 f"Couple élevé ⇒ dissipation thermique accrue dans tout le "
-                f"fourreau et risque de déclenchement sécurité moteur."
+                f"fourreau et risque de déclenchement sécurité moteur.",
+                f"Torque load {src_en} at {m.torque_load * 100:.0f} % of nominal. "
+                f"High torque ⇒ increased thermal dissipation throughout the "
+                f"barrel and risk of motor safety trip.",
             ),
-            evidence=f"torque={m.torque_load * 100:.0f} % ({src})",
+            evidence=f"torque={m.torque_load * 100:.0f} % ({src_fr})",
             target="Global vis",
         ))
 
@@ -496,12 +588,19 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="INSTABILITY_RISK",
             severity=SEVERITY_CRITICAL,
-            title="Risque d'instabilité thermique élevé",
-            description=(
+            title=_b(
+                "Risque d'instabilité thermique élevé",
+                "High thermal instability risk",
+            ),
+            description=_b(
                 f"Index instabilité {m.instability_index:.2f} (≥0,70) — "
                 f"combinaison SME/Fill Factor/échauffement/couple en zone de "
                 f"basculement. Procédé non répétable : pulsations de pression "
-                f"et dérive thermique attendues."
+                f"et dérive thermique attendues.",
+                f"Instability index {m.instability_index:.2f} (≥0.70) — "
+                f"SME/Fill Factor/heating/torque combination in tipping zone. "
+                f"Non-repeatable process: pressure pulsations "
+                f"and thermal drift expected.",
             ),
             evidence=f"idx_instab={m.instability_index:.2f} · zone chaude={m.hottest_zone}",
             target="Global procédé",
@@ -510,11 +609,17 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="INSTABILITY_WATCH",
             severity=SEVERITY_WARNING,
-            title="Surveillance instabilité thermique",
-            description=(
+            title=_b(
+                "Surveillance instabilité thermique",
+                "Thermal instability watch",
+            ),
+            description=_b(
                 f"Index instabilité {m.instability_index:.2f} (≥0,50). "
                 f"Zone la plus chaude : {m.hottest_zone}. Stabiliser avant "
-                f"montée en cadence."
+                f"montée en cadence.",
+                f"Instability index {m.instability_index:.2f} (≥0.50). "
+                f"Hottest zone: {m.hottest_zone}. Stabilize before "
+                f"increasing throughput.",
             ),
             evidence=f"idx_instab={m.instability_index:.2f}",
             target="Global procédé",
@@ -547,14 +652,23 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                 out.append(Alert(
                     code="POWDER_THERMAL_INCOMPAT_TRAJ",
                     severity=SEVERITY_CRITICAL,
-                    title=f"Poudre #{f.feeder_id} surchauffée sur trajet",
-                    description=(
+                    title=_b(
+                        f"Poudre #{f.feeder_id} surchauffée sur trajet",
+                        f"Powder #{f.feeder_id} overheated along path",
+                    ),
+                    description=_b(
                         f"La matière « {f.material.label_fr} » (feeder #{f.feeder_id}, "
                         f"injectée en {f.position}) traverse {worst_zone} où T "
                         f"estimée ≈ {worst_t:.0f} °C > borne effective "
                         f"{t_max:.0f} °C{tga_note}. Dégradation de la matière "
                         f"probable — l'échauffement procédé réel "
-                        f"dépasse la limite matière, pas seulement la consigne."
+                        f"dépasse la limite matière, pas seulement la consigne.",
+                        f"Material \"{f.material.label_fr}\" (feeder #{f.feeder_id}, "
+                        f"injected at {f.position}) passes through {worst_zone} where "
+                        f"estimated T ≈ {worst_t:.0f} °C > effective limit "
+                        f"{t_max:.0f} °C{tga_note}. Material degradation "
+                        f"likely — actual process heating "
+                        f"exceeds material limit, not just the setpoint.",
                     ),
                     evidence=f"T_{worst_zone}≈{worst_t:.0f} °C · T_max={t_max:.0f} °C",
                     target=f"Zone {worst_zone}",
@@ -590,11 +704,17 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="THERMAL_GRADIENT_STEEP",
                 severity=SEVERITY_CRITICAL,
-                title=f"Montée thermique brutale {za}→{zb}",
-                description=(
+                title=_b(
+                    f"Montée thermique brutale {za}→{zb}",
+                    f"Steep thermal ramp {za}→{zb}",
+                ),
+                description=_b(
                     f"Saut de consigne +{max_jump:.0f} °C entre {za} et {zb}. "
                     f"Choc thermique sur la matière : dégradation locale, "
-                    f"contraintes mécaniques et instabilité de débit."
+                    f"contraintes mécaniques et instabilité de débit.",
+                    f"Setpoint jump +{max_jump:.0f} °C between {za} and {zb}. "
+                    f"Thermal shock on material: local degradation, "
+                    f"mechanical stress and flow instability.",
                 ),
                 evidence=f"Δ{za}→{zb}=+{max_jump:.0f} °C",
                 target=f"Zone {zb}",
@@ -603,10 +723,15 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="THERMAL_GRADIENT_WARN",
                 severity=SEVERITY_WARNING,
-                title=f"Gradient thermique élevé {za}→{zb}",
-                description=(
+                title=_b(
+                    f"Gradient thermique élevé {za}→{zb}",
+                    f"High thermal gradient {za}→{zb}",
+                ),
+                description=_b(
                     f"+{max_jump:.0f} °C entre {za} et {zb} — préférer une "
-                    f"montée plus progressive (≤ 40 °C par zone)."
+                    f"montée plus progressive (≤ 40 °C par zone).",
+                    f"+{max_jump:.0f} °C between {za} and {zb} — prefer a "
+                    f"more gradual ramp (≤ 40 °C per zone).",
                 ),
                 evidence=f"Δ{za}→{zb}=+{max_jump:.0f} °C",
                 target=f"Zone {zb}",
@@ -621,14 +746,22 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="THERMAL_PROFILE_UNSTABLE",
             severity=sev,
-            title="Profil thermique instable (oscillant)",
-            description=(
+            title=_b(
+                "Profil thermique instable (oscillant)",
+                "Unstable thermal profile (oscillating)",
+            ),
+            description=_b(
                 f"{flips} inversions chaud/froid le long de Z1→Z8 — profil en "
                 f"dents de scie. Régulation instable, points chauds/froids "
                 f"alternés"
                 + (f" amplifiés par un SME élevé ({sme:.2f} kWh/kg)."
                    if sme > SME_WARNING_KWH_PER_KG else
-                   ". Lisser le profil en une rampe monotone.")
+                   ". Lisser le profil en une rampe monotone."),
+                f"{flips} hot/cold inversions along Z1→Z8 — sawtooth profile. "
+                f"Unstable regulation, alternating hot/cold spots"
+                + (f" amplified by high SME ({sme:.2f} kWh/kg)."
+                   if sme > SME_WARNING_KWH_PER_KG else
+                   ". Smooth the profile into a monotonic ramp."),
             ),
             evidence=f"inversions={flips} · SME={sme:.2f} kWh/kg",
             target="Profil thermique",
@@ -648,11 +781,17 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
         out.append(Alert(
             code="THERMAL_EARLY_COOLING",
             severity=SEVERITY_WARNING,
-            title=f"Refroidissement prématuré {za}→{zb}",
-            description=(
+            title=_b(
+                f"Refroidissement prématuré {za}→{zb}",
+                f"Premature cooling {za}→{zb}",
+            ),
+            description=_b(
                 f"Chute de {d:.0f} °C entre {za} et {zb}, avant la fin du "
                 f"plateau de fusion (Z6). Risque de fusion incomplète, de "
-                f"figeage et de bouchage en aval."
+                f"figeage et de bouchage en aval.",
+                f"Drop of {d:.0f} °C between {za} and {zb}, before the end of "
+                f"the melting plateau (Z6). Risk of incomplete melting, "
+                f"freezing and downstream blockage.",
             ),
             evidence=f"Δ{za}→{zb}={d:.0f} °C (avant Z6)",
             target=f"Zone {zb}",
@@ -672,11 +811,14 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="DIE_TOO_COLD",
                 severity=SEVERITY_CRITICAL,
-                title="Filière trop froide",
-                description=(
+                title=_b("Filière trop froide", "Die too cold"),
+                description=_b(
                     f"T_die moyenne {die_mean:.0f} °C < T_Z8 {t_z8:.0f} °C "
                     f"− 40 °C. Figeage en tête de filière : pic de pression, "
-                    f"surcouple et arrêt sécurité probables."
+                    f"surcouple et arrêt sécurité probables.",
+                    f"Average T_die {die_mean:.0f} °C < T_Z8 {t_z8:.0f} °C "
+                    f"− 40 °C. Freeze-off at die head: pressure spike, "
+                    f"over-torque and safety shutdown likely.",
                 ),
                 evidence=f"T_die≈{die_mean:.0f} °C · T_Z8={t_z8:.0f} °C",
                 target="Die",
@@ -689,12 +831,19 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
                     out.append(Alert(
                         code="DIE_PROFILE_INCOHERENT",
                         severity=SEVERITY_WARNING,
-                        title="Profil die non décroissant",
-                        description=(
+                        title=_b(
+                            "Profil die non décroissant",
+                            "Die profile not decreasing",
+                        ),
+                        description=_b(
                             f"Zone die {i + 2} ({die_t[i + 1]:.0f} °C) plus chaude "
                             f"que la zone die {i + 1} ({die_t[i]:.0f} °C). Le "
                             f"refroidissement de mise en forme doit être monotone "
-                            f"décroissant vers la sortie."
+                            f"décroissant vers la sortie.",
+                            f"Die zone {i + 2} ({die_t[i + 1]:.0f} °C) hotter "
+                            f"than die zone {i + 1} ({die_t[i]:.0f} °C). The "
+                            f"forming cooling must be monotonically "
+                            f"decreasing toward the exit.",
                         ),
                         evidence=f"die{i + 1}={die_t[i]:.0f} → die{i + 2}={die_t[i + 1]:.0f} °C",
                         target="Die",
@@ -722,12 +871,19 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
             out.append(Alert(
                 code="ZONE_MATERIAL_INCOMPAT",
                 severity=SEVERITY_CRITICAL,
-                title=f"Consigne incompatible matière feeder {_feeder_label(f)}",
-                description=(
+                title=_b(
+                    f"Consigne incompatible matière feeder {_feeder_label(f)}",
+                    f"Setpoint incompatible with feeder {_feeder_label(f)} material",
+                ),
+                description=_b(
                     f"La matière « {f.material.label_fr} » (injectée en "
                     f"{f.position}) transite par {worst_zone} dont la consigne "
                     f"{worst_t:.0f} °C dépasse sa borne sûre {t_max:.0f} °C. "
-                    f"Dégradation thermique programmée par le profil lui-même."
+                    f"Dégradation thermique programmée par le profil lui-même.",
+                    f"Material \"{f.material.label_fr}\" (injected at "
+                    f"{f.position}) passes through {worst_zone} whose setpoint "
+                    f"{worst_t:.0f} °C exceeds its safe limit {t_max:.0f} °C. "
+                    f"Thermal degradation programmed by the profile itself.",
                 ),
                 evidence=f"{worst_zone}={worst_t:.0f} °C · T_max={t_max:.0f} °C",
                 target=f"Feeder #{f.feeder_id}",
@@ -753,8 +909,11 @@ _ALL_RULES = (
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-def evaluate(state: ProcessState) -> AgentReport:
+def evaluate(state: ProcessState, *, lang: str = "en") -> AgentReport:
     """Évalue toutes les règles, agrège le score et l'état, produit le diagnostic."""
+    global _LANG
+    _LANG = lang
+
     alerts: list[Alert] = []
     for rule_fn in _ALL_RULES:
         alerts.extend(rule_fn(state))
@@ -797,18 +956,26 @@ def _build_diagnostic(
     sme = state.kpis.sme_kwh_per_kg
 
     if st == STATE_STABLE:
-        return (
+        return _b(
             f"Procédé nominal : {n_act} feeder(s) actif(s), FF={_fmt_pct(ff)}, "
-            f"RT={rt:.1f} s, SME={sme:.2f} kWh/kg. Aucune alerte critique."
+            f"RT={rt:.1f} s, SME={sme:.2f} kWh/kg. Aucune alerte critique.",
+            f"Nominal process: {n_act} active feeder(s), FF={_fmt_pct(ff)}, "
+            f"RT={rt:.1f} s, SME={sme:.2f} kWh/kg. No critical alerts.",
         )
     if st == STATE_WATCH:
-        return (
+        return _b(
             f"Surveillance renforcée : {n_warn} avertissement(s) et "
             f"{n_crit} alerte(s) critique(s). Vérifier les recommandations "
-            f"agent avant de poursuivre."
+            f"agent avant de poursuivre.",
+            f"Enhanced monitoring: {n_warn} warning(s) and "
+            f"{n_crit} critical alert(s). Check agent recommendations "
+            f"before proceeding.",
         )
-    return (
+    return _b(
         f"État critique (score {score}/100) : {n_crit} alerte(s) critique(s) "
         f"+ {n_warn} avertissement(s). Application des recommandations "
-        f"agent IA prioritaire avant production."
+        f"agent IA prioritaire avant production.",
+        f"Critical state (score {score}/100): {n_crit} critical alert(s) "
+        f"+ {n_warn} warning(s). Applying AI agent recommendations "
+        f"is priority before production.",
     )

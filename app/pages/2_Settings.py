@@ -720,8 +720,8 @@ with col_left:
 # ===========================================================================
 # `state` reflète déjà toutes les clés widget (consignes Z*, feeders, rpm…) :
 # le rapport et les recos portent sur les valeurs HMI courantes.
-report: AgentReport = evaluate(state)
-recos: list[Recommendation] = build_recommendations(state, report.alerts)
+report: AgentReport = evaluate(state, lang=current_lang())
+recos: list[Recommendation] = build_recommendations(state, report.alerts, lang=current_lang())
 
 # KPI strip global (FF, RT, SME, n_alert, score)
 k = state.kpis

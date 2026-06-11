@@ -162,13 +162,7 @@ def _chip(label: str, value: str, warn: bool = False) -> str:
     return f'<span class="{cls}">{label} <b>{value}</b></span>'
 
 
-# Sévérité d'évaluation remplissage → couleur de badge.
-_FILL_BADGE_KIND = {
-    "Sur-rempli": "crit",
-    "Remplissage élevé": "warn",
-    "Acceptable": "ok",
-    "Sous-rempli": "neutral",
-}
+# (badge kind now returned directly by _fill_assessment — no dict needed)
 
 # ---------------------------------------------------------------------------
 # Hypothèses NOMINALES (documentées, non calibrées) — profil thermique + débit
@@ -245,19 +239,19 @@ def _build_report(config: list[int]):
     )
 
 
-def _fill_assessment(report) -> tuple[str, str, str]:
+def _fill_assessment(report) -> tuple[str, str, str, str]:
     """Évaluation INDICATIVE du remplissage — pure LECTURE du fill_factor déjà
-    calculé (aucune nouvelle équation). Retourne (libellé, sévérité, message).
+    calculé (aucune nouvelle équation). Retourne (libellé, sévérité, message, badge_kind).
     """
     avg = report.fill_factor_average
     overflow = report.overflow_main_feeder or report.overflow_side_feeder
     if overflow:
-        return (_t("moteur.fill.overflow"), "warning", _t("moteur.fill.overflow_msg"))
+        return (_t("moteur.fill.overflow"), "warning", _t("moteur.fill.overflow_msg"), "crit")
     if avg >= 0.75:
-        return (_t("moteur.fill.high"), "warning", _t("moteur.fill.high_msg"))
+        return (_t("moteur.fill.high"), "warning", _t("moteur.fill.high_msg"), "warn")
     if avg >= 0.30:
-        return (_t("moteur.fill.nominal"), "info", _t("moteur.fill.nominal_msg"))
-    return (_t("moteur.fill.low"), "info", _t("moteur.fill.low_msg"))
+        return (_t("moteur.fill.nominal"), "info", _t("moteur.fill.nominal_msg"), "ok")
+    return (_t("moteur.fill.low"), "info", _t("moteur.fill.low_msg"), "neutral")
 
 
 # ===========================================================================
@@ -389,8 +383,8 @@ _section(_t("moteur.sec.fill_eval"), _t("moteur.sec.fill_eval_sub"))
 if not feed_available:
     st.info(_t("moteur.fill.not_computable"), icon="ℹ️")
 else:
-    _fill_label, _fill_sev, _fill_msg = _fill_assessment(report)
-    st.html(_badge(f"● {_fill_label}", _FILL_BADGE_KIND.get(_fill_label, "neutral")))
+    _fill_label, _fill_sev, _fill_msg, _fill_bk = _fill_assessment(report)
+    st.html(_badge(f"● {_fill_label}", _fill_bk))
     _banner = st.warning if _fill_sev == "warning" else st.info
     _banner(
         f"**{_fill_label}** — {_fill_msg}\n\n"
@@ -658,51 +652,26 @@ with st.container(border=True):
 
 # ── Encart hypothèses ────────────────────────────────────────────────────────
 st.divider()
-with st.expander("ℹ️ Hypothèses, limites et statut du modèle", expanded=True):
+with st.expander(_t("moteur.hypo.title"), expanded=True):
     if demo_mode:
-        _mat_section = (
-            f"**Matières (DÉMONSTRATION — nominales, non calibrées)**\n"
-            f"- Feeder 1 = `{report.feeder1_material}` ; feeder 2 = "
-            f"`{report.feeder2_material or '—'}` (side feeder uniquement si activé).\n"
-            f"- ⚠️ Valeurs de **démonstration** : presets nominaux, pas la matière "
-            f"d'un run réel. Désactivez le mode démonstration pour le mode client."
+        _mat_section = _t(
+            "moteur.hypo.mat_demo",
+            f1=report.feeder1_material,
+            f2=report.feeder2_material or "—",
         )
     else:
-        _mat_section = (
-            "**Matière**\n"
-            f"- **{_t('historique.comp_not_entered')}** : aucune saisie matière dédiée n'existe encore "
-            "dans l'interface. Le couple / la SME / le remplissage sont calculés à "
-            "partir de la **géométrie de vis** et des **paramètres procédé** "
-            "(vitesse, débit, densité bulk), sans hypothèse de chimie spécifique.\n"
-            "- Aucun nom de matière n'est affiché tant qu'aucune saisie matière "
-            "réelle n'a été effectuée."
+        _mat_section = _t(
+            "moteur.hypo.mat_client",
+            not_entered=_t("historique.comp_not_entered"),
         )
+    _temps = ", ".join(f"{tv:.0f}" for tv in NOMINAL_TEMP_PROFILE_C)
     st.markdown(
-        f"""
-{_mat_section}
-
-**Modèle de couple (E4)**
-- `M_node = η · γ̇² · V_filled / (2π·N)` — modèle **uniforme transparent**.
-- `V_filled` = volume libre local × remplissage : **proxy provisoire** du volume cisaillé.
-- Pas de pondération par type d'élément (malaxage vs convoyage) en v1.
-- Effets pression-flow / fuites **hors périmètre**.
-
-**SME (totale uniquement)**
-- `SME = P_dissipée / ṁ` avec `P = 2π·N · couple_total` (dérivée du couple E4) ;
-  ṁ = débit d'alimentation total (**hypothèse régime permanent** feed = sortie).
-- La SME **par position** n'est pas encore matérialisée.
-
-**Profil thermique**
-- Consignes de zone **nominales de démonstration** : {", ".join(f"{t:.0f}" for t in NOMINAL_TEMP_PROFILE_C)} °C
-  (le profil thermique réel n'est pas partagé via `session_state`).
-
-**Équations différées**
-- **E6 (T_real)** et **E7 (pression)** : *non calculées* — affichées « À venir ».
-
-> **Interprétation** : ce moteur est un **prototype d'aide à la décision**. Les valeurs
-> sont cohérentes en **relatif/tendance** (comparer deux profils, voir l'effet du
-> régime/feeder), mais ne constituent **pas** une vérité industrielle calibrée.
-        """
+        f"{_mat_section}\n\n"
+        f"{_t('moteur.hypo.torque_model')}\n\n"
+        f"{_t('moteur.hypo.sme')}\n\n"
+        f"{_t('moteur.hypo.thermal', temps=_temps)}\n\n"
+        f"{_t('moteur.hypo.deferred')}\n\n"
+        f"{_t('moteur.hypo.interp')}"
     )
 
-st.caption("Rondol Industrie · Couche moteur procédé (engine) · Prototype")
+st.caption(_t("moteur.footer"))

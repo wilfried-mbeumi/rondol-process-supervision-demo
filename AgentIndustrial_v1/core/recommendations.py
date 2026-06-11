@@ -28,7 +28,8 @@ from .process import (
     SME_WARNING_KWH_PER_KG,
     THERMAL_REG_BAND_C,
 )
-from .rules import Alert
+from . import rules as _rules_mod
+from .rules import Alert, _b
 
 # Garde « pas d'élément inventé » (règle manager) — source canonique pure dans
 # screw_logic. Bootstrap sys.path (app/) identique à screw_adapter pour import nu.
@@ -54,7 +55,7 @@ CAT_SCREW_PROFILE = "screw_profile"
 CAT_SCREW_SPEED = "screw_speed"
 CAT_OTHER = "other"
 
-_CAT_LABELS: dict[str, str] = {
+_CAT_LABELS_FR: dict[str, str] = {
     CAT_FEEDER_MOVE: "Déplacement feeder",
     CAT_FLOW: "Ajustement débit",
     CAT_TEMPERATURE: "Ajustement température",
@@ -62,6 +63,15 @@ _CAT_LABELS: dict[str, str] = {
     CAT_SCREW_SPEED: "Vitesse vis",
     CAT_OTHER: "Autre",
 }
+_CAT_LABELS_EN: dict[str, str] = {
+    CAT_FEEDER_MOVE: "Feeder move",
+    CAT_FLOW: "Flow adjustment",
+    CAT_TEMPERATURE: "Temperature adjustment",
+    CAT_SCREW_PROFILE: "Screw profile modification",
+    CAT_SCREW_SPEED: "Screw speed",
+    CAT_OTHER: "Other",
+}
+_CAT_LABELS = _CAT_LABELS_EN
 
 CONFIDENCE_HIGH = "high"
 CONFIDENCE_MEDIUM = "medium"
@@ -83,7 +93,8 @@ class Recommendation:
 
     @property
     def category_label(self) -> str:
-        return _CAT_LABELS.get(self.category, self.category)
+        labels = _CAT_LABELS_EN if _rules_mod._LANG == "en" else _CAT_LABELS_FR
+        return labels.get(self.category, self.category)
 
 
 # ---------------------------------------------------------------------------
@@ -115,15 +126,23 @@ def _from_feeder_location(state: ProcessState, alert: Alert) -> list[Recommendat
         code="REC_MOVE_FEEDER",
         category=CAT_FEEDER_MOVE,
         severity=alert.severity,
-        title=f"Déplacer feeder #{f.feeder_id} → {target_pos}",
-        rationale=(
+        title=_b(
+            f"Déplacer feeder #{f.feeder_id} → {target_pos}",
+            f"Move feeder #{f.feeder_id} → {target_pos}",
+        ),
+        rationale=_b(
             f"La phase {f.material.phase} ne peut être injectée en "
             f"{f.position} (avant fusion / zone inadaptée). "
-            f"{target_pos} est la 1ère position physiquement valide."
+            f"{target_pos} est la 1ère position physiquement valide.",
+            f"Phase {f.material.phase} cannot be injected at "
+            f"{f.position} (before melting / unsuitable zone). "
+            f"{target_pos} is the first physically valid position.",
         ),
-        action=(
+        action=_b(
             f"Déplacer le point d'injection du feeder #{f.feeder_id} "
-            f"({f.material.label_fr}) vers la position {target_pos}."
+            f"({f.material.label_fr}) vers la position {target_pos}.",
+            f"Move the injection point of feeder #{f.feeder_id} "
+            f"({f.material.label_fr}) to position {target_pos}.",
         ),
         delta_label=f"{f.position} → {target_pos}",
         confidence=CONFIDENCE_HIGH,
@@ -145,13 +164,22 @@ def _from_thermal_high(state: ProcessState, alert: Alert) -> list[Recommendation
             code="REC_REDUCE_T",
             category=CAT_TEMPERATURE,
             severity=alert.severity,
-            title=f"Réduire T_{f.position}",
-            rationale=(
+            title=_b(
+                f"Réduire T_{f.position}",
+                f"Reduce T_{f.position}",
+            ),
+            rationale=_b(
                 f"Borne haute matière {f.material.label_fr} = {t_max:.0f} °C. "
                 f"Cible 10 °C de marge sous la borne pour absorber les "
-                f"variations de procédé."
+                f"variations de procédé.",
+                f"Material upper limit {f.material.label_fr} = {t_max:.0f} °C. "
+                f"Target 10 °C margin below the limit to absorb "
+                f"process variations.",
             ),
-            action=f"Abaisser la consigne {f.position} jusqu'à environ {t_target:.0f} °C.",
+            action=_b(
+                f"Abaisser la consigne {f.position} jusqu'à environ {t_target:.0f} °C.",
+                f"Lower the {f.position} setpoint to approximately {t_target:.0f} °C.",
+            ),
             delta_label=f"{t_now:.0f} °C → {t_target:.0f} °C",
             confidence=CONFIDENCE_HIGH,
             linked_alert_code=alert.code,
@@ -163,14 +191,21 @@ def _from_thermal_high(state: ProcessState, alert: Alert) -> list[Recommendation
             code="REC_MOVE_FEEDER_THERMAL",
             category=CAT_FEEDER_MOVE,
             severity=alert.severity,
-            title=f"Déplacer feeder #{f.feeder_id} vers zone plus froide",
-            rationale=(
-                f"Position {cooler} = T plus basse, compatible avec la borne "
-                f"effective {t_max:.0f} °C."
+            title=_b(
+                f"Déplacer feeder #{f.feeder_id} vers zone plus froide",
+                f"Move feeder #{f.feeder_id} to cooler zone",
             ),
-            action=(
+            rationale=_b(
+                f"Position {cooler} = T plus basse, compatible avec la borne "
+                f"effective {t_max:.0f} °C.",
+                f"Position {cooler} = lower T, compatible with the effective "
+                f"limit {t_max:.0f} °C.",
+            ),
+            action=_b(
                 f"Déplacer feeder #{f.feeder_id} de {f.position} vers {cooler} "
-                f"si la chimie le permet."
+                f"si la chimie le permet.",
+                f"Move feeder #{f.feeder_id} from {f.position} to {cooler} "
+                f"if chemistry allows.",
             ),
             delta_label=f"{f.position} → {cooler}",
             confidence=CONFIDENCE_MEDIUM,
@@ -197,12 +232,20 @@ def _from_thermal_low(state: ProcessState, alert: Alert) -> list[Recommendation]
         code="REC_RAISE_T",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title=f"Augmenter T_{f.position}",
-        rationale=(
-            f"Sous la borne basse opérationnelle ({t_min:.0f} °C) — "
-            f"risque condensation / matière inerte."
+        title=_b(
+            f"Augmenter T_{f.position}",
+            f"Increase T_{f.position}",
         ),
-        action=f"Remonter la consigne {f.position} à au moins {t_target:.0f} °C.",
+        rationale=_b(
+            f"Sous la borne basse opérationnelle ({t_min:.0f} °C) — "
+            f"risque condensation / matière inerte.",
+            f"Below the operational lower bound ({t_min:.0f} °C) — "
+            f"risk of condensation / inert material.",
+        ),
+        action=_b(
+            f"Remonter la consigne {f.position} à au moins {t_target:.0f} °C.",
+            f"Raise the {f.position} setpoint to at least {t_target:.0f} °C.",
+        ),
         delta_label=f"{t_now:.0f} °C → {t_target:.0f} °C",
         confidence=CONFIDENCE_HIGH,
         linked_alert_code=alert.code,
@@ -222,14 +265,21 @@ def _from_powder_overload(state: ProcessState, alert: Alert) -> list[Recommendat
             code="REC_REDUCE_FLOW",
             category=CAT_FLOW,
             severity=alert.severity,
-            title=f"Réduire débit feeder #{biggest.feeder_id}",
-            rationale=(
-                "Surcharge solide → ramener à 80 % du débit pour rétablir une "
-                "marge de capacité et éviter le surcouple."
+            title=_b(
+                f"Réduire débit feeder #{biggest.feeder_id}",
+                f"Reduce feeder #{biggest.feeder_id} flow",
             ),
-            action=(
+            rationale=_b(
+                "Surcharge solide → ramener à 80 % du débit pour rétablir une "
+                "marge de capacité et éviter le surcouple.",
+                "Solid overload → bring back to 80 % of flow to restore "
+                "capacity margin and avoid over-torque.",
+            ),
+            action=_b(
                 f"Réduire le débit du feeder #{biggest.feeder_id} "
-                f"({biggest.material.label_fr}) de 20 %."
+                f"({biggest.material.label_fr}) de 20 %.",
+                f"Reduce feeder #{biggest.feeder_id} "
+                f"({biggest.material.label_fr}) flow by 20 %.",
             ),
             delta_label=(
                 f"{biggest.mass_flow_g_per_min:.0f} → {new_flow:.0f} g/min"
@@ -241,12 +291,20 @@ def _from_powder_overload(state: ProcessState, alert: Alert) -> list[Recommendat
             code="REC_INCREASE_RPM",
             category=CAT_SCREW_SPEED,
             severity=alert.severity,
-            title="Augmenter la vitesse vis",
-            rationale=(
-                "À débit constant, une vitesse vis plus élevée diminue le "
-                "Fill Factor et restaure de la capacité de transport."
+            title=_b(
+                "Augmenter la vitesse vis",
+                "Increase screw speed",
             ),
-            action=f"Monter la vitesse vis à {new_rpm:.0f} rpm si le procédé le permet.",
+            rationale=_b(
+                "À débit constant, une vitesse vis plus élevée diminue le "
+                "Fill Factor et restaure de la capacité de transport.",
+                "At constant flow, a higher screw speed reduces the "
+                "Fill Factor and restores transport capacity.",
+            ),
+            action=_b(
+                f"Monter la vitesse vis à {new_rpm:.0f} rpm si le procédé le permet.",
+                f"Raise screw speed to {new_rpm:.0f} rpm if the process allows.",
+            ),
             delta_label=f"{state.screw_rpm:.0f} → {new_rpm:.0f} rpm",
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
@@ -261,12 +319,17 @@ def _from_ff_high(state: ProcessState, alert: Alert) -> list[Recommendation]:
             code="REC_REDUCE_FLOW_FF",
             category=CAT_FLOW,
             severity=alert.severity,
-            title="Réduire le débit cumulé",
-            rationale=(
+            title=_b("Réduire le débit cumulé", "Reduce cumulative flow"),
+            rationale=_b(
                 f"FF visé : {FF_TARGET_LOW * 100:.0f}-{FF_TARGET_HIGH * 100:.0f} %. "
-                f"Baisser le débit global de 15 % pour ramener FF dans la cible."
+                f"Baisser le débit global de 15 % pour ramener FF dans la cible.",
+                f"Target FF: {FF_TARGET_LOW * 100:.0f}-{FF_TARGET_HIGH * 100:.0f} %. "
+                f"Reduce overall flow by 15 % to bring FF back to target.",
             ),
-            action="Réduire de 15 % le feeder solide principal.",
+            action=_b(
+                "Réduire de 15 % le feeder solide principal.",
+                "Reduce the main solid feeder by 15 %.",
+            ),
             delta_label=f"FF {state.kpis.fill_factor * 100:.0f} % → ~{(state.kpis.fill_factor * 0.85) * 100:.0f} %",
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
@@ -275,9 +338,15 @@ def _from_ff_high(state: ProcessState, alert: Alert) -> list[Recommendation]:
             code="REC_RPM_UP_FF",
             category=CAT_SCREW_SPEED,
             severity=alert.severity,
-            title="Augmenter la vitesse vis",
-            rationale="FF diminue ~ linéairement avec rpm à débit constant.",
-            action=f"Passer à {rpm_new:.0f} rpm pour soulager la vis.",
+            title=_b("Augmenter la vitesse vis", "Increase screw speed"),
+            rationale=_b(
+                "FF diminue ~ linéairement avec rpm à débit constant.",
+                "FF decreases approximately linearly with rpm at constant flow.",
+            ),
+            action=_b(
+                f"Passer à {rpm_new:.0f} rpm pour soulager la vis.",
+                f"Switch to {rpm_new:.0f} rpm to relieve the screw.",
+            ),
             delta_label=f"{state.screw_rpm:.0f} → {rpm_new:.0f} rpm",
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
@@ -292,9 +361,15 @@ def _from_ff_low(state: ProcessState, alert: Alert) -> list[Recommendation]:
             code="REC_RPM_DOWN_FF",
             category=CAT_SCREW_SPEED,
             severity=alert.severity,
-            title="Réduire la vitesse vis",
-            rationale="Vis trop rapide / sous-alimentée — réduire rpm augmente FF.",
-            action=f"Descendre à {rpm_new:.0f} rpm.",
+            title=_b("Réduire la vitesse vis", "Reduce screw speed"),
+            rationale=_b(
+                "Vis trop rapide / sous-alimentée — réduire rpm augmente FF.",
+                "Screw too fast / starved — reducing rpm increases FF.",
+            ),
+            action=_b(
+                f"Descendre à {rpm_new:.0f} rpm.",
+                f"Lower to {rpm_new:.0f} rpm.",
+            ),
             delta_label=f"{state.screw_rpm:.0f} → {rpm_new:.0f} rpm",
             confidence=CONFIDENCE_HIGH,
             linked_alert_code=alert.code,
@@ -303,12 +378,17 @@ def _from_ff_low(state: ProcessState, alert: Alert) -> list[Recommendation]:
             code="REC_INCREASE_FLOW",
             category=CAT_FLOW,
             severity=alert.severity,
-            title="Augmenter le débit solide",
-            rationale=(
+            title=_b("Augmenter le débit solide", "Increase solid flow"),
+            rationale=_b(
                 "Augmenter le débit feeder principal pour ramener FF dans la "
-                "cible compounding."
+                "cible compounding.",
+                "Increase main feeder flow to bring FF back to the "
+                "compounding target.",
             ),
-            action="Monter le feeder principal de 15-20 %.",
+            action=_b(
+                "Monter le feeder principal de 15-20 %.",
+                "Increase the main feeder by 15-20 %.",
+            ),
             delta_label=f"FF {state.kpis.fill_factor * 100:.0f} % → cible {FF_TARGET_LOW * 100:.0f}-{FF_TARGET_HIGH * 100:.0f} %",
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
@@ -323,15 +403,20 @@ def _from_sme_high(state: ProcessState, alert: Alert) -> list[Recommendation]:
             code="REC_SOFTEN_PROFILE",
             category=CAT_SCREW_PROFILE,
             severity=alert.severity,
-            title="Adoucir le profil de mélange",
-            rationale=(
+            title=_b("Adoucir le profil de mélange", "Soften mixing profile"),
+            rationale=_b(
                 "SME élevé = cisaillement excessif. Remplacer une partie des "
                 "kneading 90° par 45° ou 30° réduit l'énergie spécifique sans "
-                "détériorer la dispersion."
+                "détériorer la dispersion.",
+                "High SME = excessive shearing. Replacing some "
+                "kneading 90° with 45° or 30° reduces specific energy without "
+                "deteriorating dispersion.",
             ),
-            action=(
+            action=_b(
                 "Substituer 2 × Kneading 90° par 2 × Kneading 45° en zone "
-                "centrale (Z3-Z4)."
+                "centrale (Z3-Z4).",
+                "Replace 2 × Kneading 90° with 2 × Kneading 45° in central "
+                "zone (Z3-Z4).",
             ),
             delta_label="Kneading 90° (×2) → Kneading 45° (×2)",
             confidence=CONFIDENCE_MEDIUM,
@@ -341,9 +426,15 @@ def _from_sme_high(state: ProcessState, alert: Alert) -> list[Recommendation]:
             code="REC_REDUCE_RPM_SME",
             category=CAT_SCREW_SPEED,
             severity=alert.severity,
-            title="Réduire la vitesse vis",
-            rationale="SME ∝ rpm. Une baisse de 15 % de rpm donne ~15 % de baisse SME.",
-            action=f"Réduire la vitesse vis à {rpm_new:.0f} rpm.",
+            title=_b("Réduire la vitesse vis", "Reduce screw speed"),
+            rationale=_b(
+                "SME ∝ rpm. Une baisse de 15 % de rpm donne ~15 % de baisse SME.",
+                "SME ∝ rpm. A 15 % rpm reduction gives ~15 % SME reduction.",
+            ),
+            action=_b(
+                f"Réduire la vitesse vis à {rpm_new:.0f} rpm.",
+                f"Reduce screw speed to {rpm_new:.0f} rpm.",
+            ),
             delta_label=f"SME {state.kpis.sme_kwh_per_kg:.2f} → ~{state.kpis.sme_kwh_per_kg * 0.85:.2f} kWh/kg",
             confidence=CONFIDENCE_HIGH,
             linked_alert_code=alert.code,
@@ -358,9 +449,15 @@ def _from_rt_short(state: ProcessState, alert: Alert) -> list[Recommendation]:
             code="REC_LONGER_SCREW",
             category=CAT_SCREW_PROFILE,
             severity=alert.severity,
-            title="Allonger le profil vis",
-            rationale="RT < 5 s = mélange insuffisant. Ajouter des éléments augmente la résidence.",
-            action="Passer à une config 30 ou 40 éléments selon disponibilité.",
+            title=_b("Allonger le profil vis", "Extend screw profile"),
+            rationale=_b(
+                "RT < 5 s = mélange insuffisant. Ajouter des éléments augmente la résidence.",
+                "RT < 5 s = insufficient mixing. Adding elements increases residence.",
+            ),
+            action=_b(
+                "Passer à une config 30 ou 40 éléments selon disponibilité.",
+                "Switch to a 30 or 40 element config depending on availability.",
+            ),
             delta_label=f"RT {state.kpis.residence_time_s:.1f} s → +50 % (cible)",
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
@@ -369,9 +466,15 @@ def _from_rt_short(state: ProcessState, alert: Alert) -> list[Recommendation]:
             code="REC_REDUCE_RPM_RT",
             category=CAT_SCREW_SPEED,
             severity=alert.severity,
-            title="Réduire la vitesse vis",
-            rationale="rpm bas = RT plus long (à débit constant).",
-            action=f"Descendre à {rpm_new:.0f} rpm.",
+            title=_b("Réduire la vitesse vis", "Reduce screw speed"),
+            rationale=_b(
+                "rpm bas = RT plus long (à débit constant).",
+                "Lower rpm = longer RT (at constant flow).",
+            ),
+            action=_b(
+                f"Descendre à {rpm_new:.0f} rpm.",
+                f"Lower to {rpm_new:.0f} rpm.",
+            ),
             delta_label=f"{state.screw_rpm:.0f} → {rpm_new:.0f} rpm",
             confidence=CONFIDENCE_HIGH,
             linked_alert_code=alert.code,
@@ -385,9 +488,15 @@ def _from_rt_long(state: ProcessState, alert: Alert) -> list[Recommendation]:
         code="REC_INCREASE_RPM_RT",
         category=CAT_SCREW_SPEED,
         severity=alert.severity,
-        title="Augmenter la vitesse vis",
-        rationale="RT trop long = matière sur-cisaillée. rpm plus haut = RT plus court.",
-        action=f"Monter à {rpm_new:.0f} rpm.",
+        title=_b("Augmenter la vitesse vis", "Increase screw speed"),
+        rationale=_b(
+            "RT trop long = matière sur-cisaillée. rpm plus haut = RT plus court.",
+            "RT too long = over-sheared material. Higher rpm = shorter RT.",
+        ),
+        action=_b(
+            f"Monter à {rpm_new:.0f} rpm.",
+            f"Raise to {rpm_new:.0f} rpm.",
+        ),
         delta_label=f"{state.screw_rpm:.0f} → {rpm_new:.0f} rpm",
         confidence=CONFIDENCE_HIGH,
         linked_alert_code=alert.code,
@@ -402,9 +511,15 @@ def _from_thermal_inverted(state: ProcessState, alert: Alert) -> list[Recommenda
         code="REC_DIE_T_ALIGN",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title="Aligner la consigne filière",
-        rationale="En compounding standard, T_die ≤ T_Z5 + 15 °C.",
-        action=f"Régler la filière à environ {t_target:.0f} °C.",
+        title=_b("Aligner la consigne filière", "Align die setpoint"),
+        rationale=_b(
+            "En compounding standard, T_die ≤ T_Z5 + 15 °C.",
+            "In standard compounding, T_die ≤ T_Z5 + 15 °C.",
+        ),
+        action=_b(
+            f"Régler la filière à environ {t_target:.0f} °C.",
+            f"Set die to approximately {t_target:.0f} °C.",
+        ),
         delta_label=f"{t_die:.0f} °C → {t_target:.0f} °C",
         confidence=CONFIDENCE_MEDIUM,
         linked_alert_code=alert.code,
@@ -426,12 +541,20 @@ def _from_duplicate_position(state: ProcessState, alert: Alert) -> list[Recommen
         code="REC_SPLIT_FEEDERS",
         category=CAT_FEEDER_MOVE,
         severity=alert.severity,
-        title=f"Espacer feeder #{candidate.feeder_id}",
-        rationale=(
-            "Deux solides au même point provoquent agglomération. "
-            "Décaler permet une fluidification intermédiaire."
+        title=_b(
+            f"Espacer feeder #{candidate.feeder_id}",
+            f"Space out feeder #{candidate.feeder_id}",
         ),
-        action=f"Déplacer feeder #{candidate.feeder_id} en aval.",
+        rationale=_b(
+            "Deux solides au même point provoquent agglomération. "
+            "Décaler permet une fluidification intermédiaire.",
+            "Two solids at the same point cause agglomeration. "
+            "Shifting allows intermediate fluidization.",
+        ),
+        action=_b(
+            f"Déplacer feeder #{candidate.feeder_id} en aval.",
+            f"Move feeder #{candidate.feeder_id} downstream.",
+        ),
         delta_label=f"{pos} → {new_pos}",
         confidence=CONFIDENCE_MEDIUM,
         linked_alert_code=alert.code,
@@ -456,13 +579,22 @@ def _from_zone_overheat(state: ProcessState, alert: Alert) -> list[Recommendatio
             code="REC_COOL_SETPOINT",
             category=CAT_TEMPERATURE,
             severity=alert.severity,
-            title=f"Abaisser la consigne {zname}",
-            rationale=(
+            title=_b(
+                f"Abaisser la consigne {zname}",
+                f"Lower {zname} setpoint",
+            ),
+            rationale=_b(
                 f"L'échauffement viscoélastique ajoute +{zt.dT_C:.0f} °C à "
                 f"{zname}. Baisser la consigne compense la dissipation pour "
-                f"ramener la T réelle dans la bande ±{tol:.0f} °C."
+                f"ramener la T réelle dans la bande ±{tol:.0f} °C.",
+                f"Viscoelastic heating adds +{zt.dT_C:.0f} °C to "
+                f"{zname}. Lowering the setpoint compensates dissipation to "
+                f"bring actual T within the ±{tol:.0f} °C band.",
             ),
-            action=f"Régler la consigne {zname} vers {t_new:.0f} °C (régulation froid).",
+            action=_b(
+                f"Régler la consigne {zname} vers {t_new:.0f} °C (régulation froid).",
+                f"Set {zname} setpoint to {t_new:.0f} °C (cooling regulation).",
+            ),
             delta_label=f"{zt.t_target_C:.0f} °C → {t_new:.0f} °C",
             confidence=CONFIDENCE_HIGH,
             linked_alert_code=alert.code,
@@ -471,12 +603,17 @@ def _from_zone_overheat(state: ProcessState, alert: Alert) -> list[Recommendatio
             code="REC_RPM_DOWN_THERMAL",
             category=CAT_SCREW_SPEED,
             severity=alert.severity,
-            title="Réduire la vitesse vis",
-            rationale=(
+            title=_b("Réduire la vitesse vis", "Reduce screw speed"),
+            rationale=_b(
                 "La dissipation visqueuse ≈ couple × N. −15 % rpm réduit "
-                "proportionnellement l'échauffement de la zone."
+                "proportionnellement l'échauffement de la zone.",
+                "Viscous dissipation ≈ torque × N. −15 % rpm proportionally "
+                "reduces zone heating.",
             ),
-            action=f"Descendre la vis à {rpm_new:.0f} rpm.",
+            action=_b(
+                f"Descendre la vis à {rpm_new:.0f} rpm.",
+                f"Lower screw to {rpm_new:.0f} rpm.",
+            ),
             delta_label=f"{state.screw_rpm:.0f} → {rpm_new:.0f} rpm · ΔT −~15 %",
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
@@ -487,14 +624,26 @@ def _from_zone_overheat(state: ProcessState, alert: Alert) -> list[Recommendatio
             code="REC_INSERT_COOLING_ELEMENT",
             category=CAT_SCREW_PROFILE,
             severity=alert.severity,
-            title=f"Intercaler du convoyage avant {zname}",
-            rationale=(
+            title=_b(
+                f"Intercaler du convoyage avant {zname}",
+                f"Insert conveying before {zname}",
+            ),
+            rationale=_b(
                 "Insérer un bloc de convoyage (forward) entre les éléments de "
                 "malaxage crée une fenêtre de refroidissement et casse "
-                "l'accumulation thermique du plateau."
+                "l'accumulation thermique du plateau.",
+                "Inserting a conveying block (forward) between kneading "
+                "elements creates a cooling window and breaks "
+                "the thermal buildup of the plateau.",
             ),
-            action=f"Ajouter 1-2 éléments de convoyage juste en amont de {zname}.",
-            delta_label="Kneading continu → Kneading + convoyage refroid.",
+            action=_b(
+                f"Ajouter 1-2 éléments de convoyage juste en amont de {zname}.",
+                f"Add 1-2 conveying elements just upstream of {zname}.",
+            ),
+            delta_label=_b(
+                "Kneading continu → Kneading + convoyage refroid.",
+                "Continuous kneading → Kneading + cooling conveying",
+            ),
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
         ))
@@ -508,9 +657,18 @@ def _from_torque_excess(state: ProcessState, alert: Alert) -> list[Recommendatio
         code="REC_RPM_DOWN_TORQUE",
         category=CAT_SCREW_SPEED,
         severity=alert.severity,
-        title="Réduire la vitesse vis (décharge couple)",
-        rationale="Le couple chute avec la vitesse à débit constant — sécurise le moteur.",
-        action=f"Descendre la vis à {rpm_new:.0f} rpm.",
+        title=_b(
+            "Réduire la vitesse vis (décharge couple)",
+            "Reduce screw speed (torque relief)",
+        ),
+        rationale=_b(
+            "Le couple chute avec la vitesse à débit constant — sécurise le moteur.",
+            "Torque drops with speed at constant flow — secures the motor.",
+        ),
+        action=_b(
+            f"Descendre la vis à {rpm_new:.0f} rpm.",
+            f"Lower screw to {rpm_new:.0f} rpm.",
+        ),
         delta_label=f"{state.screw_rpm:.0f} → {rpm_new:.0f} rpm",
         confidence=CONFIDENCE_HIGH,
         linked_alert_code=alert.code,
@@ -522,9 +680,18 @@ def _from_torque_excess(state: ProcessState, alert: Alert) -> list[Recommendatio
             code="REC_REDUCE_FLOW_TORQUE",
             category=CAT_FLOW,
             severity=alert.severity,
-            title=f"Réduire débit feeder #{biggest.feeder_id}",
-            rationale="Moins de matière cisaillée ⇒ couple et échauffement réduits.",
-            action=f"Réduire le feeder #{biggest.feeder_id} de 15 %.",
+            title=_b(
+                f"Réduire débit feeder #{biggest.feeder_id}",
+                f"Reduce feeder #{biggest.feeder_id} flow",
+            ),
+            rationale=_b(
+                "Moins de matière cisaillée ⇒ couple et échauffement réduits.",
+                "Less sheared material ⇒ reduced torque and heating.",
+            ),
+            action=_b(
+                f"Réduire le feeder #{biggest.feeder_id} de 15 %.",
+                f"Reduce feeder #{biggest.feeder_id} by 15 %.",
+            ),
             delta_label=f"{biggest.mass_flow_g_per_min:.0f} → {new_flow:.0f} g/min",
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
@@ -540,13 +707,22 @@ def _from_instability(state: ProcessState, alert: Alert) -> list[Recommendation]
             code="REC_STABILIZE_RPM",
             category=CAT_SCREW_SPEED,
             severity=alert.severity,
-            title="Réduire la vitesse pour stabiliser",
-            rationale=(
+            title=_b(
+                "Réduire la vitesse pour stabiliser",
+                "Reduce speed to stabilize",
+            ),
+            rationale=_b(
                 f"Index instabilité {m.instability_index:.2f} tiré par "
                 f"SME/FF/échauffement/couple. Baisser rpm agit sur les quatre "
-                f"contributions simultanément."
+                f"contributions simultanément.",
+                f"Instability index {m.instability_index:.2f} driven by "
+                f"SME/FF/heating/torque. Lowering rpm acts on all four "
+                f"contributions simultaneously.",
             ),
-            action=f"Descendre la vis à {rpm_new:.0f} rpm puis ré-évaluer.",
+            action=_b(
+                f"Descendre la vis à {rpm_new:.0f} rpm puis ré-évaluer.",
+                f"Lower screw to {rpm_new:.0f} rpm then re-evaluate.",
+            ),
             delta_label=f"{state.screw_rpm:.0f} → {rpm_new:.0f} rpm",
             confidence=CONFIDENCE_HIGH,
             linked_alert_code=alert.code,
@@ -555,12 +731,20 @@ def _from_instability(state: ProcessState, alert: Alert) -> list[Recommendation]
             code="REC_STABILIZE_PROFILE",
             category=CAT_SCREW_PROFILE,
             severity=alert.severity,
-            title="Adoucir le profil de malaxage",
-            rationale=(
-                "Remplacer une partie des kneading agressifs (90°) par 45°/30° "
-                "réduit le SME et l'échauffement sans casser la dispersion."
+            title=_b(
+                "Adoucir le profil de malaxage",
+                "Soften mixing profile",
             ),
-            action="Substituer 2 × Kneading 90° par 2 × Kneading 45° (zone centrale).",
+            rationale=_b(
+                "Remplacer une partie des kneading agressifs (90°) par 45°/30° "
+                "réduit le SME et l'échauffement sans casser la dispersion.",
+                "Replacing some aggressive kneading (90°) with 45°/30° "
+                "reduces SME and heating without breaking dispersion.",
+            ),
+            action=_b(
+                "Substituer 2 × Kneading 90° par 2 × Kneading 45° (zone centrale).",
+                "Replace 2 × Kneading 90° with 2 × Kneading 45° (central zone).",
+            ),
             delta_label="Kneading 90° (×2) → Kneading 45° (×2)",
             confidence=CONFIDENCE_MEDIUM,
             linked_alert_code=alert.code,
@@ -592,15 +776,23 @@ def _from_powder_thermal_traj(state: ProcessState, alert: Alert) -> list[Recomme
         code="REC_PROTECT_POWDER",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title=f"Protéger la poudre #{f.feeder_id} en {zname}",
-        rationale=(
+        title=_b(
+            f"Protéger la poudre #{f.feeder_id} en {zname}",
+            f"Protect powder #{f.feeder_id} in {zname}",
+        ),
+        rationale=_b(
             f"« {f.material.label_fr} » (borne effective {t_max:.0f} °C). "
             f"T procédé estimée en {zname} ≈ {zt.t_est_C:.0f} °C. Abaisser la "
-            f"consigne sous la borne avec 10 °C de marge."
+            f"consigne sous la borne avec 10 °C de marge.",
+            f"\"{f.material.label_fr}\" (effective limit {t_max:.0f} °C). "
+            f"Estimated process T in {zname} ≈ {zt.t_est_C:.0f} °C. Lower the "
+            f"setpoint below the limit with 10 °C margin.",
         ),
-        action=(
+        action=_b(
             f"Baisser la consigne {zname} vers {t_new:.0f} °C et/ou réduire rpm "
-            f"jusqu'à T_{zname} < {t_max:.0f} °C."
+            f"jusqu'à T_{zname} < {t_max:.0f} °C.",
+            f"Lower {zname} setpoint to {t_new:.0f} °C and/or reduce rpm "
+            f"until T_{zname} < {t_max:.0f} °C.",
         ),
         delta_label=f"{zt.t_target_C:.0f} °C → {t_new:.0f} °C (T_max {t_max:.0f} °C)",
         confidence=CONFIDENCE_HIGH,
@@ -628,12 +820,20 @@ def _from_thermal_gradient(state: ProcessState, alert: Alert) -> list[Recommenda
         code="REC_SMOOTH_RAMP",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title=f"Lisser la rampe {za}→{zb}",
-        rationale=(
-            "Une montée ≤ 40 °C/zone évite le choc thermique et stabilise "
-            "le débit. Étaler la chauffe sur les zones intermédiaires."
+        title=_b(
+            f"Lisser la rampe {za}→{zb}",
+            f"Smooth ramp {za}→{zb}",
         ),
-        action=f"Abaisser {zb} (ou remonter {za}) pour un pas ≤ 40 °C/zone.",
+        rationale=_b(
+            "Une montée ≤ 40 °C/zone évite le choc thermique et stabilise "
+            "le débit. Étaler la chauffe sur les zones intermédiaires.",
+            "A ramp ≤ 40 °C/zone avoids thermal shock and stabilizes "
+            "flow. Spread heating over intermediate zones.",
+        ),
+        action=_b(
+            f"Abaisser {zb} (ou remonter {za}) pour un pas ≤ 40 °C/zone.",
+            f"Lower {zb} (or raise {za}) for a step ≤ 40 °C/zone.",
+        ),
         delta_label=f"{zb} {seq[j + 1]:.0f} °C → {smoothed:.0f} °C",
         confidence=CONFIDENCE_MEDIUM,
         linked_alert_code=alert.code,
@@ -651,14 +851,23 @@ def _from_profile_unstable(state: ProcessState, alert: Alert) -> list[Recommenda
         code="REC_MONOTONE_PROFILE",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title="Imposer une rampe thermique monotone",
-        rationale=(
+        title=_b(
+            "Imposer une rampe thermique monotone",
+            "Impose monotonic thermal ramp",
+        ),
+        rationale=_b(
             "Un profil en dents de scie déstabilise la régulation et crée "
             "des points chauds/froids alternés. Une rampe croissante puis "
-            "plateau est répétable."
+            "plateau est répétable.",
+            "A sawtooth profile destabilizes regulation and creates "
+            "alternating hot/cold spots. A rising then plateau ramp "
+            "is repeatable.",
         ),
-        action=f"Reprofiler vers une rampe monotone : {target} °C.",
-        delta_label="Profil oscillant → rampe monotone",
+        action=_b(
+            f"Reprofiler vers une rampe monotone : {target} °C.",
+            f"Reprofile to a monotonic ramp: {target} °C.",
+        ),
+        delta_label=_b("Profil oscillant → rampe monotone", "Oscillating profile → monotonic ramp"),
         confidence=CONFIDENCE_MEDIUM,
         linked_alert_code=alert.code,
     )]
@@ -673,13 +882,22 @@ def _from_early_cooling(state: ProcessState, alert: Alert) -> list[Recommendatio
         code="REC_DELAY_COOLING",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title=f"Repousser le refroidissement après Z6",
-        rationale=(
+        title=_b(
+            f"Repousser le refroidissement après Z6",
+            f"Delay cooling past Z6",
+        ),
+        rationale=_b(
             "Refroidir avant la fin du plateau de fusion (Z6) fige une "
             "matière non homogénéisée. Maintenir la T jusqu'à dispersion "
-            "complète."
+            "complète.",
+            "Cooling before the end of the melting plateau (Z6) freezes "
+            "non-homogenized material. Maintain T until dispersion "
+            "is complete.",
         ),
-        action=f"Remonter {zb} au niveau du plateau jusqu'à Z6.",
+        action=_b(
+            f"Remonter {zb} au niveau du plateau jusqu'à Z6.",
+            f"Raise {zb} to plateau level up to Z6.",
+        ),
         delta_label=f"{zb} {t_now:.0f} °C → {t_target:.0f} °C",
         confidence=CONFIDENCE_MEDIUM,
         linked_alert_code=alert.code,
@@ -695,12 +913,17 @@ def _from_die_too_cold(state: ProcessState, alert: Alert) -> list[Recommendation
         code="REC_RAISE_DIE",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title="Réchauffer la filière",
-        rationale=(
+        title=_b("Réchauffer la filière", "Reheat die"),
+        rationale=_b(
             "Une filière trop froide fige le fondu en tête (pic de pression "
-            "/ surcouple). Viser T_die ≈ T_Z8 − 20 °C."
+            "/ surcouple). Viser T_die ≈ T_Z8 − 20 °C.",
+            "A die too cold freezes the melt at the head (pressure spike "
+            "/ over-torque). Target T_die ≈ T_Z8 − 20 °C.",
         ),
-        action=f"Remonter la consigne die (moyenne) vers {t_target:.0f} °C.",
+        action=_b(
+            f"Remonter la consigne die (moyenne) vers {t_target:.0f} °C.",
+            f"Raise die setpoint (average) to {t_target:.0f} °C.",
+        ),
         delta_label=f"T_die {die_mean:.0f} °C → {t_target:.0f} °C",
         confidence=CONFIDENCE_HIGH,
         linked_alert_code=alert.code,
@@ -722,13 +945,21 @@ def _from_die_incoherent(state: ProcessState, alert: Alert) -> list[Recommendati
         code="REC_DIE_MONOTONE",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title="Rendre le profil die décroissant",
-        rationale=(
-            "Le refroidissement de mise en forme doit être monotone "
-            "décroissant vers la sortie pour un calibrage stable."
+        title=_b(
+            "Rendre le profil die décroissant",
+            "Make die profile decreasing",
         ),
-        action=f"Régler les zones die en rampe décroissante : {target} °C.",
-        delta_label="Die non monotone → die décroissant",
+        rationale=_b(
+            "Le refroidissement de mise en forme doit être monotone "
+            "décroissant vers la sortie pour un calibrage stable.",
+            "Forming cooling must be monotonically "
+            "decreasing toward the exit for stable calibration.",
+        ),
+        action=_b(
+            f"Régler les zones die en rampe décroissante : {target} °C.",
+            f"Set die zones in decreasing ramp: {target} °C.",
+        ),
+        delta_label=_b("Die non monotone → die décroissant", "Non-monotonic die → decreasing die"),
         confidence=CONFIDENCE_MEDIUM,
         linked_alert_code=alert.code,
     )]
@@ -744,15 +975,23 @@ def _from_zone_material_incompat(state: ProcessState, alert: Alert) -> list[Reco
         code="REC_CLAMP_PROFILE_MAT",
         category=CAT_TEMPERATURE,
         severity=alert.severity,
-        title=f"Plafonner le profil sous {t_max:.0f} °C (feeder #{f.feeder_id})",
-        rationale=(
+        title=_b(
+            f"Plafonner le profil sous {t_max:.0f} °C (feeder #{f.feeder_id})",
+            f"Cap profile below {t_max:.0f} °C (feeder #{f.feeder_id})",
+        ),
+        rationale=_b(
             f"« {f.material.label_fr} » dégrade au-delà de {t_max:.0f} °C. "
             f"Toutes les zones traversées doivent rester ≤ {t_target:.0f} °C "
-            f"(10 °C de marge)."
+            f"(10 °C de marge).",
+            f"\"{f.material.label_fr}\" degrades above {t_max:.0f} °C. "
+            f"All traversed zones must remain ≤ {t_target:.0f} °C "
+            f"(10 °C margin).",
         ),
-        action=(
+        action=_b(
             f"Abaisser les consignes des zones en aval de {f.position} sous "
-            f"{t_target:.0f} °C, ou déplacer le feeder vers une zone plus froide."
+            f"{t_target:.0f} °C, ou déplacer le feeder vers une zone plus froide.",
+            f"Lower setpoints of zones downstream of {f.position} below "
+            f"{t_target:.0f} °C, or move the feeder to a cooler zone.",
         ),
         delta_label=f"profil ≤ {t_target:.0f} °C (T_max {t_max:.0f} °C)",
         confidence=CONFIDENCE_HIGH,
@@ -797,13 +1036,15 @@ _DISPATCH = {
 # Public API
 # ---------------------------------------------------------------------------
 def build_recommendations(
-    state: ProcessState, alerts: list[Alert],
+    state: ProcessState, alerts: list[Alert], *, lang: str = "en",
 ) -> list[Recommendation]:
     """À partir des alertes du moteur de règles, génère les recos actionnables.
 
     Déduplique par code de reco — si deux alertes pointent vers la même
     action concrète, on ne la propose qu'une fois (la plus sévère).
     """
+    _rules_mod._LANG = lang
+
     seen: dict[str, Recommendation] = {}
     sev_order = {"critical": 0, "warning": 1, "info": 2, "ok": 3}
     for alert in alerts:

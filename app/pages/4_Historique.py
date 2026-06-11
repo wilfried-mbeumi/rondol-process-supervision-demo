@@ -372,19 +372,12 @@ def load_dataset() -> pd.DataFrame:
 
 
 with st.expander(t("historique.ml.expander"), expanded=False):
-    st.html(demo_ml_banner_html(
-        "Runs du jeu d'entraînement ML (SVM w60, essais avril 2026) — "
-        "<b>démonstration</b>, strictement distincts de l'historique procédé opérateur."
-    ))
-    st.caption(
-        "Runs du jeu de données d'entraînement (modèle SVM w60, essais Avril 2026). "
-        "Données historiques du modèle — distinctes de l'historique procédé opérateur."
-    )
+    st.html(demo_ml_banner_html(t("historique.ml.banner")))
+    st.caption(t("historique.ml.caption"))
 
     df_all = load_dataset()
     good = df_all[df_all["bad_run"] == 0].copy()
 
-    # Résumé par run
     summary = good.groupby("run_id").agg(
         debut=("window_start", "min"),
         fin=("window_end", "max"),
@@ -403,18 +396,26 @@ with st.expander(t("historique.ml.expander"), expanded=False):
     summary["score_min"]   = summary["score_min"].round(1)
     summary["score_max"]   = summary["score_max"].round(1)
 
-    summary.columns = ["Run", "Début", "Fin", "Durée (min)",
-                       "Fenêtres", "Score moyen", "Score min",
-                       "Score max", "% Stable"]
+    _col_run = t("historique.ml.col.run")
+    _col_start = t("historique.ml.col.start")
+    _col_end = t("historique.ml.col.end")
+    _col_dur = t("historique.ml.col.duration")
+    _col_win = t("historique.ml.col.windows")
+    _col_smean = t("historique.ml.col.score_mean")
+    _col_smin = t("historique.ml.col.score_min")
+    _col_smax = t("historique.ml.col.score_max")
+    _col_pct = t("historique.ml.col.pct_stable")
+    summary.columns = [_col_run, _col_start, _col_end, _col_dur,
+                       _col_win, _col_smean, _col_smin,
+                       _col_smax, _col_pct]
 
-    # Métriques globales
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Runs analysés",   len(summary))
-    col2.metric("Durée totale",    f"{good['run_duration_min'].drop_duplicates().sum():.0f} min")
-    col3.metric("Score global moy.", f"{good['stability_score'].mean():.1f}")
-    col4.metric("% fenêtres stables", f"{good['is_stable'].mean()*100:.0f} %")
+    col1.metric(t("historique.ml.m.runs"),   len(summary))
+    col2.metric(t("historique.ml.m.duration"),    f"{good['run_duration_min'].drop_duplicates().sum():.0f} min")
+    col3.metric(t("historique.ml.m.score"), f"{good['stability_score'].mean():.1f}")
+    col4.metric(t("historique.ml.m.pct_stable"), f"{good['is_stable'].mean()*100:.0f} %")
 
-    st.markdown("##### Résumé par run d'entraînement")
+    st.markdown(f"##### {t('historique.ml.summary_title')}")
 
     def color_score(val):
         try:
@@ -428,24 +429,23 @@ with st.expander(t("historique.ml.expander"), expanded=False):
         return "background-color: #f8d7da"
 
     st.dataframe(
-        summary.style.map(color_score, subset=["Score moyen", "Score min"]),
+        summary.style.map(color_score, subset=[_col_smean, _col_smin]),
         use_container_width=True,
         hide_index=True,
     )
 
-    # Graphique comparatif
-    st.markdown("##### Score moyen par run")
-    chart_df = summary.set_index("Run")[["Score moyen"]].copy()
+    st.markdown(f"##### {t('historique.ml.chart_title')}")
+    chart_df = summary.set_index(_col_run)[[_col_smean]].copy()
 
     _bar_fig = go.Figure(go.Bar(
         x=[f"#{r}" for r in chart_df.index.tolist()],
-        y=chart_df["Score moyen"].tolist(),
+        y=chart_df[_col_smean].tolist(),
         marker_color="#06B6D4",
         hovertemplate="<b>Run %{x}</b><br>Score: %{y:.1f}<extra></extra>",
     ))
     _bar_fig.add_hline(
         y=80, line_dash="dash", line_color="#374151",
-        annotation_text="Seuil 80", annotation_font_color="#4B5563",
+        annotation_text=t("historique.ml.threshold"), annotation_font_color="#4B5563",
         annotation_font_size=10,
     )
     _bar_fig.update_layout(
@@ -459,23 +459,21 @@ with st.expander(t("historique.ml.expander"), expanded=False):
     )
     st.plotly_chart(_bar_fig, use_container_width=True, key="hist_bar_chart")
 
-    # Répartition des états
-    st.markdown("##### Répartition des états sur l'ensemble des runs")
+    st.markdown(f"##### {t('historique.ml.states_title')}")
 
     def classify(score):
         if score >= THRESHOLD:
             return "STABLE"
         if score >= 65:
-            return "SURVEILLER"
-        return "CRITIQUE"
+            return "WATCH"
+        return "CRITICAL"
 
     good["etat"] = good["stability_score"].apply(classify)
-    counts = good["etat"].value_counts().rename_axis("État").reset_index(name="Fenêtres")
+    _col_state = t("historique.ml.col.state")
+    _col_state_win = t("historique.ml.col.state_windows")
+    counts = good["etat"].value_counts().rename_axis(_col_state).reset_index(name=_col_state_win)
     st.dataframe(counts, use_container_width=True, hide_index=True)
 
-    st.caption(
-        f"Source : dataset_ml_w60.csv · {len(good)} fenêtres · "
-        f"Seuil stable = {THRESHOLD}/100 · Seuil critique = 65/100"
-    )
+    st.caption(t("historique.ml.source_caption", n=len(good), th=THRESHOLD))
 
 st.caption(t("historique.footer"))

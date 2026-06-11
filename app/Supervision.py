@@ -548,10 +548,14 @@ _arch_acc = _SEV_ACCENT.get(_profile_reading.archetype_severity, "#3B82F6")
 st.divider()
 st.caption(t("home.sec.profile_reading"))
 if _profile_is_indicative:
-    # i18n FR/EN (Phase 6 manager 2026-06-09) — pas de texte hardcodé.
+    if _applied_snap is None and _n_user_el <= 0.0:
+        _indic_body = t("home.profile_indicative.body")
+    elif _applied_snap is None:
+        _indic_body = t("home.profile_indicative.no_snapshot")
+    else:
+        _indic_body = t("home.profile_indicative.no_elements")
     st.info(
-        f"{t('home.profile_indicative.title')} "
-        f"{t('home.profile_indicative.body')}",
+        f"{t('home.profile_indicative.title')} {_indic_body}",
         icon="ℹ️",
     )
 _risks_chips = ""
@@ -700,8 +704,8 @@ st.html(screw_build_systemic_html(_systemic))
 # règles + recos + thermique. Modifier Settings change visiblement ce bloc.
 # DOM stable : exactement 1 st.caption + 1 st.html à chaque render.
 _agent_state = state_from_session(st.session_state)
-_agent_report = agent_evaluate(_agent_state)
-_agent_recos = agent_build_recos(_agent_state, _agent_report.alerts)
+_agent_report = agent_evaluate(_agent_state, lang=current_lang())
+_agent_recos = agent_build_recos(_agent_state, _agent_report.alerts, lang=current_lang())
 _agent_cm = agent_compute_cooling(_agent_state)
 
 _AG_STATE_C = {"STABLE": "#10B981", "SURVEILLER": "#F59E0B", "CRITIQUE": "#EF4444"}

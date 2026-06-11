@@ -442,6 +442,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
               "or no element placed on the screw (page **Profile**). The "
               "comment below reflects defaults, not a validated operator profile.",
     },
+    "home.profile_indicative.no_snapshot": {
+        "fr": "Aucun profil enregistré — cliquez **Enregistrer** dans "
+              "**Paramètres IA & feeders**. Le commentaire ci-dessous reflète "
+              "les défauts, pas un profil opérateur validé.",
+        "en": "No saved profile — click **Save** in **AI & feeders settings**. "
+              "The comment below reflects defaults, not a validated operator profile.",
+    },
+    "home.profile_indicative.no_elements": {
+        "fr": "Aucun élément placé sur la vis (page **Profile**). Le commentaire "
+              "ci-dessous reflète un profil vide, pas une configuration opérateur.",
+        "en": "No element placed on the screw (page **Profile**). The comment "
+              "below reflects an empty profile, not an operator configuration.",
+    },
     # Phase 11 — Historique : sections composition matière par feeder + zones.
     "historique.comp_title": {
         "fr": "Composition matière par feeder (figée au commit)",
@@ -786,6 +799,37 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "historique.ml.expander": {
         "fr": "Essais d'entraînement ML — données historiques modèle",
         "en": "ML training trials — model history data",
+    },
+    "historique.ml.banner": {
+        "fr": "Runs du jeu d'entraînement ML (SVM w60, essais avril 2026) — <b>démonstration</b>, strictement distincts de l'historique procédé opérateur.",
+        "en": "ML training dataset runs (SVM w60, April 2026 trials) — <b>demonstration</b>, strictly separate from operator process history.",
+    },
+    "historique.ml.caption": {
+        "fr": "Runs du jeu de données d'entraînement (modèle SVM w60, essais Avril 2026). Données historiques du modèle — distinctes de l'historique procédé opérateur.",
+        "en": "Training dataset runs (SVM w60 model, April 2026 trials). Model history data — separate from operator process history.",
+    },
+    "historique.ml.col.run": {"fr": "Run", "en": "Run"},
+    "historique.ml.col.start": {"fr": "Début", "en": "Start"},
+    "historique.ml.col.end": {"fr": "Fin", "en": "End"},
+    "historique.ml.col.duration": {"fr": "Durée (min)", "en": "Duration (min)"},
+    "historique.ml.col.windows": {"fr": "Fenêtres", "en": "Windows"},
+    "historique.ml.col.score_mean": {"fr": "Score moyen", "en": "Mean score"},
+    "historique.ml.col.score_min": {"fr": "Score min", "en": "Score min"},
+    "historique.ml.col.score_max": {"fr": "Score max", "en": "Score max"},
+    "historique.ml.col.pct_stable": {"fr": "% Stable", "en": "% Stable"},
+    "historique.ml.m.runs": {"fr": "Runs analysés", "en": "Analyzed runs"},
+    "historique.ml.m.duration": {"fr": "Durée totale", "en": "Total duration"},
+    "historique.ml.m.score": {"fr": "Score global moy.", "en": "Overall mean score"},
+    "historique.ml.m.pct_stable": {"fr": "% fenêtres stables", "en": "% stable windows"},
+    "historique.ml.summary_title": {"fr": "##### Résumé par run d'entraînement", "en": "##### Summary by training run"},
+    "historique.ml.chart_title": {"fr": "##### Score moyen par run", "en": "##### Mean score per run"},
+    "historique.ml.threshold": {"fr": "Seuil 80", "en": "Threshold 80"},
+    "historique.ml.states_title": {"fr": "##### Répartition des états sur l'ensemble des runs", "en": "##### State distribution across all runs"},
+    "historique.ml.col.state": {"fr": "État", "en": "State"},
+    "historique.ml.col.state_windows": {"fr": "Fenêtres", "en": "Windows"},
+    "historique.ml.source_caption": {
+        "fr": "Source : dataset_ml_w60.csv · {n} fenêtres · Seuil stable = {th}/100 · Seuil critique = 65/100",
+        "en": "Source: dataset_ml_w60.csv · {n} windows · Stable threshold = {th}/100 · Critical threshold = 65/100",
     },
     "historique.footer": {
         "fr": "Rondol Industrie · Historique des procédés (persistant) · Prototype",
@@ -1510,6 +1554,84 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "moteur.feeder.status.not_calibrated": {"fr": "Non étalonné", "en": "Not calibrated"},
     "moteur.feeder.status.disabled": {"fr": "Désactivé", "en": "Disabled"},
     "moteur.feeder.excluded": {"fr": "exclu (non étalonné)", "en": "excluded (not calibrated)"},
+    # Hypothesis / limits expander
+    "moteur.hypo.title": {
+        "fr": "ℹ️ Hypothèses, limites et statut du modèle",
+        "en": "ℹ️ Assumptions, limits and model status",
+    },
+    "moteur.hypo.mat_demo": {
+        "fr": "**Matières (DÉMONSTRATION — nominales, non calibrées)**\n"
+              "- Feeder 1 = `{f1}` ; feeder 2 = `{f2}` (side feeder uniquement si activé).\n"
+              "- ⚠️ Valeurs de **démonstration** : presets nominaux, pas la matière d'un run réel. "
+              "Désactivez le mode démonstration pour le mode client.",
+        "en": "**Materials (DEMONSTRATION — nominal, uncalibrated)**\n"
+              "- Feeder 1 = `{f1}`; feeder 2 = `{f2}` (side feeder only if active).\n"
+              "- ⚠️ **Demonstration** values: nominal presets, not an actual run material. "
+              "Disable demonstration mode for client mode.",
+    },
+    "moteur.hypo.mat_client": {
+        "fr": "**Matière**\n"
+              "- **{not_entered}** : aucune saisie matière dédiée n'existe encore "
+              "dans l'interface. Le couple / la SME / le remplissage sont calculés à "
+              "partir de la **géométrie de vis** et des **paramètres procédé** "
+              "(vitesse, débit, densité bulk), sans hypothèse de chimie spécifique.\n"
+              "- Aucun nom de matière n'est affiché tant qu'aucune saisie matière réelle "
+              "n'a été effectuée.",
+        "en": "**Material**\n"
+              "- **{not_entered}**: no dedicated material entry exists yet "
+              "in the interface. Torque / SME / fill are computed from "
+              "**screw geometry** and **process parameters** "
+              "(speed, flow, bulk density), without any specific chemistry assumption.\n"
+              "- No material name is displayed until a real material entry has been made.",
+    },
+    "moteur.hypo.torque_model": {
+        "fr": "**Modèle de couple (E4)**\n"
+              "- `M_node = η · γ̇² · V_filled / (2π·N)` — modèle **uniforme transparent**.\n"
+              "- `V_filled` = volume libre local × remplissage : **proxy provisoire** du volume cisaillé.\n"
+              "- Pas de pondération par type d'élément (malaxage vs convoyage) en v1.\n"
+              "- Effets pression-flow / fuites **hors périmètre**.",
+        "en": "**Torque model (E4)**\n"
+              "- `M_node = η · γ̇² · V_filled / (2π·N)` — **uniform transparent** model.\n"
+              "- `V_filled` = local free volume × fill: **provisional proxy** of sheared volume.\n"
+              "- No weighting by element type (kneading vs conveying) in v1.\n"
+              "- Pressure-flow / leakage effects **out of scope**.",
+    },
+    "moteur.hypo.sme": {
+        "fr": "**SME (totale uniquement)**\n"
+              "- `SME = P_dissipée / ṁ` avec `P = 2π·N · couple_total` (dérivée du couple E4) ; "
+              "ṁ = débit d'alimentation total (**hypothèse régime permanent** feed = sortie).\n"
+              "- La SME **par position** n'est pas encore matérialisée.",
+        "en": "**SME (total only)**\n"
+              "- `SME = P_dissipated / ṁ` with `P = 2π·N · total_torque` (derived from E4 torque); "
+              "ṁ = total feed flow (**steady-state assumption** feed = output).\n"
+              "- Per-position SME is not yet materialized.",
+    },
+    "moteur.hypo.thermal": {
+        "fr": "**Profil thermique**\n"
+              "- Consignes de zone **nominales de démonstration** : {temps} °C "
+              "(le profil thermique réel n'est pas partagé via `session_state`).",
+        "en": "**Thermal profile**\n"
+              "- **Nominal demonstration** zone setpoints: {temps} °C "
+              "(actual thermal profile is not shared via `session_state`).",
+    },
+    "moteur.hypo.deferred": {
+        "fr": "**Équations différées**\n"
+              "- **E6 (T_real)** et **E7 (pression)** : *non calculées* — affichées « À venir ».",
+        "en": "**Deferred equations**\n"
+              "- **E6 (T_real)** and **E7 (pressure)**: *not computed* — displayed as \"Upcoming\".",
+    },
+    "moteur.hypo.interp": {
+        "fr": "> **Interprétation** : ce moteur est un **prototype d'aide à la décision**. Les valeurs "
+              "sont cohérentes en **relatif/tendance** (comparer deux profils, voir l'effet du "
+              "régime/feeder), mais ne constituent **pas** une vérité industrielle calibrée.",
+        "en": "> **Interpretation**: this engine is a **decision-support prototype**. Values "
+              "are consistent in **relative/trend** terms (comparing two profiles, seeing the effect of "
+              "operating regime/feeder), but do **not** constitute a calibrated industrial truth.",
+    },
+    "moteur.footer": {
+        "fr": "Rondol Industrie · Couche moteur procédé (engine) · Prototype",
+        "en": "Rondol Industrie · Process engine layer (engine) · Prototype",
+    },
 
     # ===================================================================
     # SCREW_RENDER — recommendations
