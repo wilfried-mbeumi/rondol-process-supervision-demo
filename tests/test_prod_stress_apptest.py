@@ -67,7 +67,7 @@ def test_cycle_settings_save_profile_edit_settings_save_profile_edit():
         s1.run(timeout=90)
     assert not s1.exception
 
-    # 2. Profile : +1 Convoyage.
+    # 2. Profile : +1 Convoyage → Save (commit to snapshot).
     p1 = AppTest.from_file(PROFILE)
     p1.session_state["feeder_rpm"] = 100.0
     p1.session_state["feeder_calib_g_h_per_rpm"] = 2.5
@@ -80,13 +80,18 @@ def test_cycle_settings_save_profile_edit_settings_save_profile_edit():
     p1.run(timeout=90)
     n1 = count_user_elements(_ss(p1, "screw_config", []))
     assert n1 == n0 + 1, f"Profile +1 : {n0} → {n1} (attendu +1)"
+    # Profile Save commits screw_config to the applied snapshot.
+    psave1 = next((b for b in p1.button if b.key == "btn_profile_save"), None)
+    assert psave1 is not None, "Profile Save button must exist"
+    psave1.click()
+    p1.run(timeout=90)
+    assert not p1.exception
 
-    # 3. Retour Settings : sauvegarder ENCORE (commit avec la nouvelle vis).
+    # 3. Retour Settings : sauvegarder ENCORE (snapshot already has profile elements).
     s2 = AppTest.from_file(SETTINGS)
     s2.session_state["feeder_rpm"] = 100.0
     s2.session_state["feeder_calib_g_h_per_rpm"] = 2.5
     s2.session_state["fd_en_1"] = True
-    s2.session_state["screw_config"] = list(p1.session_state["screw_config"])
     s2.run(timeout=90)
     save2 = next((b for b in s2.button if b.key == "btn_apply_state"), None)
     if save2 is not None:
@@ -98,7 +103,6 @@ def test_cycle_settings_save_profile_edit_settings_save_profile_edit():
     p2 = AppTest.from_file(PROFILE)
     p2.session_state["feeder_rpm"] = 100.0
     p2.session_state["feeder_calib_g_h_per_rpm"] = 2.5
-    p2.session_state["screw_config"] = list(s2.session_state["screw_config"])
     p2.run(timeout=90)
     n2 = count_user_elements(_ss(p2, "screw_config", []))
     plus2 = next((b for b in p2.button if b.key == "plus1_1"), None)

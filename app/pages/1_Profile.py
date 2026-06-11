@@ -83,6 +83,11 @@ from run_state_adapter import sync_legacy_projection  # noqa: E402
 # Store opérateur central persistant (survie navigation / langue / refresh).
 from operator_store import capture_operator_state, restore_operator_state  # noqa: E402
 
+# Commit profil → snapshot validé (survie cross-page, lu par Supervision/Agent).
+from AgentIndustrial_v1.core.applied_state import commit as applied_commit  # noqa: E402
+from AgentIndustrial_v1.core.state_sync import state_from_session  # noqa: E402
+from AgentIndustrial_v1.core.screw_adapter import refresh_kpis  # noqa: E402
+
 st.set_page_config(page_title=t("page.profile.title"), layout="wide")
 
 # Restaure les valeurs métier saisies (depuis le store central / disque) AVANT
@@ -1160,18 +1165,36 @@ st.plotly_chart(fig_zones, use_container_width=True, key="zone_rt_chart")
 st.caption(t("profile.cap.residence", rpm=f"{rpm:.0f}", feed=f"{feed:.1f}",
               dens=f"{dens:.2f}", maxv=f"{TOTAL_FREE_VOL:.2f}"))
 
+# ─── Save button — commit screw profile to the applied snapshot ──────────────
+# The applied snapshot is the ONLY source consumed by Supervision and the AI
+# Agent. Without this commit, Profile changes to screw_config are invisible to
+# all other pages. The commit preserves all Settings data (feeders, zone temps,
+# RPM) — only screw_config is updated from the live session.
+st.divider()
+if st.button(
+    t("profile.btn.save"),
+    type="primary", use_container_width=False, key="btn_profile_save",
+    help=t("profile.save.help"),
+):
+    try:
+        from AgentIndustrial_v1.core.applied_state import get_applied as _get_snap
+        _prev_snap = _get_snap(st.session_state)
+        _prev_label = _prev_snap.label if _prev_snap else ""
+        _pstate = state_from_session(st.session_state)
+        _pstate.screw_config = list(st.session_state.get("screw_config", _pstate.screw_config))
+        refresh_kpis(_pstate)
+        applied_commit(st.session_state, _pstate, label=_prev_label)
+        st.toast(t("profile.toast.saved"), icon="✅")
+    except Exception:  # noqa: BLE001
+        pass
+
 # ─── P3.2 : formaliser le flux à sens unique current_run_state → clés legacy ──
-# Profile est une page de SAISIE : après capture des widgets, on (re)projette
-# l'état canonique vers les clés legacy partagées (idempotent, aucun effet
-# visible). Garde best-effort : ne doit JAMAIS casser le rendu de la page.
 try:
     sync_legacy_projection(st.session_state)
-except Exception:  # noqa: BLE001 — la projection legacy ne doit pas casser l'UI
+except Exception:  # noqa: BLE001
     pass
 
-# Sauvegarde centrale persistante de toute la config opérateur saisie (session +
-# disque) → relue par toutes les pages, survit à la navigation et au refresh.
 try:
     capture_operator_state(st.session_state)
-except Exception:  # noqa: BLE001 — la persistance ne doit jamais casser l'UI
+except Exception:  # noqa: BLE001
     pass

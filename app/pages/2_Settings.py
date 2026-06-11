@@ -210,6 +210,16 @@ st.session_state.setdefault("target_screw_count", 40)
 #                          édition en cours.
 #   build_state_from_widgets() : lecteur PUR → ProcessState dérivé, ne mute rien.
 seed_editing_keys(st.session_state)
+
+# Settings never edits screw_config (Profile owns it). After a browser refresh,
+# restore_operator_state may inject a stale screw_config from disk before
+# seed_editing_keys runs — and _setdefault can't override it. Force-sync from
+# the applied snapshot here so Settings re-saves never erase Profile elements.
+from AgentIndustrial_v1.core.applied_state import get_applied as _get_snap_sync
+_snap_sync = _get_snap_sync(st.session_state)
+if _snap_sync is not None and _snap_sync.screw_config:
+    st.session_state["screw_config"] = list(_snap_sync.screw_config)
+
 state: ProcessState = build_state_from_widgets(st.session_state)
 
 # Garde anti-crash widget : certains widgets sont restreints à une liste

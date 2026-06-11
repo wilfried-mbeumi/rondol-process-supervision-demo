@@ -339,6 +339,16 @@ st.html(
     f'</div>'
 )
 
+# ── Run label (state sync verification) ─────────────────────────────────────
+from AgentIndustrial_v1.core.applied_state import get_applied as _get_applied_banner  # noqa: E402,PLC0415
+_snap_banner = _get_applied_banner(st.session_state)
+if _snap_banner is not None and _snap_banner.label:
+    st.caption(t("home.run_label", label=_snap_banner.label, iso=_snap_banner.timestamp_iso))
+elif _snap_banner is not None:
+    st.caption(t("home.run_label", label="—", iso=_snap_banner.timestamp_iso))
+else:
+    st.caption(t("home.run_label.none"))
+
 # ── En-tête : 5 colonnes fixes ────────────────────────────────────────────────
 # La « durée de run » (ex. 26.5 min) a été RETIRÉE : c'était une métadonnée du
 # dataset ML de démonstration (run_duration_min), pas un temps procédé validé

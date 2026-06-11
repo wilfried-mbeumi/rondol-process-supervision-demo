@@ -192,6 +192,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "profile.btn.demo": {"fr": "⊕ Configuration démo", "en": "⊕ Demo configuration"},
     "profile.btn.demo_chaotic": {"fr": "◇ Demo chaotic (losange)",
                                  "en": "◇ Chaotic demo (diamond)"},
+    "profile.btn.save": {"fr": "✓ Enregistrer le profil", "en": "✓ Save profile"},
+    "profile.save.help": {
+        "fr": "Valide le profil de vis dans le snapshot opérateur (visible par Supervision et l'Agent IA).",
+        "en": "Commits the screw profile to the operator snapshot (visible to Supervision and the AI Agent)."},
+    "profile.toast.saved": {"fr": "Profil de vis enregistré ✓", "en": "Screw profile saved ✓"},
     "profile.sidebar.freevol": {"fr": "Volume libre total : 76,18 cm³",
                                 "en": "Total free volume: 76.18 cm³"},
     "profile.sidebar.layout": {"fr": "81 positions · 9 zones · Main feeder @ pos 4",
@@ -454,6 +459,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
               "ci-dessous reflète un profil vide, pas une configuration opérateur.",
         "en": "No element placed on the screw (page **Profile**). The comment "
               "below reflects an empty profile, not an operator configuration.",
+    },
+    # Run label display (Supervision banner — state sync verification).
+    "home.run_label": {
+        "fr": "RUN : {label} — enregistré {iso}",
+        "en": "RUN: {label} — saved {iso}",
+    },
+    "home.run_label.none": {
+        "fr": "Aucune configuration enregistrée",
+        "en": "No saved configuration",
     },
     # Phase 11 — Historique : sections composition matière par feeder + zones.
     "historique.comp_title": {
