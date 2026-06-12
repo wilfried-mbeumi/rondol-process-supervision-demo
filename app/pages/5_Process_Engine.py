@@ -1,5 +1,5 @@
 """
-5_Moteur_Procede.py — Moteur Procédé (couche engine : graph + couple + SME).
+5_Process_Engine.py — Moteur Procédé (couche engine : graph + couple + SME).
 
 Page READ-ONLY : elle lit les paramètres déjà saisis (profil vis, vitesse,
 feeder, densité, side feeder) depuis `session_state` — partagés avec Profile /
@@ -188,6 +188,11 @@ def _default_config() -> list[int]:
     return cfg
 
 
+# PRIORITÉ SNAPSHOT : hydrate la session depuis le snapshot validé (profil vis +
+# étalonnage feeder) AVANT le store opérateur — le moteur lit le même état
+# sauvegardé que Profile/Supervision après un refresh navigateur.
+from AgentIndustrial_v1.core.applied_state import hydrate_session_from_applied  # noqa: E402
+hydrate_session_from_applied(st.session_state)
 # Restaure la config opérateur centrale (store/disque) AVANT toute lecture —
 # survie navigation Profile→Moteur + refresh navigateur.
 restore_operator_state(st.session_state)
@@ -493,7 +498,9 @@ with st.container(border=True):
     _ff_main = _ps_audit.fill_factor_local[_MAIN_POS]
     _qvol = (feed_g_per_min / 60.0) / bulk_density if bulk_density > 0 else 0.0
     _free_vol_2screws = _free_volume(shared_config)
-    _n_elem = count_user_elements(shared_config)
+    # Compteur visible tip inclus (capacité totale 40) — cohérent Profile/Settings.
+    from screw_logic import count_total_elements as _count_total  # noqa: PLC0415
+    _n_elem = _count_total(shared_config)
     _rpm_full = screw_rpm * _ff_main if _ff_main > 0 else 0.0  # rpm où FF≈100 %
 
     # Statuts honnêtes : la chaîne FF (capacité, V_libre/tour, FF) dépend de

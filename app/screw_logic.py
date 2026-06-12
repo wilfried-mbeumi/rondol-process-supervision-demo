@@ -18,7 +18,13 @@ Représentation interne :
 
 Compteur utilisateur (ADD) :
   élément entier = 1.0 ; demi-convoyage = 0.5 ; tip non compté.
-  Capacité max = 39.0.
+  Capacité max utilisateur = 39.0 (78 positions libres ÷ 2).
+
+Capacité TOTALE affichée (exigence manager 2026-06-12) :
+  la vis complète inclut le tip+décharge (type 13, toujours monté) →
+  TOTAL_ELEMENT_CAPACITY = 40.0 (39 utilisateur + 1 tip). Les compteurs
+  visibles utilisent `count_total_elements` (tip inclus) ; la validation de
+  placement reste sur MAX_USER_ELEMENTS (limite géométrique inchangée).
 
 Règle volume (PDF Network 7 lignes 22-38) :
   Local_Free[i] = BASE - Volume_cm3[2]        si config[i] == 2
@@ -41,6 +47,12 @@ BASE_FREE_VOL_PER_POS: float = 0.952195
 TOTAL_FREE_VOL: float = 76.1756
 MAIN_FEEDER_POSITION: int = 4
 MAX_USER_ELEMENTS: float = 39.0
+# Capacité TOTALE de la vis assemblée, tip+décharge inclus (toujours monté).
+# 39 éléments utilisateur + 1 tip = 40 — alignée sur le défaut Rondol
+# target_screw_count=40 (validé manager). Affichage uniquement : la limite de
+# placement utilisateur reste MAX_USER_ELEMENTS (géométrie 78 positions ÷ 2).
+TIP_ELEMENT_COUNT: float = 1.0
+TOTAL_ELEMENT_CAPACITY: float = MAX_USER_ELEMENTS + TIP_ELEMENT_COUNT  # 40.0
 
 # Correction métier (validée manager) : l'extrudeuse est une BIVIS.
 # Le volume occupé par les éléments doit être compté pour les DEUX vis :
@@ -284,6 +296,23 @@ def count_user_elements(config: list[int]) -> float:
 def count_elements(config: list[int]) -> float:
     """Alias HMI (demi=0.5, tip exclu)."""
     return count_user_elements(config)
+
+
+def count_total_elements(config: list[int]) -> float:
+    """Compteur VISIBLE : éléments utilisateur + tip+décharge s'il est monté.
+
+    Capacité totale affichée = TOTAL_ELEMENT_CAPACITY (40 = 39 + tip). Le tip
+    n'est compté que s'il est réellement présent dans la configuration (une
+    config vide [] ou tronquée compte 0 — l'état vide reste explicite).
+    """
+    if not config:
+        return 0.0
+    tip = (
+        TIP_ELEMENT_COUNT
+        if len(config) > TIP_PART1_POS and config[TIP_PART1_POS] == TIP_TYPE
+        else 0.0
+    )
+    return count_user_elements(config) + tip
 
 
 def remaining_slots(config: list[int]) -> float:

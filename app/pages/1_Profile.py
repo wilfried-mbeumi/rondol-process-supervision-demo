@@ -84,12 +84,20 @@ from run_state_adapter import sync_legacy_projection  # noqa: E402
 from operator_store import capture_operator_state, restore_operator_state  # noqa: E402
 
 # Commit profil → snapshot validé (survie cross-page, lu par Supervision/Agent).
-from AgentIndustrial_v1.core.applied_state import commit as applied_commit  # noqa: E402
+from AgentIndustrial_v1.core.applied_state import (  # noqa: E402
+    commit as applied_commit,
+    get_applied as applied_get,
+    hydrate_session_from_applied,
+)
 from AgentIndustrial_v1.core.state_sync import state_from_session  # noqa: E402
 from AgentIndustrial_v1.core.screw_adapter import refresh_kpis  # noqa: E402
 
 st.set_page_config(page_title=t("page.profile.title"), layout="wide")
 
+# PRIORITÉ SNAPSHOT : le profil vis sauvegardé (applied_state.json) hydrate la
+# session AVANT le store opérateur. Une édition vivante (screw_config présent
+# en session) n'est jamais écrasée — setdefault-only.
+hydrate_session_from_applied(st.session_state)
 # Restaure les valeurs métier saisies (depuis le store central / disque) AVANT
 # d'instancier les widgets — survie navigation multipage + refresh navigateur.
 restore_operator_state(st.session_state)
@@ -465,7 +473,10 @@ st.divider()
 # ---------------------------------------------------------------------------
 # KPIs procédé — labels explicites + tooltips ingénieur
 # ---------------------------------------------------------------------------
-n_added = count_elements(cfg)
+# Compteur VISIBLE tip inclus (capacité totale 40 = 39 utilisateur + tip,
+# exigence manager 2026-06-12). La limite de placement reste 39 (géométrie).
+from screw_logic import TOTAL_ELEMENT_CAPACITY, count_total_elements  # noqa: E402,PLC0415
+n_added = count_total_elements(cfg)
 n_remaining = remaining_slots(cfg)
 # Bivis : occupé par vis, occupé total (2 vis), libre = TOTAL − occupé total.
 occ_per_screw = occupied_volume_per_screw(cfg)
@@ -489,7 +500,7 @@ st.caption(t("profile.cap.kpis", rpm=f"{rpm:.0f}", feed=f"{feed:.1f}", dens=f"{d
 kcol1, kcol2, kcol3, kcol4, kcol5, kcol6 = st.columns(6)
 kcol1.metric(
     t("profile.kpi.added"),
-    f"{_fmt_count(n_added)} / {_fmt_count(MAX_USER_ELEMENTS)}",
+    f"{_fmt_count(n_added)} / {_fmt_count(TOTAL_ELEMENT_CAPACITY)}",
     help=t("profile.kpi.added_help"),
 )
 kcol2.metric(
@@ -678,9 +689,12 @@ for row_idx, row in enumerate(SLOT_LAYOUT):
                 # unique, posé en fin de vis, non duplicable, non retirable).
                 bcol_m, bcol_p1, bcol_p4 = st.columns(3)
                 slot_cost = 0.5 if type_id == 2 else 1.0
-                disable_p1 = is_tip or (n_added + slot_cost > MAX_USER_ELEMENTS + 1e-9)
+                # Gating sur le compteur UTILISATEUR (tip exclu) : la limite de
+                # placement reste 39 — l'affichage 40 inclut le tip déjà monté.
+                _n_user = count_elements(cfg)
+                disable_p1 = is_tip or (_n_user + slot_cost > MAX_USER_ELEMENTS + 1e-9)
                 disable_p4 = is_tip or (type_id == 2) or (
-                    n_added + 4 * slot_cost > MAX_USER_ELEMENTS + 1e-9
+                    _n_user + 4 * slot_cost > MAX_USER_ELEMENTS + 1e-9
                 )
                 disable_m = is_tip or (count_here == 0)
                 if bcol_m.button("−1", key=f"minus_{type_id}", use_container_width=True, disabled=disable_m):
@@ -1177,16 +1191,17 @@ if st.button(
     help=t("profile.save.help"),
 ):
     try:
-        from AgentIndustrial_v1.core.applied_state import get_applied as _get_snap
-        _prev_snap = _get_snap(st.session_state)
+        _prev_snap = applied_get(st.session_state)
         _prev_label = _prev_snap.label if _prev_snap else ""
         _pstate = state_from_session(st.session_state)
-        _pstate.screw_config = list(st.session_state.get("screw_config", _pstate.screw_config))
+        # Lecture proxy-safe (st.session_state.get n'est pas garanti en prod).
+        if "screw_config" in st.session_state:
+            _pstate.screw_config = list(st.session_state["screw_config"])
         refresh_kpis(_pstate)
         applied_commit(st.session_state, _pstate, label=_prev_label)
         st.toast(t("profile.toast.saved"), icon="✅")
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as _exc:  # noqa: BLE001 — JAMAIS d'échec silencieux (exigence manager)
+        st.error(t("profile.save.error", err=_exc))
 
 # ─── P3.2 : formaliser le flux à sens unique current_run_state → clés legacy ──
 try:

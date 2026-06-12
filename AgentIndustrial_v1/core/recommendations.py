@@ -142,7 +142,7 @@ def _from_feeder_location(state: ProcessState, alert: Alert) -> list[Recommendat
             f"Déplacer le point d'injection du feeder #{f.feeder_id} "
             f"({f.material.label_fr}) vers la position {target_pos}.",
             f"Move the injection point of feeder #{f.feeder_id} "
-            f"({f.material.label_fr}) to position {target_pos}.",
+            f"({f.material.label_i18n('en')}) to position {target_pos}.",
         ),
         delta_label=f"{f.position} → {target_pos}",
         confidence=CONFIDENCE_HIGH,
@@ -172,7 +172,7 @@ def _from_thermal_high(state: ProcessState, alert: Alert) -> list[Recommendation
                 f"Borne haute matière {f.material.label_fr} = {t_max:.0f} °C. "
                 f"Cible 10 °C de marge sous la borne pour absorber les "
                 f"variations de procédé.",
-                f"Material upper limit {f.material.label_fr} = {t_max:.0f} °C. "
+                f"Material upper limit {f.material.label_i18n('en')} = {t_max:.0f} °C. "
                 f"Target 10 °C margin below the limit to absorb "
                 f"process variations.",
             ),
@@ -279,7 +279,7 @@ def _from_powder_overload(state: ProcessState, alert: Alert) -> list[Recommendat
                 f"Réduire le débit du feeder #{biggest.feeder_id} "
                 f"({biggest.material.label_fr}) de 20 %.",
                 f"Reduce feeder #{biggest.feeder_id} "
-                f"({biggest.material.label_fr}) flow by 20 %.",
+                f"({biggest.material.label_i18n('en')}) flow by 20 %.",
             ),
             delta_label=(
                 f"{biggest.mass_flow_g_per_min:.0f} → {new_flow:.0f} g/min"
@@ -784,7 +784,7 @@ def _from_powder_thermal_traj(state: ProcessState, alert: Alert) -> list[Recomme
             f"« {f.material.label_fr} » (borne effective {t_max:.0f} °C). "
             f"T procédé estimée en {zname} ≈ {zt.t_est_C:.0f} °C. Abaisser la "
             f"consigne sous la borne avec 10 °C de marge.",
-            f"\"{f.material.label_fr}\" (effective limit {t_max:.0f} °C). "
+            f"\"{f.material.label_i18n('en')}\" (effective limit {t_max:.0f} °C). "
             f"Estimated process T in {zname} ≈ {zt.t_est_C:.0f} °C. Lower the "
             f"setpoint below the limit with 10 °C margin.",
         ),
@@ -983,7 +983,7 @@ def _from_zone_material_incompat(state: ProcessState, alert: Alert) -> list[Reco
             f"« {f.material.label_fr} » dégrade au-delà de {t_max:.0f} °C. "
             f"Toutes les zones traversées doivent rester ≤ {t_target:.0f} °C "
             f"(10 °C de marge).",
-            f"\"{f.material.label_fr}\" degrades above {t_max:.0f} °C. "
+            f"\"{f.material.label_i18n('en')}\" degrades above {t_max:.0f} °C. "
             f"All traversed zones must remain ≤ {t_target:.0f} °C "
             f"(10 °C margin).",
         ),

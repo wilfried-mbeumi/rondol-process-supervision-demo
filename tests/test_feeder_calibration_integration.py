@@ -132,7 +132,7 @@ except Exception:  # pragma: no cover
 
 PROFILE = str(ROOT / "app" / "pages" / "1_Profile.py")
 SETTINGS = str(ROOT / "app" / "pages" / "2_Settings.py")
-MP = str(ROOT / "app" / "pages" / "5_Moteur_Procede.py")
+MP = str(ROOT / "app" / "pages" / "5_Process_Engine.py")
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")

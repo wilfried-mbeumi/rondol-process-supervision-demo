@@ -29,17 +29,17 @@ import pytest  # noqa: E402
 # Pages consommatrices : interdiction de lecture métier brute.
 CONSUMER_PAGES = {
     "Supervision": APP / "Supervision.py",
-    "Analyse_run": APP / "pages" / "3_Analyse_run.py",
-    "Historique": APP / "pages" / "4_Historique.py",
-    "Moteur_Procede": APP / "pages" / "5_Moteur_Procede.py",
+    "Analyse_run": APP / "pages" / "3_Run_Analysis.py",
+    "Historique": APP / "pages" / "4_History.py",
+    "Moteur_Procede": APP / "pages" / "5_Process_Engine.py",
 }
 ALL_PAGES = {
     "/": APP / "Supervision.py",
     "/Profile": APP / "pages" / "1_Profile.py",
     "/Settings": APP / "pages" / "2_Settings.py",
-    "/Analyse_run": APP / "pages" / "3_Analyse_run.py",
-    "/Historique": APP / "pages" / "4_Historique.py",
-    "/Moteur_Procede": APP / "pages" / "5_Moteur_Procede.py",
+    "/Analyse_run": APP / "pages" / "3_Run_Analysis.py",
+    "/Historique": APP / "pages" / "4_History.py",
+    "/Moteur_Procede": APP / "pages" / "5_Process_Engine.py",
 }
 
 BUSINESS_KEYS = (

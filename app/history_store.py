@@ -41,7 +41,7 @@ for _p in (_ROOT, _APP):
     if _sp not in sys.path:
         sys.path.insert(0, _sp)
 
-from screw_logic import count_user_elements  # type: ignore  # noqa: E402
+from screw_logic import count_total_elements  # type: ignore  # noqa: E402
 
 # Emplacement par défaut du stockage persistant (créé à la 1re écriture).
 DEFAULT_HISTORY_PATH: Path = _ROOT / "data" / "history" / "process_history.json"
@@ -202,7 +202,8 @@ def _config_block(snapshot: Any) -> dict[str, Any]:
     main = feeders[0] if feeders else {}
     enabled = [f for f in feeders if f.get("enabled")]
     try:
-        n_elements = float(count_user_elements(list(getattr(snapshot, "screw_config", []) or [])))
+        # Compteur tip inclus (capacité totale 40) — cohérent avec toutes les pages.
+        n_elements = float(count_total_elements(list(getattr(snapshot, "screw_config", []) or [])))
     except Exception:
         n_elements = None
     return {

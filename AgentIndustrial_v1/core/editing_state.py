@@ -67,28 +67,18 @@ SCREW_CONFIG_KEY = "screw_config"
 # ---------------------------------------------------------------------------
 # Étalonnage feeder — réconciliation manager 2026-06-09 (bloc A)
 # ---------------------------------------------------------------------------
-# Clés d'étalonnage partagées avec app/feeder_ui (copiées ici pour ne PAS créer
-# de dépendance core → app). Feeder #1 = clés legacy historiques ; feeders
-# #2..N = `feedcal_{rpm,coeff}_{id}`.
-_FEEDER1_RPM_KEY = "feeder_rpm"
-_FEEDER1_CALIB_KEY = "feeder_calib_g_h_per_rpm"
-_PERSIST_SUFFIX = "__persist"
-
-
-def _feedcal_rpm_key(feeder_id: int) -> str:
-    return _FEEDER1_RPM_KEY if feeder_id == 1 else f"feedcal_rpm_{feeder_id}"
-
-
-def _feedcal_coeff_key(feeder_id: int) -> str:
-    return _FEEDER1_CALIB_KEY if feeder_id == 1 else f"feedcal_coeff_{feeder_id}"
+# Conventions de clés désormais centralisées dans `core.calib_keys` (source
+# unique partagée avec applied_state pour le snapshot et avec app/feeder_ui).
+from .calib_keys import (  # noqa: E402
+    calib_read as _calib_read_central,
+    feedcal_coeff_key as _feedcal_coeff_key,
+    feedcal_rpm_key as _feedcal_rpm_key,
+)
 
 
 def _calib_read(session: Mapping[str, Any], widget_key: str, default: float) -> float:
     """Lecture nav-safe d'une clé d'étalonnage : widget > miroir persistant > défaut."""
-    v = _safe_get(session, widget_key, None)
-    if v is None:
-        v = _safe_get(session, widget_key + _PERSIST_SUFFIX, None)
-    return safe_float(v, default, 0.0, 100000.0) if v is not None else default
+    return _calib_read_central(session, widget_key, default)
 
 
 def feeder_is_calibrated(session: Mapping[str, Any], feeder_id: int) -> bool:
@@ -156,6 +146,14 @@ def seed_editing_keys(session: MutableMapping[str, Any]) -> ProcessState:
     _setdefault(session, TORQUE_KEY, _opt(seed.v2.torque_pct))
     _setdefault(session, PRESSURE_KEY, _opt(seed.v2.pressure_die_bar))
     _setdefault(session, SCREW_CONFIG_KEY, list(seed.screw_config))
+
+    # Étalonnage feeder : re-semé depuis le snapshot validé (source de vérité
+    # officielle). setdefault-only — une saisie vivante n'est jamais écrasée.
+    from .applied_state import get_applied
+    from .calib_keys import seed_calibrations
+    _snap = get_applied(session)
+    if _snap is not None:
+        seed_calibrations(session, _snap.feeder_calibrations)
 
     for f in seed.feeders:
         fid = f.feeder_id

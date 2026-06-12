@@ -21,7 +21,7 @@ E6 (T_real) et E7 (pression) ne sont PAS calculés : `t_real_c` / `pressure_bar`
 restent `None` (statut « à venir »).
 
 Ce module est PUR : aucune dépendance Streamlit, aucune lecture session/disque.
-La page `app/pages/5_Moteur_Procede.py` se contente de RENDRE le `EngineReport`.
+La page `app/pages/5_Process_Engine.py` se contente de RENDRE le `EngineReport`.
 """
 
 from __future__ import annotations

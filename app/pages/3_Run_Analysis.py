@@ -31,6 +31,10 @@ from rondol_i18n import language_selector, t  # noqa: E402
 # Store opérateur central (cohérence inter-pages ; cette page reste ML/demo).
 from operator_store import restore_operator_state  # noqa: E402
 
+# PRIORITÉ SNAPSHOT : la session est hydratée depuis le snapshot validé AVANT
+# le store opérateur (setdefault-only) — toutes les pages lisent le même état.
+from AgentIndustrial_v1.core.applied_state import hydrate_session_from_applied  # noqa: E402
+hydrate_session_from_applied(st.session_state)
 restore_operator_state(st.session_state)
 
 MODEL_PATH   = ROOT / "models" / "SVM_w60.joblib"

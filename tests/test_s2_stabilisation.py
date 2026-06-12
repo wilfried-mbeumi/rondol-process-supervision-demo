@@ -40,7 +40,7 @@ except Exception:  # pragma: no cover
     _HAS_APPTEST = False
 
 PROFILE_PATH = str(ROOT / "app" / "pages" / "1_Profile.py")
-HISTORIQUE_PATH = str(ROOT / "app" / "pages" / "4_Historique.py")
+HISTORIQUE_PATH = str(ROOT / "app" / "pages" / "4_History.py")
 
 
 # ---------------------------------------------------------------------------

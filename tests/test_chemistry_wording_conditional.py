@@ -155,7 +155,7 @@ def test_supervision_no_cathode_li_without_material():
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
 def test_moteur_procede_no_cathode_li_without_material():
     cfg = new_empty_configuration(); add_elements_atomic(cfg, 1, 39)
-    at = AppTest.from_file(str(APP / "pages" / "5_Moteur_Procede.py"))
+    at = AppTest.from_file(str(APP / "pages" / "5_Process_Engine.py"))
     at.session_state["screw_config"] = cfg
     at.session_state["feeder_rpm"] = 30.0
     at.session_state["feeder_calib_g_h_per_rpm"] = 10.0

@@ -124,7 +124,7 @@ except Exception:  # pragma: no cover
     _HAS = False
 
 PROFILE = str(APP / "pages" / "1_Profile.py")
-MOTEUR = str(APP / "pages" / "5_Moteur_Procede.py")
+MOTEUR = str(APP / "pages" / "5_Process_Engine.py")
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")

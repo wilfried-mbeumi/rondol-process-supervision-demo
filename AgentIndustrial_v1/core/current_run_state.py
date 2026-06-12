@@ -48,6 +48,12 @@ from .coercion import safe_float, safe_int
 from .process import ProcessState
 from .state_sync import state_from_session
 
+# Compteur d'éléments VISIBLE tip inclus (capacité totale 40). Import bare du
+# backbone (invariant singleton) — screw_adapter a déjà bootstrapé app/ dans
+# sys.path et le bootstrap _ROOT ci-dessus couvre le cas import direct.
+from . import screw_adapter as _screw_adapter  # noqa: E402,F401  (bootstrap app/)
+from screw_logic import count_total_elements as _count_total_elements  # noqa: E402
+
 
 # ---------------------------------------------------------------------------
 # Taxonomies (foyer canonique — réutilisées par les couches app en P3.2+)
@@ -308,9 +314,9 @@ def build_current_run_state(session: Mapping[str, Any]) -> CurrentRunState:
             comment="Estimation V1 (proxy), non calibrée.",
         ),
         "n_elements": Field(
-            value=round(float(kpis.n_elements), 1), unit="",
+            value=round(_count_total_elements(list(state.screw_config or [])), 1), unit="",
             source=CALCULATED, validation_status=NOT_APPLICABLE,
-            comment="Nombre d'éléments placés (tip exclu).",
+            comment="Nombre d'éléments montés, tip inclus (capacité totale 40).",
         ),
     }
 

@@ -35,6 +35,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping, MutableMapping
 
+from .calib_keys import collect_calibrations, seed_calibrations
 from .coercion import safe_float, safe_int
 from .feeders import FeederSpec, new_feeder_bank
 from .process import DEFAULT_ZONE_TARGETS_C, ProcessState, default_zone_target
@@ -95,6 +96,11 @@ def snapshot_from_dict(d: Mapping[str, Any]) -> AppliedSnapshot:
         feeders=[dict(f) for f in (d.get("feeders") or []) if isinstance(f, Mapping)],
         torque_pct=d.get("torque_pct"),
         pressure_die_bar=d.get("pressure_die_bar"),
+        feeder_calibrations={
+            str(k): dict(v)
+            for k, v in dict(d.get("feeder_calibrations") or {}).items()
+            if isinstance(v, Mapping)
+        },
     )
 
 
@@ -170,6 +176,10 @@ class AppliedSnapshot:
     # V2 (placeholders)
     torque_pct: float | None = None
     pressure_die_bar: float | None = None
+    # Étalonnage feeders (RPM × coeff g/h/RPM par feeder) — cause racine prod
+    # 2026-06-12 : sans lui dans le snapshot, le débit réel ne survivait au
+    # refresh que via le store opérateur (2e source de vérité divergente).
+    feeder_calibrations: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 def _feeder_to_dict(f: FeederSpec) -> dict[str, Any]:
@@ -274,6 +284,9 @@ def commit(
         HISTORY_MAX entrées, FIFO).
     """
     snap = take_snapshot(state, label=label)
+    # L'étalonnage feeder fait partie de la configuration validée : il est
+    # sérialisé DANS le snapshot (source de vérité unique après refresh).
+    snap.feeder_calibrations = collect_calibrations(session)
     session[APPLIED_KEY] = snap
     history = list(_safe_get(session, HISTORY_KEY, []) or [])
     history.append(snap)
@@ -303,6 +316,32 @@ def get_applied(session: Mapping[str, Any]) -> AppliedSnapshot | None:
     return restore_applied(session)  # type: ignore[arg-type]
 
 
+def hydrate_session_from_applied(
+    session: MutableMapping[str, Any],
+) -> AppliedSnapshot | None:
+    """Hydrate la session depuis le snapshot validé — chokepoint UNIQUE des pages.
+
+    À appeler en TÊTE de chaque page, AVANT `restore_operator_state` : le
+    snapshot validé (source de vérité officielle, miroir applied_state.json)
+    prime sur le store opérateur. Sème (setdefault-only) :
+      - `screw_config` : le profil vis sauvegardé ;
+      - les clés d'étalonnage feeder (RPM / coeff, + miroirs persistants).
+
+    Ne touche JAMAIS une clé déjà présente (édition vivante en session). Sans
+    snapshot, ne fait rien (les défauts restent du ressort de chaque page).
+    """
+    snap = get_applied(session)
+    if snap is None:
+        return None
+    try:
+        if snap.screw_config and "screw_config" not in session:
+            session["screw_config"] = list(snap.screw_config)
+    except Exception:  # pragma: no cover - proxy hors contexte
+        pass
+    seed_calibrations(session, snap.feeder_calibrations)
+    return snap
+
+
 def get_history(session: Mapping[str, Any]) -> list[AppliedSnapshot]:
     """Retourne la liste chronologique des snapshots validés."""
     hist = _safe_get(session, HISTORY_KEY, []) or []
@@ -317,6 +356,8 @@ def has_unsaved_changes(
     if applied is None:
         return True
     current = take_snapshot(editing_state)
+    # L'étalonnage courant vient de la session (même source que commit).
+    current.feeder_calibrations = collect_calibrations(session)
     # On compare uniquement les champs métier (timestamp/label ignorés).
     a = {k: v for k, v in asdict(applied).items() if k not in ("timestamp_iso", "label")}
     b = {k: v for k, v in asdict(current).items() if k not in ("timestamp_iso", "label")}

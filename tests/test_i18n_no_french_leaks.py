@@ -6,6 +6,7 @@ French strings that must NEVER appear.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -79,16 +80,41 @@ FORBIDDEN_FR = [
     "limites et statut",
     "Historique procédé",
     "Surcharge",
+    # Manager forbidden list (P0 2026-06-12) — substrings safe (accents/unique FR)
+    "matière", "Matière", "procédé", "Procédé", "PROCÉDÉ",
+    "débit", "Débit", "densité", "Densité",
+    "fourreau", "thermique", "surveillance", "instabilité",
+    "profil thermique", "non renseigné", "hypothèses", "Granulés",
+    "fenêtres", "répartition", "résumé", "score moyen", "agrégats",
+    "entraînement", "démonstration", "régler", "ré-évaluer",
+]
+
+# Mots français courts/ambigus → frontière de mot OBLIGATOIRE (évite les faux
+# positifs anglais : "device"≠vis, "alerted"≠alerte, "finish"≠fin, "ACTION" EN).
+FORBIDDEN_FR_WORD_RE = [
+    re.compile(r"\bvis\b", re.IGNORECASE),
+    re.compile(r"\bvitesse\b", re.IGNORECASE),
+    re.compile(r"\bréduire\b", re.IGNORECASE),
+    re.compile(r"\bdescendre\b", re.IGNORECASE),
+    re.compile(r"\bsurcharge\b", re.IGNORECASE),
+    re.compile(r"\baucune?\b", re.IGNORECASE),
+    re.compile(r"\bstatut\b", re.IGNORECASE),
+    re.compile(r"\bdurée\b", re.IGNORECASE),
+    re.compile(r"\bconsigne\b", re.IGNORECASE),
+    re.compile(r"\balertes?\b", re.IGNORECASE),
 ]
 
 PAGES = {
     "Supervision": str(APP / "Supervision.py"),
     "Profile": str(APP / "pages" / "1_Profile.py"),
     "Settings": str(APP / "pages" / "2_Settings.py"),
-    "Analyse_run": str(APP / "pages" / "3_Analyse_run.py"),
-    "Historique": str(APP / "pages" / "4_Historique.py"),
-    "Moteur_Procede": str(APP / "pages" / "5_Moteur_Procede.py"),
+    "Analyse_run": str(APP / "pages" / "3_Run_Analysis.py"),
+    "Historique": str(APP / "pages" / "4_History.py"),
+    "Moteur_Procede": str(APP / "pages" / "5_Process_Engine.py"),
 }
+
+
+_STYLE_BLOCK_RE = re.compile(r"<style\b.*?</style>", re.DOTALL | re.IGNORECASE)
 
 
 def _rendered_text(at) -> str:
@@ -111,7 +137,9 @@ def _rendered_text(at) -> str:
             chunks.append(str(getattr(m, "value", "")))
     except Exception:
         pass
-    return "\n".join(chunks)
+    # Les blocs <style> ne sont pas du texte visible (commentaires CSS FR
+    # légitimes) — on les exclut du scan.
+    return _STYLE_BLOCK_RE.sub("", "\n".join(chunks))
 
 
 def _load_en(path: str):
@@ -120,8 +148,6 @@ def _load_en(path: str):
     at.session_state["demo_mode"] = False
     return at.run(timeout=120)
 
-
-import re
 
 RAW_KEY_PATTERN = re.compile(
     r"\bsr\.(arch|rec|comp|trade|axis|check|regime)\.[a-z_]+(\.[a-z_]+)*\b"
@@ -145,6 +171,12 @@ def test_no_forbidden_french_in_english_mode(name):
         assert fr_string not in text, (
             f"[{name}] forbidden French string found in English mode: "
             f"'{fr_string}'"
+        )
+    for rx in FORBIDDEN_FR_WORD_RE:
+        m = rx.search(text)
+        assert m is None, (
+            f"[{name}] forbidden French word found in English mode: "
+            f"'{m.group(0)}' (pattern {rx.pattern})"
         )
 
 

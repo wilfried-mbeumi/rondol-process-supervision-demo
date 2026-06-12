@@ -57,7 +57,7 @@ try:
 except Exception:  # pragma: no cover
     _HAS_APPTEST = False
 
-MP_PATH = str(ROOT / "app" / "pages" / "5_Moteur_Procede.py")
+MP_PATH = str(ROOT / "app" / "pages" / "5_Process_Engine.py")
 _FORBIDDEN_CHEMISTRY = ("LiFePO4", "LFP", "LATP", "carbon nanotube", "CNT", "cathode")
 
 

@@ -98,8 +98,8 @@ def _fmt_pct(x: float) -> str:
     return f"{x * 100:.1f} %"
 
 
-def _feeder_label(f: FeederSpec) -> str:
-    return f"#{f.feeder_id} {f.display_name()}"
+def _feeder_label(f: FeederSpec, lang: str = "fr") -> str:
+    return f"#{f.feeder_id} {f.display_name(lang)}"
 
 
 # ---------------------------------------------------------------------------
@@ -122,13 +122,13 @@ def _rule_feeder_position(state: ProcessState) -> list[Alert]:
                 severity=SEVERITY_CRITICAL,
                 title=_b(
                     f"Feeder {_feeder_label(f)} mal positionné",
-                    f"Feeder {_feeder_label(f)} mispositioned",
+                    f"Feeder {_feeder_label(f, 'en')} mispositioned",
                 ),
                 description=_b(
                     f"Matière « {f.material.label_fr} » injectée en {f.position} : "
                     f"physiquement incorrect. Positions valides pour cette phase "
                     f"({f.material.phase}) : {allowed_str}.",
-                    f"Material \"{f.material.label_fr}\" injected at {f.position}: "
+                    f"Material \"{f.material.label_i18n('en')}\" injected at {f.position}: "
                     f"physically incorrect. Valid positions for this phase "
                     f"({f.material.phase}): {allowed_str}.",
                 ),
@@ -156,7 +156,7 @@ def _rule_thermal_compat(state: ProcessState) -> list[Alert]:
                 severity=SEVERITY_CRITICAL,
                 title=_b(
                     f"Surchauffe matière au feeder {_feeder_label(f)}",
-                    f"Material overheat at feeder {_feeder_label(f)}",
+                    f"Material overheat at feeder {_feeder_label(f, 'en')}",
                 ),
                 description=_b(
                     f"T_{f.position} = {t_zone:.0f} °C dépasse la borne haute "
@@ -164,7 +164,7 @@ def _rule_thermal_compat(state: ProcessState) -> list[Alert]:
                     f"({t_max:.0f} °C). Risque de dégradation thermique / "
                     f"flash boiling (liquides) / décomposition de la matière.",
                     f"T_{f.position} = {t_zone:.0f} °C exceeds the safe upper bound "
-                    f"of material \"{f.material.label_fr}\" "
+                    f"of material \"{f.material.label_i18n('en')}\" "
                     f"({t_max:.0f} °C). Risk of thermal degradation / "
                     f"flash boiling (liquids) / material decomposition.",
                 ),
@@ -177,7 +177,7 @@ def _rule_thermal_compat(state: ProcessState) -> list[Alert]:
                 severity=SEVERITY_WARNING,
                 title=_b(
                     f"Température trop basse au feeder {_feeder_label(f)}",
-                    f"Temperature too low at feeder {_feeder_label(f)}",
+                    f"Temperature too low at feeder {_feeder_label(f, 'en')}",
                 ),
                 description=_b(
                     f"T_{f.position} = {t_zone:.0f} °C inférieure à la borne "
@@ -663,7 +663,7 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                         f"{t_max:.0f} °C{tga_note}. Dégradation de la matière "
                         f"probable — l'échauffement procédé réel "
                         f"dépasse la limite matière, pas seulement la consigne.",
-                        f"Material \"{f.material.label_fr}\" (feeder #{f.feeder_id}, "
+                        f"Material \"{f.material.label_i18n('en')}\" (feeder #{f.feeder_id}, "
                         f"injected at {f.position}) passes through {worst_zone} where "
                         f"estimated T ≈ {worst_t:.0f} °C > effective limit "
                         f"{t_max:.0f} °C{tga_note}. Material degradation "
@@ -873,14 +873,14 @@ def _rule_thermal_profile(state: ProcessState) -> list[Alert]:
                 severity=SEVERITY_CRITICAL,
                 title=_b(
                     f"Consigne incompatible matière feeder {_feeder_label(f)}",
-                    f"Setpoint incompatible with feeder {_feeder_label(f)} material",
+                    f"Setpoint incompatible with feeder {_feeder_label(f, 'en')} material",
                 ),
                 description=_b(
                     f"La matière « {f.material.label_fr} » (injectée en "
                     f"{f.position}) transite par {worst_zone} dont la consigne "
                     f"{worst_t:.0f} °C dépasse sa borne sûre {t_max:.0f} °C. "
                     f"Dégradation thermique programmée par le profil lui-même.",
-                    f"Material \"{f.material.label_fr}\" (injected at "
+                    f"Material \"{f.material.label_i18n('en')}\" (injected at "
                     f"{f.position}) passes through {worst_zone} whose setpoint "
                     f"{worst_t:.0f} °C exceeds its safe limit {t_max:.0f} °C. "
                     f"Thermal degradation programmed by the profile itself.",

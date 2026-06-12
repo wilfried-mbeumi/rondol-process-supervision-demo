@@ -748,7 +748,7 @@ def build_screw_assembly_html(
     flow_banner_html = (
         f'<div class="rs-flow-banner" style="--tip-color:{tip_color};">'
         '<span class="rs-flow-port rs-flow-in">'
-        '<span class="rs-flow-dot"></span>Entrée matière'
+        f'<span class="rs-flow-dot"></span>{_t("sr.flow.inlet")}'
         '</span>'
         '<span class="rs-flow-rail" aria-hidden="true"></span>'
         '</div>'
@@ -1494,7 +1494,7 @@ def compute_recommendations(
             _t("sr.rec.underdense.action",
                add_min=18 - n_filled, add_max=25 - n_filled,
                rpm=f"{rpm:.0f}", feed=f"{feed:.0f}"),
-            evidence=_t("sr.rec.underdense.evidence", n=n_filled),
+            evidence=_t("sr.rec.underdense.evidence", n=n_filled + 1),  # + tip monté
         ))
 
     # Manque de convoyage

@@ -33,8 +33,8 @@ PAGES = {
     "Supervision": str(APP / "Supervision.py"),
     "Profile": str(APP / "pages" / "1_Profile.py"),
     "Settings": str(APP / "pages" / "2_Settings.py"),
-    "Historique": str(APP / "pages" / "4_Historique.py"),
-    "Moteur_Procede": str(APP / "pages" / "5_Moteur_Procede.py"),
+    "Historique": str(APP / "pages" / "4_History.py"),
+    "Moteur_Procede": str(APP / "pages" / "5_Process_Engine.py"),
 }
 
 

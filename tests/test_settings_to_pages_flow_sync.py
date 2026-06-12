@@ -32,10 +32,10 @@ except Exception:  # pragma: no cover
 
 SETTINGS = str(APP / "pages" / "2_Settings.py")
 PROFILE = str(APP / "pages" / "1_Profile.py")
-MOTEUR = str(APP / "pages" / "5_Moteur_Procede.py")
+MOTEUR = str(APP / "pages" / "5_Process_Engine.py")
 SUPERVISION = str(APP / "Supervision.py")
-HISTORIQUE = str(APP / "pages" / "4_Historique.py")
-ANALYSE_RUN = str(APP / "pages" / "3_Analyse_run.py")
+HISTORIQUE = str(APP / "pages" / "4_History.py")
+ANALYSE_RUN = str(APP / "pages" / "3_Run_Analysis.py")
 
 
 # Scénario manager 2026-06-09.

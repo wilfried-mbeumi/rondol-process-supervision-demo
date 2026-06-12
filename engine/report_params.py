@@ -2,7 +2,7 @@
 
 Source UNIQUE de la construction `ProcessParams` + powders nominales utilisée
 pour produire un `EngineReport`. Avant ce module, cette logique vivait dans
-`app/pages/5_Moteur_Procede.py::_build_report`. Elle est factorisée ici pour que
+`app/pages/5_Process_Engine.py::_build_report`. Elle est factorisée ici pour que
 DEUX consommateurs produisent STRICTEMENT les mêmes KPIs :
 
   1. la page « Moteur Procédé » (rendu temps réel) ;

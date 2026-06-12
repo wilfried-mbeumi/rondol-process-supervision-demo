@@ -19,7 +19,7 @@ try:
 except Exception:  # pragma: no cover
     _HAS = False
 
-ANALYSE = str(ROOT / "app" / "pages" / "3_Analyse_run.py")
+ANALYSE = str(ROOT / "app" / "pages" / "3_Run_Analysis.py")
 
 
 def _rendered(at) -> str:

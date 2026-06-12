@@ -40,9 +40,9 @@ PAGES = {
     "supervision": str(ROOT / "app" / "Supervision.py"),
     "profile": str(ROOT / "app" / "pages" / "1_Profile.py"),
     "settings": str(ROOT / "app" / "pages" / "2_Settings.py"),
-    "analyse": str(ROOT / "app" / "pages" / "3_Analyse_run.py"),
-    "historique": str(ROOT / "app" / "pages" / "4_Historique.py"),
-    "moteur": str(ROOT / "app" / "pages" / "5_Moteur_Procede.py"),
+    "analyse": str(ROOT / "app" / "pages" / "3_Run_Analysis.py"),
+    "historique": str(ROOT / "app" / "pages" / "4_History.py"),
+    "moteur": str(ROOT / "app" / "pages" / "5_Process_Engine.py"),
 }
 
 RPM, COEFF = 100.0, 2.5

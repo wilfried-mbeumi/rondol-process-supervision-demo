@@ -455,6 +455,11 @@ else:
 # Lit la configuration vis depuis session_state (partagée avec Profile).
 # Si absente (utilisateur n'a pas encore visité Profile), on initialise à vide
 # pour garder un comportement déterministe et un DOM stable.
+# PRIORITÉ SNAPSHOT : hydrate la session depuis le snapshot validé (source de
+# vérité officielle, applied_state.json) AVANT le store opérateur — setdefault-
+# only, jamais d'écrasement d'une valeur vivante.
+from AgentIndustrial_v1.core.applied_state import hydrate_session_from_applied  # noqa: E402
+hydrate_session_from_applied(st.session_state)
 # Restaure la config opérateur centrale (store/disque) avant lecture.
 restore_operator_state(st.session_state)
 

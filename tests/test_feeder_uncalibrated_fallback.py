@@ -21,7 +21,7 @@ import pytest  # noqa: E402
 from run_state_adapter import build, build_moteur_inputs_from_current_run_state  # noqa: E402
 from screw_logic import add_elements_atomic, new_empty_configuration  # noqa: E402
 
-MOTEUR = str(APP / "pages" / "5_Moteur_Procede.py")
+MOTEUR = str(APP / "pages" / "5_Process_Engine.py")
 SUP = str(APP / "Supervision.py")
 
 

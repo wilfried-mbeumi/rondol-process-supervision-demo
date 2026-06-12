@@ -42,6 +42,7 @@ from screw_logic import (  # noqa: E402
     N_POSITIONS,
     SIDE_FEEDER_DISABLED_ZONE,
     TIP_PART1_POS,
+    count_total_elements as _count_total,
 )
 
 # Fusion AgentIndustrial_v1 — réutilisation directe du moteur
@@ -67,6 +68,7 @@ from AgentIndustrial_v1.core.applied_state import (  # noqa: E402
     get_applied,
     get_history,
     has_unsaved_changes,
+    hydrate_session_from_applied,
 )
 from AgentIndustrial_v1.core.editing_state import (  # noqa: E402
     build_state_from_widgets,
@@ -170,8 +172,18 @@ language_selector()
 # ===========================================================================
 # Session defaults — clés partagées avec Profile / Home (à NE PAS casser)
 # ===========================================================================
-# Restaure la config opérateur centrale AVANT les défauts/widgets (survie
-# navigation multipage + refresh) — n'écrase jamais une valeur déjà présente.
+# PRIORITÉ SNAPSHOT (exigence manager 2026-06-12) : le snapshot validé
+# (applied_state.json) est la source de vérité officielle. Il hydrate la session
+# AVANT le store opérateur — un store périmé ne peut plus écraser une
+# configuration sauvegardée après un refresh navigateur.
+_snap_boot = hydrate_session_from_applied(st.session_state)
+if _snap_boot is not None:
+    # Sème les clés widget Settings depuis le snapshot AVANT le store opérateur :
+    # après un refresh, les valeurs affichées sont celles SAUVEGARDÉES, jamais
+    # celles d'un store divergent. Idempotent (setdefault-only).
+    seed_editing_keys(st.session_state)
+# Restaure la config opérateur centrale (uniquement les clés encore absentes —
+# survie navigation multipage + refresh) — n'écrase jamais une valeur présente.
 restore_operator_state(st.session_state)
 
 st.session_state.setdefault("th_stable", 80)
@@ -210,16 +222,6 @@ st.session_state.setdefault("target_screw_count", 40)
 #                          édition en cours.
 #   build_state_from_widgets() : lecteur PUR → ProcessState dérivé, ne mute rien.
 seed_editing_keys(st.session_state)
-
-# Settings never edits screw_config (Profile owns it). After a browser refresh,
-# restore_operator_state may inject a stale screw_config from disk before
-# seed_editing_keys runs — and _setdefault can't override it. Force-sync from
-# the applied snapshot here so Settings re-saves never erase Profile elements.
-from AgentIndustrial_v1.core.applied_state import get_applied as _get_snap_sync
-_snap_sync = _get_snap_sync(st.session_state)
-if _snap_sync is not None and _snap_sync.screw_config:
-    st.session_state["screw_config"] = list(_snap_sync.screw_config)
-
 state: ProcessState = build_state_from_widgets(st.session_state)
 
 # Garde anti-crash widget : certains widgets sont restreints à une liste
@@ -402,7 +404,9 @@ with col_left:
         + hmi_kv(t("settings.kv.thermal_peak"), f"{_gz.zone}", "", _lim_c)
         + hmi_kv(t("settings.kv.ceiling"), f"{_gz.t_limit_C:.0f}", "°C", _lim_c)
         + hmi_kv(t("settings.kv.ceiling_src"),
-                 _gz.limit_source.upper() if _gz.limit_source else t("settings.kv.process_fallback"), "")
+                 (t("settings.kv.material_src", fid=_gz.limit_source.split("#")[-1])
+                  if _gz.limit_source.startswith("matière")
+                  else t("settings.kv.process_fallback")), "")
         + hmi_kv(t("settings.kv.t_real"), f"{_gz.t_est_C:.0f}", "°C", _lim_c)
         + hmi_kv(t("settings.kv.dt_dissip"), f"+{_gz.dT_C:.0f}", "°C")
         + hmi_kv(t("settings.kv.instability"), f"{cooling_model.instability_index:.2f}", "",
@@ -410,7 +414,7 @@ with col_left:
                  else (WARN if cooling_model.instability_index < 0.7 else CRIT))
         + hmi_kv(t("settings.kv.torque"), f"{cooling_model.torque_load * 100:.0f}", "%",
                  ACC if cooling_model.torque_load < 0.85 else CRIT)
-        + hmi_kv(t("settings.kv.model"), "T=Tset+SME/Cp+kτ + profil vis", "")
+        + hmi_kv(t("settings.kv.model"), t("settings.kv.model_formula"), "")
         + '</div>'
     )
 
@@ -533,7 +537,7 @@ with col_left:
     # n'est jamais muté ici, il sert seulement à connaître l'état actif courant
     # (disabled). Les clés partagées sont projetées en fin de page.
     _mat_keys = list(MATERIAL_TYPES.keys())
-    _mat_labels = {k: MATERIAL_TYPES[k].label_fr for k in _mat_keys}
+    _mat_labels = {k: MATERIAL_TYPES[k].label_i18n(current_lang()) for k in _mat_keys}
     for f in state.feeders:
         fid = f.feeder_id
         _enabled = bool(st.session_state[f"fd_en_{fid}"])
@@ -636,7 +640,7 @@ with col_left:
             if not f.enabled:
                 continue
             fid = f.feeder_id
-            st.markdown(f"**Feeder #{fid} — {f.display_name()}**")
+            st.markdown(f"**Feeder #{fid} — {f.display_name(current_lang())}**")
             p1, p2, p3, p4, p5, p6 = st.columns(6)
             # Widgets key-only : pilotés par session_state, jamais par `value=`.
             # `f` (issu de build_state_from_widgets) reflète déjà ces clés et
@@ -685,7 +689,8 @@ with col_left:
             elif f.tga_onset_C and f.tga_onset_C > 0:
                 _tmax_src = t("settings.mat.tmax_src_tga")
             else:
-                _tmax_src = t("settings.mat.tmax_src_family", label=f.material.label_fr)
+                _tmax_src = t("settings.mat.tmax_src_family",
+                              label=f.material.label_i18n(current_lang()))
             st.caption(t("settings.mat.tmax_eff",
                          tmax=f"{_tmax_eff:.0f}",
                          src=_tmax_src,
@@ -745,7 +750,7 @@ st.html(
     + hmi_kv("SME", f"{k.sme_kwh_per_kg:.2f}", "kWh/kg",
              ACC if k.sme_kwh_per_kg < 0.30 else WARN)
     + hmi_kv(t("settings.kv.free_vol"), f"{k.free_volume_cm3:.1f}", "cm³")
-    + hmi_kv(t("settings.kv.elements"), f"{k.n_elements:.0f}", "")
+    + hmi_kv(t("settings.kv.elements"), f"{_count_total(state.screw_config):.0f}", "")
     + hmi_kv(t("settings.kv.archetype"), k.profile_archetype or "—", "")
     + hmi_kv(t("settings.kv.alerts"), f"{len(report.alerts)}", "",
              ACC if not report.alerts else (WARN if len(report.alerts) < 3 else CRIT))
@@ -993,11 +998,12 @@ with st.expander(t("settings.expander.svm"), expanded=False):
         c3.metric(t("settings.svm.threshold"), "80 / 100")
         c4.metric("AUC-ROC (test)", f"{svm_test.get('roc_auc', 0):.3f}")
         c5.metric("F1 macro (test)", f"{svm_test.get('f1_macro', 0):.3f}")
-        st.caption(
-            f"Train : {metrics.get('n_train', 0)} fenêtres ({metrics.get('n_runs_train', 0)} runs) · "
-            f"Test : {metrics.get('n_test', 0)} fenêtres ({metrics.get('n_runs_test', 0)} runs) · "
-            f"Split : {metrics.get('split_method', 'N/A')}"
-        )
+        st.caption(t(
+            "settings.svm.split_caption",
+            ntr=metrics.get("n_train", 0), rtr=metrics.get("n_runs_train", 0),
+            nte=metrics.get("n_test", 0), rte=metrics.get("n_runs_test", 0),
+            split=metrics.get("split_method", "N/A"),
+        ))
         rows = []
         for m in metrics.get("cv", []):
             name = m["model"]
@@ -1049,10 +1055,8 @@ with st.expander(t("settings.expander.svm"), expanded=False):
                     class_weight='balanced',
                     probability=True, random_state=42)),
 ])
-
-Fenêtre : 60 s · Pas : 30 s · Features : 87
-Split entraînement : GroupShuffleSplit(run_id)
-Cible métier : détection instabilité thermique procédé SSB""",
+"""
+        + t("settings.svm.pipeline_footer"),
         language="python",
     )
 

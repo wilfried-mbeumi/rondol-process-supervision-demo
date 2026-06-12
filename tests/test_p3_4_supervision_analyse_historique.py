@@ -25,14 +25,14 @@ PAGES = {
     "/": APP / "Supervision.py",
     "/Profile": APP / "pages" / "1_Profile.py",
     "/Settings": APP / "pages" / "2_Settings.py",
-    "/Analyse_run": APP / "pages" / "3_Analyse_run.py",
-    "/Historique": APP / "pages" / "4_Historique.py",
-    "/Moteur_Procede": APP / "pages" / "5_Moteur_Procede.py",
+    "/Analyse_run": APP / "pages" / "3_Run_Analysis.py",
+    "/Historique": APP / "pages" / "4_History.py",
+    "/Moteur_Procede": APP / "pages" / "5_Process_Engine.py",
 }
 
 SUP = APP / "Supervision.py"
-ANALYSE = APP / "pages" / "3_Analyse_run.py"
-HISTO = APP / "pages" / "4_Historique.py"
+ANALYSE = APP / "pages" / "3_Run_Analysis.py"
+HISTO = APP / "pages" / "4_History.py"
 
 
 def _op_session(**extra):

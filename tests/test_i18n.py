@@ -124,7 +124,7 @@ _PAGES = {
     "home": str(ROOT / "app" / "Supervision.py"),
     "profile": str(ROOT / "app" / "pages" / "1_Profile.py"),
     "settings": str(ROOT / "app" / "pages" / "2_Settings.py"),
-    "analyse": str(ROOT / "app" / "pages" / "3_Analyse_run.py"),
+    "analyse": str(ROOT / "app" / "pages" / "3_Run_Analysis.py"),
 }
 
 

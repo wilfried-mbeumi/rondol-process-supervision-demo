@@ -153,7 +153,7 @@ except Exception:  # pragma: no cover
     _HAS = False
 
 SETTINGS = str(APP / "pages" / "2_Settings.py")
-MOTEUR = str(APP / "pages" / "5_Moteur_Procede.py")
+MOTEUR = str(APP / "pages" / "5_Process_Engine.py")
 SUP = str(APP / "Supervision.py")
 
 

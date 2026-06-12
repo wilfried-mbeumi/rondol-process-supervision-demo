@@ -43,6 +43,11 @@ class MaterialType:
     typical_thermal_alpha: float
     safe_temperature_C: tuple[float, float]
     allowed_positions: tuple[str, ...]
+    label_en: str = ""  # libellé EN (i18n) — vide ⇒ retombe sur label_fr
+
+    def label_i18n(self, lang: str = "fr") -> str:
+        """Libellé matière selon la langue UI (texte uniquement, zéro logique)."""
+        return (self.label_en or self.label_fr) if lang == "en" else self.label_fr
 
 
 # Valeurs typiques industrie compounding (compactes mais réalistes).
@@ -52,7 +57,7 @@ class MaterialType:
 # au-delà de 100-120 °C en présence d'humidité ou de solvants résiduels.
 MATERIAL_TYPES: dict[str, MaterialType] = {
     "granules": MaterialType(
-        id="granules", label_fr="Granulés",
+        id="granules", label_fr="Granulés", label_en="Granules",
         phase="solid", typical_density_range=(0.50, 0.95),
         feeder_tech="gravimetric loss-in-weight",
         typical_thermal_alpha=7.0e-5,
@@ -60,7 +65,7 @@ MATERIAL_TYPES: dict[str, MaterialType] = {
         allowed_positions=("Z0",),
     ),
     "powder": MaterialType(
-        id="powder", label_fr="Poudres",
+        id="powder", label_fr="Poudres", label_en="Powders",
         phase="solid", typical_density_range=(0.15, 1.20),
         feeder_tech="twin-screw loss-in-weight",
         typical_thermal_alpha=5.0e-5,
@@ -70,7 +75,7 @@ MATERIAL_TYPES: dict[str, MaterialType] = {
         allowed_positions=("Z0", "Z2", "Z3", "Z4"),
     ),
     "liquid": MaterialType(
-        id="liquid", label_fr="Liquide",
+        id="liquid", label_fr="Liquide", label_en="Liquid",
         phase="liquid", typical_density_range=(0.70, 1.50),
         feeder_tech="piston / gear pump",
         typical_thermal_alpha=8.0e-4,
@@ -80,7 +85,7 @@ MATERIAL_TYPES: dict[str, MaterialType] = {
         allowed_positions=("Z3", "Z4", "Z5", "Z6"),
     ),
     "semi_liquid": MaterialType(
-        id="semi_liquid", label_fr="Semi-liquide",
+        id="semi_liquid", label_fr="Semi-liquide", label_en="Semi-liquid",
         phase="liquid", typical_density_range=(0.90, 1.40),
         feeder_tech="positive-displacement pump",
         typical_thermal_alpha=6.0e-4,
@@ -88,7 +93,7 @@ MATERIAL_TYPES: dict[str, MaterialType] = {
         allowed_positions=("Z2", "Z3", "Z4", "Z5"),
     ),
     "gas": MaterialType(
-        id="gas", label_fr="Gaz",
+        id="gas", label_fr="Gaz", label_en="Gas",
         phase="gas", typical_density_range=(0.0010, 0.0050),
         feeder_tech="mass-flow controller",
         typical_thermal_alpha=3.4e-3,
@@ -97,7 +102,7 @@ MATERIAL_TYPES: dict[str, MaterialType] = {
         allowed_positions=("Z4", "Z5", "Z6"),
     ),
     "supercritical": MaterialType(
-        id="supercritical", label_fr="Supercritique (scCO₂)",
+        id="supercritical", label_fr="Supercritique (scCO₂)", label_en="Supercritical (scCO₂)",
         phase="supercritical", typical_density_range=(0.20, 0.95),
         feeder_tech="high-pressure metering pump",
         typical_thermal_alpha=2.0e-3,
@@ -187,9 +192,9 @@ class FeederSpec:
     def is_fluid(self) -> bool:
         return self.phase in ("liquid", "gas", "supercritical")
 
-    def display_name(self) -> str:
+    def display_name(self, lang: str = "fr") -> str:
         base = self.label.strip() or f"Feeder #{self.feeder_id}"
-        return f"{base} · {self.material.label_fr}"
+        return f"{base} · {self.material.label_i18n(lang)}"
 
     # --------- Bornes thermiques effectives (rules + cooling) ---------
     def effective_t_max_C(self) -> float:

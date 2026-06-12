@@ -78,7 +78,7 @@ except Exception:  # pragma: no cover
     _HAS = False
 
 PROFILE = str(APP / "pages" / "1_Profile.py")
-MOTEUR = str(APP / "pages" / "5_Moteur_Procede.py")
+MOTEUR = str(APP / "pages" / "5_Process_Engine.py")
 SETTINGS = str(APP / "pages" / "2_Settings.py")
 
 

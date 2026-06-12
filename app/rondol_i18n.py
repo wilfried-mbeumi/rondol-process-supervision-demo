@@ -197,6 +197,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "fr": "Valide le profil de vis dans le snapshot opérateur (visible par Supervision et l'Agent IA).",
         "en": "Commits the screw profile to the operator snapshot (visible to Supervision and the AI Agent)."},
     "profile.toast.saved": {"fr": "Profil de vis enregistré ✓", "en": "Screw profile saved ✓"},
+    "profile.save.error": {"fr": "Échec de l'enregistrement du profil : {err}",
+                           "en": "Profile save failed: {err}"},
     "profile.sidebar.freevol": {"fr": "Volume libre total : 76,18 cm³",
                                 "en": "Total free volume: 76.18 cm³"},
     "profile.sidebar.layout": {"fr": "81 positions · 9 zones · Main feeder @ pos 4",
@@ -228,18 +230,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
               "paramètres procédé courants ({rpm} rpm · {feed} g/min · ρ = {dens} g/cm³).",
         "en": "Computed in real time from the screw configuration and current process "
               "parameters ({rpm} rpm · {feed} g/min · ρ = {dens} g/cm³)."},
-    "profile.kpi.added": {"fr": "Éléments ajoutés", "en": "Elements added"},
+    "profile.kpi.added": {"fr": "Éléments de vis", "en": "Screw elements"},
     "profile.kpi.added_help": {
-        "fr": "Nombre d'éléments placés sur la vis (tip exclu). 1 élément entier = 1 unité ; "
-              "1 demi-convoyage = 0,5 unité. Capacité max : 39 unités.",
-        "en": "Number of elements placed on the screw (tip excluded). 1 full element = 1 unit; "
-              "1 half conveying = 0.5 unit. Max capacity: 39 units."},
+        "fr": "Nombre d'éléments montés sur la vis, tip+décharge inclus. 1 élément entier = 1 unité ; "
+              "1 demi-convoyage = 0,5 unité. Capacité totale : 40 unités (39 utilisateur + tip).",
+        "en": "Number of elements mounted on the screw, tip+discharge included. 1 full element = 1 unit; "
+              "1 half conveying = 0.5 unit. Total capacity: 40 units (39 user + tip)."},
     "profile.kpi.slots": {"fr": "Slots restants", "en": "Remaining slots"},
     "profile.kpi.slots_help": {
-        "fr": "Capacité utilisateur restante avant saturation (39 − ajoutés). "
-              "Devient 0 quand la vis est complète.",
-        "en": "Remaining user capacity before saturation (39 − added). "
-              "Reaches 0 when the screw is full."},
+        "fr": "Capacité utilisateur restante avant saturation (le tip est déjà monté). "
+              "Devient 0 quand la vis est complète (40/40).",
+        "en": "Remaining user capacity before saturation (the tip is already mounted). "
+              "Reaches 0 when the screw is full (40/40)."},
     "profile.kpi.vol_used": {"fr": "Volume occupé / vis", "en": "Occupied volume / screw"},
     "profile.cap.volumes": {
         "fr": "Volume occupé / vis : {per} cm³ · Volume occupé total (2 vis) : {total} cm³ "
@@ -364,6 +366,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "settings.kv.elements": {"fr": "ÉLÉMENTS", "en": "ELEMENTS"},
     "settings.kv.archetype": {"fr": "ARCHÉTYPE", "en": "ARCHETYPE"},
     "settings.kv.process_fallback": {"fr": "PROCÉDÉ", "en": "PROCESS"},
+    "settings.kv.material_src": {"fr": "MATIÈRE #{fid}", "en": "MATERIAL #{fid}"},
+    "settings.kv.model_formula": {"fr": "T=Tset+SME/Cp+kτ + profil vis",
+                                  "en": "T=Tset+SME/Cp+kτ + screw profile"},
+    "settings.svm.pipeline_footer": {
+        "fr": "\nFenêtre : 60 s · Pas : 30 s · Features : 87\n"
+              "Split entraînement : GroupShuffleSplit(run_id)\n"
+              "Cible métier : détection instabilité thermique procédé SSB",
+        "en": "\nWindow: 60 s · Step: 30 s · Features: 87\n"
+              "Training split: GroupShuffleSplit(run_id)\n"
+              "Business target: SSB process thermal instability detection"},
+    "settings.svm.split_caption": {
+        "fr": "Train : {ntr} fenêtres ({rtr} runs) · Test : {nte} fenêtres ({rte} runs) · Split : {split}",
+        "en": "Train: {ntr} windows ({rtr} runs) · Test: {nte} windows ({rte} runs) · Split: {split}"},
     "settings.kv.alerts": {"fr": "ALERTES", "en": "ALERTS"},
     "settings.kv.score": {"fr": "SCORE IA", "en": "AI SCORE"},
     "settings.kv.state": {"fr": "ÉTAT", "en": "STATE"},
@@ -1193,7 +1208,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
               "démo » dans la barre latérale pour démarrer l'analyse.",
         "en": "Add elements with +1 / +4, or click “Demo configuration” in "
               "the sidebar to start the analysis."},
-    "sr.empty.rec_evidence": {"fr": "0 / 39 éléments", "en": "0 / 39 elements"},
+    "sr.empty.rec_evidence": {"fr": "0 élément utilisateur / 40 au total (tip inclus)",
+                              "en": "0 user elements / 40 total (tip incl.)"},
+    "sr.flow.inlet": {"fr": "Entrée matière", "en": "Material inlet"},
     "sr.empty.count_summary": {"fr": "Aucun élément placé", "en": "No element placed"},
     "sr.empty.count_reasoning": {
         "fr": "Aucun élément placé après le feeder : pas de signal métier "
@@ -1673,7 +1690,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
               "elements (conveying + 2-4 kneading) before any pilot trial. "
               "At {rpm} rpm × {feed} g/min, such a short screw has no "
               "usable residence time."},
-    "sr.rec.underdense.evidence": {"fr": "{n} / 39 éléments", "en": "{n} / 39 elements"},
+    "sr.rec.underdense.evidence": {"fr": "{n} / 40 éléments (tip inclus)",
+                                   "en": "{n} / 40 elements (tip incl.)"},
     "sr.rec.no_conv.title": {"fr": "Transport sous-dimensionné", "en": "Under-sized transport"},
     "sr.rec.no_conv.physics": {
         "fr": "Matière non acheminée jusqu'au tip → bouchage probable",

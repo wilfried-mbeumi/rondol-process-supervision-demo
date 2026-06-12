@@ -33,7 +33,7 @@ except Exception:  # pragma: no cover
 
 PROFILE = str(APP / "pages" / "1_Profile.py")
 SETTINGS = str(APP / "pages" / "2_Settings.py")
-MOTEUR = str(APP / "pages" / "5_Moteur_Procede.py")
+MOTEUR = str(APP / "pages" / "5_Process_Engine.py")
 
 
 def _ss(at: "AppTest", key: str, default=None):

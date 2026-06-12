@@ -33,9 +33,9 @@ PAGES = {
     "supervision": ROOT / "app" / "Supervision.py",
     "profile":     ROOT / "app" / "pages" / "1_Profile.py",
     "settings":    ROOT / "app" / "pages" / "2_Settings.py",
-    "analyse":     ROOT / "app" / "pages" / "3_Analyse_run.py",
-    "historique":  ROOT / "app" / "pages" / "4_Historique.py",
-    "moteur":      ROOT / "app" / "pages" / "5_Moteur_Procede.py",
+    "analyse":     ROOT / "app" / "pages" / "3_Run_Analysis.py",
+    "historique":  ROOT / "app" / "pages" / "4_History.py",
+    "moteur":      ROOT / "app" / "pages" / "5_Process_Engine.py",
 }
 
 
