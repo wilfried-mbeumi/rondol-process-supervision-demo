@@ -85,6 +85,9 @@ from run_state_adapter import sync_legacy_projection  # noqa: E402
 from feeder_ui import render_multi_feeder_calibration  # noqa: E402
 # Store opérateur central persistant (survie navigation / langue / refresh).
 from operator_store import capture_operator_state, restore_operator_state  # noqa: E402
+# Couche de persistance DURABLE du snapshot validé (Supabase / store externe /
+# fallback JSON local) — avertissement explicite si seul le fallback est actif.
+from persistence import backend_name as persist_backend, is_durable as persist_is_durable  # noqa: E402
 
 # i18n — sélecteur de langue + traduction du chrome (B1).
 from rondol_i18n import current_lang, language_selector, t  # noqa: E402
@@ -256,6 +259,14 @@ st.html(
 # Settings édite librement, Supervision lit le snapshot validé (jamais
 # écrasé tant que l'opérateur n'a pas cliqué « Enregistrer »).
 #
+# Transparence persistance (exigence manager P0) : si aucun backend durable
+# n'est configuré, le dire explicitement — on ne prétend pas que le fallback
+# JSON local (disque éphémère Streamlit Cloud) est production-ready.
+if persist_is_durable():
+    st.caption(t("persist.backend", backend=persist_backend()))
+else:
+    st.warning(t("persist.warning"), icon="⚠️")
+
 _save_col, _label_col, _info_col = st.columns([1.2, 2.2, 4.5])
 with _save_col:
     if st.button(

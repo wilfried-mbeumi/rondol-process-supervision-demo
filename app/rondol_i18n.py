@@ -369,6 +369,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "settings.kv.material_src": {"fr": "MATIÈRE #{fid}", "en": "MATERIAL #{fid}"},
     "settings.kv.model_formula": {"fr": "T=Tset+SME/Cp+kτ + profil vis",
                                   "en": "T=Tset+SME/Cp+kτ + screw profile"},
+    "persist.warning": {
+        "fr": "⚠️ Stockage persistant non configuré — les données sauvegardées "
+              "peuvent être perdues après un redémarrage/redéploiement du serveur. "
+              "Configurez les identifiants Supabase dans les secrets Streamlit "
+              "pour activer la persistance durable.",
+        "en": "⚠️ Persistent storage not configured — saved data may be lost "
+              "after a server reboot/redeploy. Configure Supabase credentials "
+              "in Streamlit secrets to enable durable storage."},
+    "persist.backend": {
+        "fr": "Persistance durable active : {backend}",
+        "en": "Durable persistence active: {backend}"},
     "settings.svm.pipeline_footer": {
         "fr": "\nFenêtre : 60 s · Pas : 30 s · Features : 87\n"
               "Split entraînement : GroupShuffleSplit(run_id)\n"

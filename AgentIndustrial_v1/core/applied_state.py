@@ -104,8 +104,35 @@ def snapshot_from_dict(d: Mapping[str, Any]) -> AppliedSnapshot:
     )
 
 
+def _persistence_module():
+    """Couche de persistance DURABLE `app/persistence.py` (import paresseux).
+
+    P0 manager 2026-06-12 : le JSON local est ÉPHÉMÈRE sur Streamlit Cloud
+    (reboot/redeploy = perte). app/persistence.py route vers un backend durable
+    (Supabase via secrets, ou store externe via env) avec le JSON local en
+    fallback dev. Import paresseux + best-effort : si le module app n'est pas
+    sur sys.path (tests core isolés), on retombe sur le miroir local historique.
+    """
+    try:
+        import persistence  # type: ignore  # app/ est bootstrapé dans sys.path
+        return persistence
+    except Exception:  # pragma: no cover - environnement core isolé
+        return None
+
+
 def _disk_save_applied(snap: AppliedSnapshot) -> None:
-    """Sauvegarde best-effort du snapshot validé (ne lève jamais)."""
+    """Sauvegarde best-effort du snapshot validé (ne lève jamais).
+
+    Délègue à la couche durable `app/persistence.py` (Supabase / store externe
+    / JSON local). Fallback : écriture JSON locale historique.
+    """
+    pm = _persistence_module()
+    if pm is not None:
+        try:
+            pm.save_applied_state(snapshot_to_dict(snap))
+            return
+        except Exception:  # pragma: no cover
+            pass
     try:
         p = _applied_disk_path()
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -118,8 +145,18 @@ def _disk_save_applied(snap: AppliedSnapshot) -> None:
 
 
 def _disk_load_applied() -> AppliedSnapshot | None:
-    """Charge le dernier snapshot validé depuis le miroir disque (None si absent
-    ou illisible — jamais d'exception)."""
+    """Charge le dernier snapshot validé depuis la persistance (None si absent
+    ou illisible — jamais d'exception). Backend durable d'abord, JSON local
+    en fallback (via app/persistence.py)."""
+    pm = _persistence_module()
+    if pm is not None:
+        try:
+            data = pm.load_applied_state()
+            if isinstance(data, dict) and data.get("screw_config") is not None:
+                return snapshot_from_dict(data)
+            return None
+        except Exception:  # pragma: no cover
+            pass
     try:
         p = _applied_disk_path()
         if not p.exists():

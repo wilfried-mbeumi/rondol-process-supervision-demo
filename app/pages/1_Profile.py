@@ -1185,6 +1185,14 @@ st.caption(t("profile.cap.residence", rpm=f"{rpm:.0f}", feed=f"{feed:.1f}",
 # all other pages. The commit preserves all Settings data (feeders, zone temps,
 # RPM) — only screw_config is updated from the live session.
 st.divider()
+# Transparence persistance : avertissement explicite si seul le fallback JSON
+# local (disque éphémère en cloud) est disponible.
+try:
+    from persistence import is_durable as _persist_is_durable  # noqa: PLC0415
+    if not _persist_is_durable():
+        st.warning(t("persist.warning"), icon="⚠️")
+except Exception:  # noqa: BLE001
+    pass
 if st.button(
     t("profile.btn.save"),
     type="primary", use_container_width=False, key="btn_profile_save",
