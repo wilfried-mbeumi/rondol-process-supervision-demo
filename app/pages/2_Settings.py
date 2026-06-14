@@ -459,7 +459,7 @@ with col_left:
         dot = _STATUS_DOT[zt.status]
         _grad = _seq[_i] - _seq[_i - 1] if _i > 0 else 0.0
         _gcol = CRIT if _grad > 70 else (WARN if _grad > 45 else SUB)
-        _gtxt = f"Δ{_grad:+.0f}" if _i > 0 else "entrée"
+        _gtxt = f"Δ{_grad:+.0f}" if _i > 0 else t("settings.thermal.inlet")
         with _c:
             # Manager 2026-06-09 : ces valeurs sont des estimations théoriques
             # avant compensation cooling, PAS des températures mesurées capteur.

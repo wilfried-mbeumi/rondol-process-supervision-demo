@@ -255,7 +255,10 @@ def _rule_powder_overload(state: ProcessState) -> list[Alert]:
                 f"Solid load at {load_pct * 100:.0f} % of estimated capacity. "
                 f"Reduced margin against flow fluctuations.",
             ),
-            evidence=f"charge={load_pct * 100:.0f} % de capacité",
+            evidence=_b(
+                f"charge={load_pct * 100:.0f} % de capacité",
+                f"load={load_pct * 100:.0f} % of capacity",
+            ),
             target=_b("Global feeders", "Global feeders"),
         ))
     return out
@@ -290,7 +293,10 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
                 f"FF={_fmt_pct(ff)} > 65 % — screw operating in flood-fed regime. "
                 f"Over-torque, heating and pressure pulsations expected.",
             ),
-            evidence=f"FF={_fmt_pct(ff)} · cible {FF_TARGET_LOW*100:.0f}-{FF_TARGET_HIGH*100:.0f} %",
+            evidence=_b(
+                f"FF={_fmt_pct(ff)} · cible {FF_TARGET_LOW*100:.0f}-{FF_TARGET_HIGH*100:.0f} %",
+                f"FF={_fmt_pct(ff)} · target {FF_TARGET_LOW*100:.0f}-{FF_TARGET_HIGH*100:.0f} %",
+            ),
             target=_b("Global vis", "Global screw"),
         ))
     elif ff > FF_TARGET_HIGH:
@@ -366,9 +372,11 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
                 f"({SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg). Excessive "
                 f"thermomechanical stress on the processed material.",
             ),
-            evidence=(
+            evidence=_b(
                 f"SME={sme:.2f} kWh/kg · seuil critique configuré="
-                f"{SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg · source=KPIs vis (état appliqué)"
+                f"{SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg · source=KPIs vis (état appliqué)",
+                f"SME={sme:.2f} kWh/kg · configured critical threshold="
+                f"{SME_CRITICAL_KWH_PER_KG:.2f} kWh/kg · source=screw KPIs (applied state)",
             ),
             target=_b("Global vis", "Global screw"),
         )]
@@ -387,9 +395,11 @@ def _rule_sme(state: ProcessState) -> list[Alert]:
                 f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg. Monitor thermal stability "
                 f"and output dispersion.",
             ),
-            evidence=(
+            evidence=_b(
                 f"SME={sme:.2f} kWh/kg · seuil vigilance="
-                f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg · source=KPIs vis (état appliqué)"
+                f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg · source=KPIs vis (état appliqué)",
+                f"SME={sme:.2f} kWh/kg · watch threshold="
+                f"{SME_WARNING_KWH_PER_KG:.2f} kWh/kg · source=screw KPIs (applied state)",
             ),
             target=_b("Global vis", "Global screw"),
         )]
@@ -579,7 +589,7 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                 f"High torque ⇒ increased thermal dissipation throughout the "
                 f"barrel and risk of motor safety trip.",
             ),
-            evidence=f"torque={m.torque_load * 100:.0f} % ({src_fr})",
+            evidence=f"torque={m.torque_load * 100:.0f} % ({_b(src_fr, src_en)})",
             target=_b("Global vis", "Global screw"),
         ))
 
@@ -602,7 +612,10 @@ def _rule_cooling(state: ProcessState) -> list[Alert]:
                 f"Non-repeatable process: pressure pulsations "
                 f"and thermal drift expected.",
             ),
-            evidence=f"idx_instab={m.instability_index:.2f} · zone chaude={m.hottest_zone}",
+            evidence=_b(
+                f"idx_instab={m.instability_index:.2f} · zone chaude={m.hottest_zone}",
+                f"idx_instab={m.instability_index:.2f} · hot zone={m.hottest_zone}",
+            ),
             target=_b("Global procédé", "Global process"),
         ))
     elif m.instability_index >= 0.50:

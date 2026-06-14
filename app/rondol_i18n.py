@@ -452,6 +452,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     },
     # Phase 5 — températures rouges : « estimé » au lieu de « réel ».
     "settings.t_estimated_short": {"fr": "estimé", "en": "estimated"},
+    "settings.thermal.inlet": {"fr": "entrée", "en": "inlet"},
     "settings.t_estimated_tooltip": {
         "fr": "Température théorique estimée avant compensation cooling machine. "
               "Ce n'est PAS une mesure capteur.",
@@ -610,6 +611,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "fr": "éléments recommandés", "en": "recommended elements",
     },
     "profile.reco.do_now": {"fr": "À FAIRE MAINTENANT", "en": "DO NOW"},
+    "profile.band.reading": {"fr": "LECTURE PROFIL", "en": "PROFILE READING"},
+    "profile.reco.section.main": {"fr": "Action principale", "en": "Main action"},
+    "profile.reco.section.secondary": {"fr": "Actions secondaires", "en": "Secondary actions"},
+    "profile.reco.section.option": {"fr": "Option", "en": "Option"},
+    "profile.reco.adjust": {"fr": "Si vous voulez ajuster", "en": "If you want to adjust"},
     "profile.reco.confidence": {"fr": "Confiance", "en": "Confidence"},
     "profile.reco.why_choice": {"fr": "Pourquoi ce choix", "en": "Why this choice"},
     "profile.reco.why_optimal": {
@@ -2457,6 +2463,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "sr.why.intro_config": {
         "fr": "Configuration {n} éléments",
         "en": "{n}-element configuration"},
+    "sr.why.intro": {
+        "fr": "Profil {a} × {r}",
+        "en": "Profile {a} × {r}"},
 
     # _build_why_enriched — French elision helper prefix
     "sr.enrich.prefix_de": {"fr": "de ", "en": "of "},

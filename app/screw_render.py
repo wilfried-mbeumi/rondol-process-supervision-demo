@@ -2382,7 +2382,7 @@ def recommend_element_count(
     # Construction en 3 phrases : (1) lecture du profil, (2) implication régime,
     # (3) conclusion sur la longueur retenue.
     intro = (
-        f"Profil {archetype_short} × {regime_short}"
+        _t("sr.why.intro", a=archetype_short, r=regime_short)
         if archetype_short != "—" else
         _t("sr.why.intro_config", n=n_filled)
     )

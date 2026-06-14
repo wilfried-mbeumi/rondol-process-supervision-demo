@@ -781,7 +781,7 @@ st.html(
     f'border-radius:0.25rem;padding:0.7rem 0.95rem;margin-bottom:0.6rem;">'
     f'<div style="display:flex;gap:0.5rem;align-items:baseline;flex-wrap:wrap;">'
     f'<span style="color:{_pacc};font-weight:700;font-size:0.7rem;'
-    f'letter-spacing:0.06em;">LECTURE PROFIL</span>'
+    f'letter-spacing:0.06em;">{t("profile.band.reading")}</span>'
     f'<span style="color:{_pfg};font-weight:600;font-size:1rem;">'
     f'{profile_reading.archetype}</span>'
     f'<span style="color:#9CA3AF;font-size:0.78rem;">·</span>'
@@ -1068,11 +1068,11 @@ def _build_count_rec_html(cr, why_optimal_override: str = "") -> str:
     actions_block = ""
     if any(grouped.values()):
         sections_html = (
-            _render_section("Action principale", grouped["main"], "#10B981")
+            _render_section(t("profile.reco.section.main"), grouped["main"], "#10B981")
             + _render_section(
-                "Actions secondaires", grouped["secondary"], "#3B82F6"
+                t("profile.reco.section.secondary"), grouped["secondary"], "#3B82F6"
             )
-            + _render_section("Option", grouped["option"], "#9CA3AF")
+            + _render_section(t("profile.reco.section.option"), grouped["option"], "#9CA3AF")
         )
         actions_block = (
             f'<div style="background:rgba(16,185,129,0.04);'
@@ -1100,7 +1100,7 @@ def _build_count_rec_html(cr, why_optimal_override: str = "") -> str:
     alts_block = (
         f'<div style="border-top:1px solid #1F2937;padding-top:0.55rem;">'
         f'<div style="color:#9CA3AF;font-size:0.78rem;font-weight:600;'
-        f'margin-bottom:0.25rem;">Si vous voulez ajuster</div>'
+        f'margin-bottom:0.25rem;">{t("profile.reco.adjust")}</div>'
         f'{alt_rows}'
         f'</div>'
     )
