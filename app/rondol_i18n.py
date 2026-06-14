@@ -242,6 +242,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
               "1 demi-convoyage = 0,5 unité. Capacité totale : 40 unités (39 utilisateur + tip).",
         "en": "Number of elements mounted on the screw, tip+discharge included. 1 full element = 1 unit; "
               "1 half conveying = 0.5 unit. Total capacity: 40 units (39 user + tip)."},
+    "profile.cap.capacity_tip": {
+        "fr": "Capacité totale {total}/{total} = {user} éléments éditables + 1 tip verrouillé (fin de vis).",
+        "en": "Total capacity {total}/{total} = {user} editable elements + 1 locked tip (screw end)."},
     "profile.kpi.slots": {"fr": "Slots restants", "en": "Remaining slots"},
     "profile.kpi.slots_help": {
         "fr": "Capacité utilisateur restante avant saturation (le tip est déjà monté). "
@@ -354,6 +357,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "settings.status.uptodate": {"fr": "À JOUR — Supervision synchronisée",
                                  "en": "UP TO DATE — Supervision synced"},
     "settings.status.no_label": {"fr": "(sans libellé)", "en": "(no label)"},
+    "settings.state_repaired": {
+        "fr": "État sauvegardé réparé et resynchronisé (Supabase) — aucune action requise.",
+        "en": "Saved state repaired and synchronized (Supabase) — no action needed."},
     "settings.status.meta": {"fr": "Dernier enreg. : {iso} {label} · historique : {n} snapshot(s)",
                              "en": "Last save: {iso} {label} · history: {n} snapshot(s)"},
     # Libellés HMI (francisés en FR — Décision 2 ; variables/unités inchangées)
@@ -502,6 +508,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "fr": "Aucune configuration enregistrée",
         "en": "No saved configuration",
     },
+    "home.active_operator_state.tag": {
+        "fr": "ÉTAT OPÉRATEUR ACTIF", "en": "ACTIVE OPERATOR STATE"},
+    "home.active_operator_state.meta": {
+        "fr": "— source : {src} — enregistré {iso}",
+        "en": "— source: {src} — saved {iso}"},
+    "home.state_repaired": {
+        "fr": "État sauvegardé réparé et resynchronisé automatiquement.",
+        "en": "Saved state repaired and synchronized automatically."},
+    "home.sidebar.ml_section": {
+        "fr": "Dataset ML de référence", "en": "ML reference dataset"},
     # Phase 11 — Historique : sections composition matière par feeder + zones.
     "historique.comp_title": {
         "fr": "Composition matière par feeder (figée au commit)",

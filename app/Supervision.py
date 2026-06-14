@@ -258,6 +258,12 @@ with st.sidebar:
     st.caption(t("common.extruder"))
     st.divider()
 
+    # Section CLAIREMENT étiquetée : dataset ML de référence (essais avril,
+    # modèle de dérive/stabilité) — PAS la configuration opérateur en service.
+    # L'état opérateur vivant = snapshot validé (bandeau ÉTAT OPÉRATEUR ACTIF en
+    # haut de page), source de vérité des KPIs procédé / recos agent.
+    st.markdown("##### " + t("home.sidebar.ml_section"))
+    st.caption(t("home.sidebar.run_is_ml_ref"))
     selected_run = st.selectbox(
         t("home.sidebar.run"),
         options=run_ids,
@@ -265,11 +271,6 @@ with st.sidebar:
         format_func=lambda r: f"Run #{r}",
         key="sb_run",
     )
-    # Clarté client 2026-06-14 : ce sélecteur est le run du DATASET ML (essais
-    # avril, modèle de dérive/stabilité) — PAS la configuration opérateur en
-    # service. L'état opérateur vivant est le snapshot validé (bandeau RUN en
-    # haut de page), source de vérité des KPIs procédé / recos agent.
-    st.caption(t("home.sidebar.run_is_ml_ref"))
     run_df    = good_runs[good_runs["run_id"] == selected_run].sort_values("window_end")
     n_windows = len(run_df)
 
@@ -344,11 +345,40 @@ st.html(
     f'</div>'
 )
 
-# ── Run label (state sync verification) ─────────────────────────────────────
-from AgentIndustrial_v1.core.applied_state import get_applied as _get_applied_banner  # noqa: E402,PLC0415
+# ── ÉTAT OPÉRATEUR ACTIF — source de vérité unique = snapshot Supabase réparé ─
+# Migration/réparation déterministe AVANT toute lecture de l'état opérateur : un
+# snapshot durable dégénéré (ancien build) est réparé + réécrit dans Supabase,
+# puis posé en session. Le bandeau ci-dessous rend VISUELLEMENT ÉVIDENT que
+# l'état actif est le snapshot opérateur sauvegardé (pas le run ML #46).
+from AgentIndustrial_v1.core.applied_state import (  # noqa: E402,PLC0415
+    get_applied as _get_applied_banner,
+    migrate_and_restore as _migrate_banner,
+    state_was_repaired as _state_repaired_banner,
+)
+_migrate_banner(st.session_state)
 _snap_banner = _get_applied_banner(st.session_state)
+try:
+    from persistence import backend_name as _persist_backend_name  # noqa: PLC0415
+    _src = {"supabase": "Supabase", "external-file": "durable store",
+            "local-json": "local (dev)"}.get(_persist_backend_name(), "durable store")
+except Exception:
+    _src = "durable store"
 if _snap_banner is not None and _snap_banner.label:
-    st.caption(t("home.run_label", label=_snap_banner.label, iso=_snap_banner.timestamp_iso))
+    st.html(
+        f'<div style="background:linear-gradient(90deg,#064e3b,#065f46);'
+        f'border:1px solid #10B981;border-left:4px solid #10B981;'
+        f'border-radius:0.3rem;padding:0.5rem 0.9rem;margin-bottom:0.5rem;'
+        f'display:flex;gap:0.6rem;align-items:baseline;flex-wrap:wrap;">'
+        f'<span style="color:#6EE7B7;font-weight:700;font-size:0.72rem;'
+        f'letter-spacing:0.06em;">{t("home.active_operator_state.tag")}</span>'
+        f'<span style="color:#F9FAFB;font-weight:700;font-size:0.95rem;">'
+        f'{_snap_banner.label}</span>'
+        f'<span style="color:#9CA3AF;font-size:0.78rem;">'
+        f'{t("home.active_operator_state.meta", src=_src, iso=_snap_banner.timestamp_iso)}'
+        f'</span></div>'
+    )
+    if _state_repaired_banner(st.session_state):
+        st.caption(t("home.state_repaired"))
 elif _snap_banner is not None:
     st.caption(t("home.run_label", label="—", iso=_snap_banner.timestamp_iso))
 else:

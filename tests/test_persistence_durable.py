@@ -148,7 +148,11 @@ def test_reboot_survival_full_e2e(_disk):
     s = AppTest.from_file(SUPERVISION, default_timeout=120)
     s.run()
     assert not s.exception
-    assert RUN_LABEL in "\n".join(str(c.value) for c in s.caption)
+    # Label opérateur désormais dans le bandeau ÉTAT OPÉRATEUR ACTIF (st.html).
+    _sup_text = "\n".join(str(c.value) for c in s.caption) + "\n" + "\n".join(
+        str(getattr(h, "body", getattr(h, "value", ""))) for h in s.get("html")
+    )
+    assert RUN_LABEL in _sup_text
 
     # 7. Process Engine : jamais « No process profile configured »
     m = AppTest.from_file(PROCESS_ENGINE, default_timeout=120)

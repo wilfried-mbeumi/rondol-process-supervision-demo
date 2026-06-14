@@ -190,12 +190,15 @@ def test_full_client_flow_survives_reboot():
     assert not p.exception, [str(e.value) for e in p.exception]
     assert _sl.count_user_elements(list(p.session_state["screw_config"])) == N_EL
 
-    # Step 23: fresh Supervision — operator state (label + RPM), not blank.
+    # Step 23: fresh Supervision — ACTIVE OPERATOR STATE banner (not Run #46).
     s = _new(SUPERVISION); s.run()
     assert not s.exception, [str(e.value) for e in s.exception]
     stext = _visible(s)
+    assert "ACTIVE OPERATOR STATE" in stext, "ACTIVE OPERATOR STATE banner missing"
     assert LABEL in stext, "operator label not shown on Supervision after reboot"
     assert "100" in stext, "operator RPM not used on Supervision after reboot"
+    # Run #46 must be framed as an ML reference, not the active operator state.
+    assert "ML reference dataset" in stext, "ML reference section not clearly labeled"
 
     # Step 24: fresh Process Engine — same saved state, not empty.
     e = _new(ENGINE); e.run()
@@ -233,9 +236,10 @@ def _write_degenerate_snapshot():
     Path(_DURABLE).write_text(json.dumps(snap), encoding="utf-8")
 
 
-def test_degenerate_snapshot_self_heals_without_crash():
-    """A degenerate/partial Supabase row must NOT crash Settings and must heal
-    non-physical density/thermal to sensible defaults (never 0.000 / 0.00)."""
+def test_degenerate_snapshot_migrated_written_back_and_healed():
+    """Test 1: a stale/degenerate durable row is MIGRATED, REPAIRED, WRITTEN
+    BACK to the durable store, and rendered healed across pages — with NO crash
+    and NO manual re-save."""
     _write_degenerate_snapshot()
     _reboot()  # ephemeral empty — only the degenerate durable row exists
 
@@ -250,6 +254,28 @@ def test_degenerate_snapshot_self_heals_without_crash():
     # feeder still ON, feeder bank padded (no missing fd_en_2..5).
     fd = _w(at, "checkbox", "fd_en_1") or _w(at, "toggle", "fd_en_1")
     assert fd.value is True
+    # The repair banner is shown (no manual action needed).
+    assert "repaired" in _visible(at).lower(), "repaired banner not shown in Settings"
+
+    # WRITE-BACK: the durable store itself now holds the REPAIRED snapshot.
+    back = json.loads(Path(_DURABLE).read_text(encoding="utf-8"))
+    assert len(back["feeders"]) == 5, "feeder bank not padded in durable store"
+    assert back["feeders"][0]["density_g_per_cm3"] == DENS, "density not written back"
+    assert back["zone_temps_C"]["Z1"] > 0.0, "thermal not written back"
+    assert back["label"] == LABEL, "label not preserved on write-back"
+
+    # Profile still shows the saved screw elements (Test 1 spec).
+    p = _new(PROFILE); p.run()
+    assert not p.exception, [str(ex.value) for ex in p.exception]
+    assert _sl.count_user_elements(list(p.session_state["screw_config"])) > 0
+
+    # Same repaired state across Supervision / Process Engine.
+    s = _new(SUPERVISION); s.run()
+    assert not s.exception, [str(e.value) for e in s.exception]
+    assert "ACTIVE OPERATOR STATE" in _visible(s) and LABEL in _visible(s)
+    e = _new(ENGINE); e.run()
+    assert not e.exception, [str(ex.value) for ex in e.exception]
+    assert "No process profile" not in _visible(e)
 
 
 def test_engine_reads_healed_degenerate_snapshot():

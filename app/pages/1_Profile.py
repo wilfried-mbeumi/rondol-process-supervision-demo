@@ -88,12 +88,17 @@ from AgentIndustrial_v1.core.applied_state import (  # noqa: E402
     commit as applied_commit,
     get_applied as applied_get,
     hydrate_session_from_applied,
+    migrate_and_restore,
 )
 from AgentIndustrial_v1.core.state_sync import state_from_session  # noqa: E402
 from AgentIndustrial_v1.core.screw_adapter import refresh_kpis  # noqa: E402
 
 st.set_page_config(page_title=t("page.profile.title"), layout="wide")
 
+# Migration/réparation déterministe AVANT tout widget : un snapshot durable
+# dégénéré (ancien build) est réparé + réécrit dans Supabase, puis posé en
+# session — le profil vis sauvegardé est toujours relu intact après refresh.
+migrate_and_restore(st.session_state)
 # PRIORITÉ SNAPSHOT : le profil vis sauvegardé (applied_state.json) hydrate la
 # session AVANT le store opérateur. Une édition vivante (screw_config présent
 # en session) n'est jamais écrasée — setdefault-only.
@@ -496,6 +501,9 @@ def _fmt_count(x: float) -> str:
 
 st.markdown("##### " + t("profile.sec.kpis"))
 st.caption(t("profile.cap.kpis", rpm=f"{rpm:.0f}", feed=f"{feed:.1f}", dens=f"{dens:.2f}"))
+# Clarté capacité (exigence client) : 40 = 39 éléments éditables + 1 tip verrouillé.
+st.caption(t("profile.cap.capacity_tip", total=_fmt_count(TOTAL_ELEMENT_CAPACITY),
+              user=_fmt_count(MAX_USER_ELEMENTS)))
 
 kcol1, kcol2, kcol3, kcol4, kcol5, kcol6 = st.columns(6)
 kcol1.metric(

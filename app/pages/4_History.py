@@ -58,7 +58,11 @@ from app_mode import is_demo_mode  # noqa: E402
 
 # PRIORITÉ SNAPSHOT : la session est hydratée depuis le snapshot validé AVANT
 # le store opérateur (setdefault-only) — toutes les pages lisent le même état.
-from AgentIndustrial_v1.core.applied_state import hydrate_session_from_applied  # noqa: E402
+from AgentIndustrial_v1.core.applied_state import (  # noqa: E402
+    hydrate_session_from_applied,
+    migrate_and_restore,
+)
+migrate_and_restore(st.session_state)
 hydrate_session_from_applied(st.session_state)
 restore_operator_state(st.session_state)
 

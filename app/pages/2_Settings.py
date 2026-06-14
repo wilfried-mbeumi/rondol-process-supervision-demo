@@ -69,6 +69,8 @@ from AgentIndustrial_v1.core.applied_state import (  # noqa: E402
     get_history,
     has_unsaved_changes,
     hydrate_session_from_applied,
+    migrate_and_restore,
+    state_was_repaired,
 )
 from AgentIndustrial_v1.core.editing_state import (  # noqa: E402
     build_state_from_widgets,
@@ -179,6 +181,11 @@ language_selector()
 # (applied_state.json) est la source de vérité officielle. Il hydrate la session
 # AVANT le store opérateur — un store périmé ne peut plus écraser une
 # configuration sauvegardée après un refresh navigateur.
+# Migration/réparation déterministe AVANT tout widget : un snapshot durable
+# dégénéré/partiel (ancien build) est réparé + RÉÉCRIT dans Supabase, puis posé
+# en session — aucune suppression ni re-Save manuel requis. La bannière
+# « état réparé » est affichée plus bas si une réparation a eu lieu.
+migrate_and_restore(st.session_state)
 _snap_boot = hydrate_session_from_applied(st.session_state)
 if _snap_boot is not None:
     # Sème les clés widget Settings depuis le snapshot AVANT le store opérateur :
@@ -266,6 +273,11 @@ if persist_is_durable():
     st.caption(t("persist.backend", backend=persist_backend()))
 else:
     st.warning(t("persist.warning"), icon="⚠️")
+
+# Bannière de réparation : un snapshot durable dégénéré/partiel (ancien build) a
+# été migré + resynchronisé dans Supabase automatiquement (aucun re-Save manuel).
+if state_was_repaired(st.session_state):
+    st.success(t("settings.state_repaired"), icon="✅")
 
 _save_col, _label_col, _info_col = st.columns([1.2, 2.2, 4.5])
 with _save_col:

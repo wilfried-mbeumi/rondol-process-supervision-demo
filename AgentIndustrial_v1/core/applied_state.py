@@ -421,3 +421,170 @@ def has_unsaved_changes(
     a = {k: v for k, v in asdict(applied).items() if k not in ("timestamp_iso", "label")}
     b = {k: v for k, v in asdict(current).items() if k not in ("timestamp_iso", "label")}
     return a != b
+
+
+# ===========================================================================
+# COUCHE DE MIGRATION / RÉPARATION DÉTERMINISTE (exigence client 2026-06-14).
+#
+# But : un snapshot durable (Supabase) ANCIEN / PARTIEL / DÉGÉNÉRÉ écrit par un
+# build antérieur ne doit JAMAIS exiger une suppression manuelle ni un re-Save
+# manuel. À chaque chargement de page, AVANT tout widget, on :
+#   1. charge le snapshot durable,
+#   2. valide le schéma + les champs métier critiques,
+#   3. migre/répare (banc feeders complet, densité/thermique physiques, champs
+#      manquants comblés) en PRÉSERVANT toute donnée utilisateur valide,
+#   4. RÉÉCRIT le snapshot réparé dans la persistance durable (Supabase),
+#   5. hydrate la session depuis le snapshot réparé.
+# ===========================================================================
+_REPAIRED_FLAG = "_applied_state_repaired"
+_MAIN_ZONE_KEYS: tuple[str, ...] = ("Z1", "Z2", "Z3", "Z4", "Z5", "Z6", "Z7", "Z8")
+_ALL_ZONE_KEYS: tuple[str, ...] = _MAIN_ZONE_KEYS + ("die", "die2", "die3", "die4")
+_MIN_PHYSICAL_DENSITY = 0.01   # g/cm³ — sous ce seuil = non physique (snapshot dégénéré)
+_DEFAULT_DENSITY = 0.55        # g/cm³ — défaut bulk Rondol (poudre LFP/LATP sèche)
+
+
+def _is_pos_num(v: Any) -> bool:
+    """True si v est un nombre fini strictement positif (densité/consigne saine)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return False
+    return f == f and f not in (float("inf"), float("-inf")) and f > 0.0
+
+
+def repair_snapshot_dict(raw: Mapping[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Migre/répare un snapshot durable vers le schéma courant (PUR, sans I/O).
+
+    Préserve toute donnée utilisateur VALIDE (label, profil vis, RPM, étalonnage,
+    densité valide, zones thermiques valides, timestamp). Répare le reste :
+      - champs scalaires requis manquants → défauts ;
+      - banc feeders TOUJOURS complet (5), champs feeder manquants comblés ;
+      - densité bulk nulle / absente / < seuil physique → défaut 0.55 ;
+      - zones thermiques toutes dégénérées (0 / absentes / invalides) → cibles
+        par défaut ; zones individuelles invalides comblées.
+    Retourne (dict JSON-safe réparé, was_repaired). was_repaired=False si le
+    snapshot était déjà sain (aucune réécriture inutile, aucune bannière).
+    """
+    if not isinstance(raw, Mapping):
+        return {}, False
+    out: dict[str, Any] = dict(raw)
+    changed = False
+
+    # --- Champs scalaires requis (migration de schéma) ---
+    if "label" not in out:
+        out["label"] = ""
+        changed = True
+    if out.get("screw_config") is None:
+        out["screw_config"] = []
+        changed = True
+    if not _is_pos_num(out.get("screw_rpm")):
+        out["screw_rpm"] = 120.0
+        changed = True
+    if "n_die_zones" not in out:
+        out["n_die_zones"] = 1
+        changed = True
+    if "timestamp_iso" not in out:
+        out["timestamp_iso"] = ""
+        changed = True
+    if not isinstance(out.get("feeder_calibrations"), Mapping):
+        out["feeder_calibrations"] = {}
+        changed = True
+
+    # --- Banc feeders : TOUJOURS 5 (pad), champs comblés, densité saine ---
+    raw_feeders = list(out.get("feeders") or [])
+    bank_defaults = [_feeder_to_dict(f) for f in new_feeder_bank()]
+    if len(raw_feeders) < len(bank_defaults):
+        changed = True
+    repaired_feeders: list[dict[str, Any]] = []
+    for i, default in enumerate(bank_defaults):
+        if i < len(raw_feeders) and isinstance(raw_feeders[i], Mapping):
+            existing = dict(raw_feeders[i])
+            merged = dict(default)
+            merged.update(existing)
+            # Champs feeder manquants comblés depuis le défaut → migration.
+            if set(default.keys()) - set(existing.keys()):
+                changed = True
+            d = merged.get("density_g_per_cm3")
+            if not _is_pos_num(d) or float(d) < _MIN_PHYSICAL_DENSITY:
+                merged["density_g_per_cm3"] = _DEFAULT_DENSITY
+                changed = True
+            merged["feeder_id"] = i + 1
+            repaired_feeders.append(merged)
+        else:
+            repaired_feeders.append(dict(default))
+    out["feeders"] = repaired_feeders
+
+    # --- Thermique : toutes zones principales dégénérées → cibles par défaut ---
+    zt = dict(out.get("zone_temps_C") or {})
+    all_degenerate = (not zt) or all(
+        not _is_pos_num(zt.get(z)) for z in _MAIN_ZONE_KEYS
+    )
+    if all_degenerate:
+        for z in _ALL_ZONE_KEYS:
+            zt[z] = default_zone_target(z)
+        changed = True
+    else:
+        for z in _MAIN_ZONE_KEYS:
+            if not _is_pos_num(zt.get(z)):
+                zt[z] = default_zone_target(z)
+                changed = True
+    out["zone_temps_C"] = zt
+
+    return out, changed
+
+
+def migrate_and_restore(
+    session: MutableMapping[str, Any],
+) -> tuple[AppliedSnapshot | None, bool]:
+    """Chokepoint de MIGRATION — à appeler en TÊTE de page, AVANT tout widget.
+
+    Charge le snapshot durable, le répare (repair_snapshot_dict), RÉÉCRIT le
+    snapshot réparé dans la persistance durable (Supabase) si nécessaire, puis
+    le pose en session (source unique). Idempotent : si la session porte déjà un
+    snapshot validé (édition vivante / déjà migré), ne refait rien.
+
+    Retourne (AppliedSnapshot | None, was_repaired).
+    """
+    existing = _safe_get(session, APPLIED_KEY)
+    if isinstance(existing, AppliedSnapshot):
+        return existing, bool(_safe_get(session, _REPAIRED_FLAG, False))
+
+    pm = _persistence_module()
+    raw: Any = None
+    if pm is not None:
+        try:
+            raw = pm.load_applied_state()
+        except Exception:  # pragma: no cover - best-effort
+            raw = None
+    if not isinstance(raw, dict):
+        # Repli local legacy (miroir disque) si la couche durable est absente.
+        legacy = _disk_load_applied()
+        if legacy is None:
+            return None, False
+        raw = snapshot_to_dict(legacy)
+    if raw.get("screw_config") is None:
+        return None, False
+
+    repaired_dict, changed = repair_snapshot_dict(raw)
+    # RÉÉCRITURE durable du snapshot réparé (Supabase) — pas de re-Save manuel.
+    if changed and pm is not None:
+        try:
+            pm.save_applied_state(repaired_dict)
+        except Exception:  # pragma: no cover - best-effort
+            pass
+
+    snap = snapshot_from_dict(repaired_dict)
+    try:
+        session[APPLIED_KEY] = snap
+        if HISTORY_KEY not in session or not _safe_get(session, HISTORY_KEY):
+            session[HISTORY_KEY] = [snap]
+        if changed:
+            session[_REPAIRED_FLAG] = True
+    except Exception:  # pragma: no cover - proxy hors contexte
+        pass
+    return snap, changed
+
+
+def state_was_repaired(session: Mapping[str, Any]) -> bool:
+    """True si la session a migré/réparé un snapshot durable dégénéré (bannière)."""
+    return bool(_safe_get(session, _REPAIRED_FLAG, False))

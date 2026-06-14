@@ -156,7 +156,11 @@ def test_manager_24_steps_real_widgets():
     s = AppTest.from_file(SUPERVISION, default_timeout=120)
     s.run()
     assert not s.exception, [str(e.value) for e in s.exception]
-    caps = "\n".join(str(c.value) for c in s.caption)
+    # Le label opérateur est désormais rendu dans le bandeau ÉTAT OPÉRATEUR
+    # ACTIF (st.html), plus seulement en caption — on cherche dans les deux.
+    caps = "\n".join(str(c.value) for c in s.caption) + "\n" + "\n".join(
+        str(getattr(h, "body", getattr(h, "value", ""))) for h in s.get("html")
+    )
     assert RUN_LABEL in caps, "Run label must be visible on Supervision"
     snap_s = get_applied(s.session_state)
     assert count_user_elements(snap_s.screw_config) == MAX_USER_ELEMENTS
@@ -208,7 +212,10 @@ def test_manager_24_steps_real_widgets():
     s2 = AppTest.from_file(SUPERVISION, default_timeout=120)
     s2.run()
     assert not s2.exception
-    assert RUN_LABEL in "\n".join(str(c.value) for c in s2.caption)
+    _s2_text = "\n".join(str(c.value) for c in s2.caption) + "\n" + "\n".join(
+        str(getattr(h, "body", getattr(h, "value", ""))) for h in s2.get("html")
+    )
+    assert RUN_LABEL in _s2_text
 
     m2 = AppTest.from_file(PROCESS_ENGINE, default_timeout=120)
     m2.run()
