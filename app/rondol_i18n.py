@@ -68,6 +68,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "fr": "Agent IA SVM w60 · Extrudeuse bivis 10,5 mm · Composants SSB dry/semi-dry",
         "en": "AI agent SVM w60 · 10.5 mm twin-screw extruder · SSB dry/semi-dry components"},
     "home.sidebar.run": {"fr": "Run de production", "en": "Production run"},
+    "home.sidebar.run_is_ml_ref": {
+        "fr": "Référence modèle ML (essais avril) — pas la config opérateur en service.",
+        "en": "ML model reference (April trials) — not the live operator config."},
     "home.sidebar.window": {"fr": "Fenêtre active", "en": "Active window"},
     "home.sidebar.window_fmt": {"fr": "Fenêtre %d", "en": "Window %d"},
     "home.sidebar.model": {"fr": "Modèle : SVM w60  ·  Seuil : {th}/100",
@@ -197,6 +200,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "fr": "Valide le profil de vis dans le snapshot opérateur (visible par Supervision et l'Agent IA).",
         "en": "Commits the screw profile to the operator snapshot (visible to Supervision and the AI Agent)."},
     "profile.toast.saved": {"fr": "Profil de vis enregistré ✓", "en": "Screw profile saved ✓"},
+    "profile.save.near_controls_hint": {
+        "fr": "Enregistre la vis construite ci-dessus dans le snapshot validé (Supabase).",
+        "en": "Saves the screw built above into the validated snapshot (Supabase)."},
     "profile.save.error": {"fr": "Échec de l'enregistrement du profil : {err}",
                            "en": "Profile save failed: {err}"},
     "profile.sidebar.freevol": {"fr": "Volume libre total : 76,18 cm³",

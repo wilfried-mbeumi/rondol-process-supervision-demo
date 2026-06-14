@@ -240,6 +240,15 @@ def _feeder_to_dict(f: FeederSpec) -> dict[str, Any]:
 
 
 def _feeder_from_dict(d: Mapping[str, Any]) -> FeederSpec:
+    # Auto-heal d'un snapshot DÉGÉNÉRÉ (cause racine prod 2026-06-14) : un ancien
+    # build dont le widget densité valait 0 (pas de `value=`) sauvegardait une
+    # densité bulk ~0. Au rechargement, safe_float la clampe à 0.0001 → affichée
+    # « 0.000 » et le snapshot blanc se perpétuait à chaque refresh. Une densité
+    # bulk quasi nulle est NON PHYSIQUE → on rétablit le défaut 0.55 (jamais une
+    # valeur procédé réelle). Idem implicite : feeders manquants padés en aval.
+    _dens = safe_float(d.get("density_g_per_cm3", 0.55), 0.55, 0.0001, 10.0)
+    if _dens < 0.01:
+        _dens = 0.55
     return FeederSpec(
         feeder_id=safe_int(d.get("feeder_id", 1), 1, 1, 5),
         enabled=bool(d.get("enabled", False)),
@@ -248,7 +257,7 @@ def _feeder_from_dict(d: Mapping[str, Any]) -> FeederSpec:
         position=str(d.get("position", "Z0")),
         speed_rpm=d.get("speed_rpm"),
         mass_flow_g_per_min=safe_float(d.get("mass_flow_g_per_min", 0.0), 0.0, 0.0, 2000.0),
-        density_g_per_cm3=safe_float(d.get("density_g_per_cm3", 0.55), 0.55, 0.0001, 10.0),
+        density_g_per_cm3=_dens,
         thermal_expansion_per_K=safe_float(d.get("thermal_expansion_per_K", 5e-5), 5e-5, 0.0, 1.0),
         polymer_name=str(d.get("polymer_name", "")),
         t_degradation_C=d.get("t_degradation_C"),
@@ -275,11 +284,20 @@ def take_snapshot(state: ProcessState, label: str = "") -> AppliedSnapshot:
 
 
 def hydrate_state(snapshot: AppliedSnapshot) -> ProcessState:
-    """Reconstruit un ProcessState depuis un snapshot (deep copy garanti)."""
-    feeders = (
-        [_feeder_from_dict(d) for d in snapshot.feeders]
-        if snapshot.feeders else new_feeder_bank()
-    )
+    """Reconstruit un ProcessState depuis un snapshot (deep copy garanti).
+
+    ROBUSTESSE (cause racine prod 2026-06-14) : le banc feeders est TOUJOURS
+    complet (5 feeders), même si le snapshot n'en stocke qu'un sous-ensemble
+    (ancien build / sauvegarde partielle). Sans ce padding, Settings plantait
+    (`KeyError fd_en_2`) dès qu'un snapshot avait < 5 feeders → page blanche,
+    état « incohérent ». Les feeders du snapshot écrasent les défauts du banc.
+    """
+    bank = new_feeder_bank()
+    if snapshot.feeders:
+        for i, d in enumerate(snapshot.feeders):
+            if 0 <= i < len(bank):
+                bank[i] = _feeder_from_dict(d)
+    feeders = bank
     state = ProcessState(
         screw_config=copy.deepcopy(snapshot.screw_config),
         screw_rpm=safe_float(snapshot.screw_rpm, 120.0, 1.0, 3000.0),
@@ -287,7 +305,11 @@ def hydrate_state(snapshot: AppliedSnapshot) -> ProcessState:
     )
     if snapshot.zone_temps_C:
         for k, v in snapshot.zone_temps_C.items():
-            state.zone_temps_C[k] = safe_float(v, default_zone_target(k), 0.0, 400.0)
+            _tv = safe_float(v, default_zone_target(k), 0.0, 400.0)
+            # Auto-heal : une consigne de zone à 0 °C est non-physique pour un
+            # fourreau chauffé (snapshot dégénéré d'un ancien build) → cible
+            # par défaut, jamais « 0.00 » affiché comme une vérité procédé.
+            state.zone_temps_C[k] = _tv if _tv > 0.0 else default_zone_target(k)
     # Compléter les zones manquantes (rétro-compat avec anciens snapshots).
     for zk in DEFAULT_ZONE_TARGETS_C:
         state.zone_temps_C.setdefault(zk, default_zone_target(zk))

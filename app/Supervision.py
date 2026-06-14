@@ -265,6 +265,11 @@ with st.sidebar:
         format_func=lambda r: f"Run #{r}",
         key="sb_run",
     )
+    # Clarté client 2026-06-14 : ce sélecteur est le run du DATASET ML (essais
+    # avril, modèle de dérive/stabilité) — PAS la configuration opérateur en
+    # service. L'état opérateur vivant est le snapshot validé (bandeau RUN en
+    # haut de page), source de vérité des KPIs procédé / recos agent.
+    st.caption(t("home.sidebar.run_is_ml_ref"))
     run_df    = good_runs[good_runs["run_id"] == selected_run].sort_values("window_end")
     n_windows = len(run_df)
 

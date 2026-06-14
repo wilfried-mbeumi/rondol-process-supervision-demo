@@ -593,7 +593,7 @@ def _build_status_banner_html(
         parts.append(_banner_line(
             "warning",
             t("profile.banner.full",
-              n=_fmt_count(n_added_v), max=_fmt_count(MAX_USER_ELEMENTS)),
+              n=_fmt_count(n_added_v), max=_fmt_count(TOTAL_ELEMENT_CAPACITY)),
         ))
     elif n_remaining_v < 4:
         parts.append(_banner_line(
@@ -632,6 +632,29 @@ def _remove_last_of_type(type_id: int) -> bool:
         if c[i] == type_id and not is_part2(c[i]):
             return remove_at(c, i)
     return False
+
+
+def _commit_profile_snapshot() -> bool:
+    """Sauvegarde le profil vis dans le snapshot validé (source unique → Supabase).
+
+    Partagé par les DEUX boutons « Save profile » (près des contrôles vis + bas
+    de page). Repart du snapshot validé (state_from_session) pour PRÉSERVER
+    toutes les données Settings (feeders, densité, zones, RPM, étalonnage) et
+    n'écrase QUE le profil vis édité. Best-effort, jamais d'échec silencieux.
+    """
+    try:
+        _prev_snap = applied_get(st.session_state)
+        _prev_label = _prev_snap.label if _prev_snap else ""
+        _pstate = state_from_session(st.session_state)
+        if "screw_config" in st.session_state:
+            _pstate.screw_config = list(st.session_state["screw_config"])
+        refresh_kpis(_pstate)
+        applied_commit(st.session_state, _pstate, label=_prev_label)
+        st.toast(t("profile.toast.saved"), icon="✅")
+        return True
+    except Exception as _exc:  # noqa: BLE001 — JAMAIS d'échec silencieux
+        st.error(t("profile.save.error", err=_exc))
+        return False
 
 
 # Grille 4 colonnes × 4 rangées (13 types + 3 vides pour structure stable)
@@ -726,6 +749,22 @@ for row_idx, row in enumerate(SLOT_LAYOUT):
                             t("profile.msg.add4_blocked", lbl=et.label),
                         )
                     st.rerun()
+
+# ── Save profile — bouton PRÈS des contrôles vis (exigence client 2026-06-14) ─
+# Le bouton de sauvegarde doit être directement accessible à côté de la
+# construction du profil, pas seulement en bas de page. Même action que le
+# bouton du bas (commit du snapshot validé → persistance durable Supabase).
+st.divider()
+_sc1, _sc2 = st.columns([1, 2])
+with _sc1:
+    if st.button(
+        t("profile.btn.save"), type="primary",
+        use_container_width=True, key="btn_profile_save_top",
+        help=t("profile.save.help"),
+    ):
+        _commit_profile_snapshot()
+with _sc2:
+    st.caption(t("profile.save.near_controls_hint"))
 
 st.divider()
 
@@ -1198,18 +1237,7 @@ if st.button(
     type="primary", use_container_width=False, key="btn_profile_save",
     help=t("profile.save.help"),
 ):
-    try:
-        _prev_snap = applied_get(st.session_state)
-        _prev_label = _prev_snap.label if _prev_snap else ""
-        _pstate = state_from_session(st.session_state)
-        # Lecture proxy-safe (st.session_state.get n'est pas garanti en prod).
-        if "screw_config" in st.session_state:
-            _pstate.screw_config = list(st.session_state["screw_config"])
-        refresh_kpis(_pstate)
-        applied_commit(st.session_state, _pstate, label=_prev_label)
-        st.toast(t("profile.toast.saved"), icon="✅")
-    except Exception as _exc:  # noqa: BLE001 — JAMAIS d'échec silencieux (exigence manager)
-        st.error(t("profile.save.error", err=_exc))
+    _commit_profile_snapshot()
 
 # ─── P3.2 : formaliser le flux à sens unique current_run_state → clés legacy ──
 try:
