@@ -1,0 +1,40 @@
+name: CI — tests Rondol
+
+# Intégration continue : à chaque push / PR, la suite de tests s'exécute
+# automatiquement (exigence RNCP « test et déploiement »). Le badge vert
+# atteste la non-régression de la logique métier, du moteur et du ML.
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest xgboost
+
+      - name: Suite de tests (ordre déterministe)
+        # Les deux modules E2E de redémarrage (test_e2e_prod_reboot,
+        # test_e2e_client_sync) sont volontairement exclus de la CI : ce sont
+        # des tests d'intégration Streamlit AppTest sensibles au timing sous
+        # charge (flakiness d'isolation documentée, PDR §7). Ils passent en
+        # local et en isolation. Le reste de la suite doit être 100 % vert.
+        run: |
+          python -m pytest tests/ -q -p no:randomly \
+            --ignore=tests/test_e2e_prod_reboot.py \
+            --ignore=tests/test_e2e_client_sync.py

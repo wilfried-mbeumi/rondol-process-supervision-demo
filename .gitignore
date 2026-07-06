@@ -29,9 +29,8 @@ CLAUDE.md
 NOTES_HANDOFF_CLAUDE_CODE.md
 README_CLAUDE_DIRECTIVE.txt
 
-# ----- Outils hors-app : pipeline ML & générateurs de livrables (non requis pour lancer l'app) -----
-src/
-scripts/
+# ----- Pipeline ML (src/) et scripts (scripts/) : VERSIONNÉS pour la reproductibilité (RNCP « code source complet »).
+#       Anciennement ignorés (repo vitrine) ; désormais inclus pour que le dépôt reproduise le projet complet.
 
 # ----- OS / OneDrive -----
 .DS_Store
