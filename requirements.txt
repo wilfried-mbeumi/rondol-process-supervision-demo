@@ -13,6 +13,7 @@ scipy==1.17.1
 scikit-learn==1.7.0   # requis pour dé-sérialiser models/SVM_w60.joblib
 joblib==1.5.1
 Pillow==12.1.0
+requests==2.32.3      # requis par app/persistence.py (REST Supabase, persistance durable)
 
 # --- Optionnel : pipeline ML hors-ligne (src/, non requis pour lancer l'app) ---
 # Décommenter pour réentraîner les modèles à partir des essais bruts.

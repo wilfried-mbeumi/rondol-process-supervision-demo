@@ -68,4 +68,6 @@ def test_ml_demo_indicators_marked_demo():
     at = _run()
     blob = _html_blob(at)
     assert "DEMO" in blob
-    assert "ML trial dataset" in blob or "dataset ML" in blob
+    # ML indicators marked as coming from recorded trials (FR or EN wording).
+    low = blob.lower()
+    assert "recorded trial" in low or "essais enregistr" in low

@@ -65,16 +65,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
                           "en": "AI AGENT — All-solid-state battery (SSB) extrusion"},
     "home.header.title": {"fr": "Supervision procédé", "en": "Process Supervision"},
     "home.header.caption": {
-        "fr": "Agent IA SVM w60 · Extrudeuse bivis 10,5 mm · Composants SSB dry/semi-dry",
-        "en": "AI agent SVM w60 · 10.5 mm twin-screw extruder · SSB dry/semi-dry components"},
+        "fr": "Agent IA RandomForest w60 · Extrudeuse bivis 10,5 mm · Composants SSB dry/semi-dry",
+        "en": "AI agent RandomForest w60 · 10.5 mm twin-screw extruder · SSB dry/semi-dry components"},
     "home.sidebar.run": {"fr": "Run de production", "en": "Production run"},
     "home.sidebar.run_is_ml_ref": {
         "fr": "Référence modèle ML (essais avril) — pas la config opérateur en service.",
         "en": "ML model reference (April trials) — not the live operator config."},
     "home.sidebar.window": {"fr": "Fenêtre active", "en": "Active window"},
     "home.sidebar.window_fmt": {"fr": "Fenêtre %d", "en": "Window %d"},
-    "home.sidebar.model": {"fr": "Modèle : SVM w60  ·  Seuil : {th}/100",
-                           "en": "Model: SVM w60  ·  Threshold: {th}/100"},
+    "home.sidebar.model": {"fr": "Modèle : RandomForest w60 (augmenté)  ·  Seuil : {th}/100",
+                           "en": "Model: RandomForest w60 (augmented)  ·  Threshold: {th}/100"},
     "home.sidebar.trials": {"fr": "Essais Avril 2026 — Rondol Industrie",
                             "en": "April 2026 trials — Rondol Industrie"},
     "home.sec.profile_reading": {"fr": "AGENT IA — LECTURE PROFIL",
@@ -118,19 +118,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "Zones in alert: {zones} — σ ≥ 1.5 °C (thermal instability threshold)."},
     "home.zones.ok": {"fr": "Toutes les zones thermiques sont sous le seuil σ = 1,5 °C.",
                       "en": "All thermal zones are below the σ = 1.5 °C threshold."},
-    "home.kpi.stability": {"fr": "Score stabilité", "en": "Stability score"},
+    "home.kpi.stability": {"fr": "Score stabilité (essai enr.)", "en": "Stability score (recorded trial)"},
     "home.kpi.vs_threshold": {"fr": "vs seuil", "en": "vs threshold"},
     "home.kpi.threshold": {"fr": "Seuil retenu", "en": "Selected threshold"},
-    "home.kpi.threshold_delta": {"fr": "SVM w60 · Phase 4", "en": "SVM w60 · Phase 4"},
-    "home.kpi.pstable": {"fr": "P(stable) SVM", "en": "P(stable) SVM"},
+    "home.kpi.threshold_delta": {"fr": "RandomForest w60 · augmenté", "en": "RandomForest w60 · augmented"},
+    "home.kpi.pstable": {"fr": "P(stable) RF", "en": "P(stable) RF"},
     "home.kpi.pstable_delta": {"fr": "seuil décision 0.70", "en": "decision threshold 0.70"},
     "home.kpi.score_mean": {"fr": "Score moyen", "en": "Mean score"},
     "home.kpi.score_min": {"fr": "Score min", "en": "Min score"},
     "home.kpi.windows_stable": {"fr": "Fenêtres stables", "en": "Stable windows"},
     "home.kpi.windows_total": {"fr": "Fenêtres totales", "en": "Total windows"},
     "home.footer": {
-        "fr": "Run #{run} · {run_str} · {n} fenêtres · SVM w60 · Seuil {th}/100 · Essais Avril 2026 — Rondol Industrie",
-        "en": "Run #{run} · {run_str} · {n} windows · SVM w60 · Threshold {th}/100 · April 2026 trials — Rondol Industrie"},
+        "fr": "Run #{run} · {run_str} · {n} fenêtres · RandomForest w60 · Seuil {th}/100 · Essais Avril 2026 — Rondol Industrie",
+        "en": "Run #{run} · {run_str} · {n} windows · RandomForest w60 · Threshold {th}/100 · April 2026 trials — Rondol Industrie"},
     # États procédé (badge) — label/sub/impact (recos opérateur différées B2)
     "home.state.STABLE.label": {"fr": "PROCÉDÉ STABLE", "en": "PROCESS STABLE"},
     "home.state.STABLE.sub": {"fr": "Fonctionnement nominal", "en": "Nominal operation"},
@@ -336,8 +336,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
                             "en": "AI & feeders settings — Rondol"},
     "settings.banner.left": {"fr": "● Rondol · Paramètres IA & feeders",
                              "en": "● Rondol · AI & feeders settings"},
-    "settings.banner.right": {"fr": "SVM w60 · Bivis 10,5 mm · SSB",
-                              "en": "SVM w60 · 10.5 mm twin-screw · SSB"},
+    "settings.banner.right": {"fr": "RandomForest w60 · Bivis 10,5 mm · SSB",
+                              "en": "RandomForest w60 · 10.5 mm twin-screw · SSB"},
     "settings.save.btn": {"fr": "✓ Enregistrer la configuration",
                           "en": "✓ Save configuration"},
     "settings.save.help": {
@@ -358,8 +358,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
                                  "en": "UP TO DATE — Supervision synced"},
     "settings.status.no_label": {"fr": "(sans libellé)", "en": "(no label)"},
     "settings.state_repaired": {
-        "fr": "État sauvegardé réparé et resynchronisé (Supabase) — aucune action requise.",
-        "en": "Saved state repaired and synchronized (Supabase) — no action needed."},
+        "fr": "État sauvegardé réparé et resynchronisé automatiquement — aucune action requise.",
+        "en": "Saved state repaired and synchronized automatically — no action needed."},
     "settings.status.meta": {"fr": "Dernier enreg. : {iso} {label} · historique : {n} snapshot(s)",
                              "en": "Last save: {iso} {label} · history: {n} snapshot(s)"},
     # Libellés HMI (francisés en FR — Décision 2 ; variables/unités inchangées)
@@ -694,7 +694,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "fr": "— aucune autre alerte", "en": "— no other alert",
     },
     "home.main_reco": {"fr": "RECO PRINCIPALE", "en": "MAIN RECO"},
-    # Recos opérateur par état SVM (slots fixes — DOM stable).
+    # Recos opérateur par état ML (slots fixes — DOM stable).
     "home.reco.STABLE.1.t": {"fr": "Maintenir les consignes thermiques actuelles",
                              "en": "Keep the current thermal setpoints"},
     "home.reco.STABLE.1.d": {"fr": "Aucun ajustement nécessaire — zones 1–8 dans les tolérances.",
@@ -705,8 +705,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
                              "en": "Standard frequency — no acceleration required."},
     "home.reco.STABLE.3.t": {"fr": "Pas d'intervention sur le profil de vis",
                              "en": "No intervention on the screw profile"},
-    "home.reco.STABLE.3.d": {"fr": "Régime nominal confirmé par le modèle SVM.",
-                             "en": "Nominal regime confirmed by the SVM model."},
+    "home.reco.STABLE.3.d": {"fr": "Régime nominal confirmé par le modèle RandomForest.",
+                             "en": "Nominal regime confirmed by the RandomForest model."},
     "home.reco.SURVEILLER.1.t": {"fr": "Augmenter la fréquence de contrôle qualité film",
                                  "en": "Increase film quality check frequency"},
     "home.reco.SURVEILLER.1.d": {"fr": "Vérifier épaisseur et aspect toutes les 5 min.",
@@ -869,12 +869,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "ML training trials — model history data",
     },
     "historique.ml.banner": {
-        "fr": "Runs du jeu d'entraînement ML (SVM w60, essais avril 2026) — <b>démonstration</b>, strictement distincts de l'historique procédé opérateur.",
-        "en": "ML training dataset runs (SVM w60, April 2026 trials) — <b>demonstration</b>, strictly separate from operator process history.",
+        "fr": "Runs du jeu d'entraînement ML (RandomForest w60, essais avril 2026) — <b>démonstration</b>, strictement distincts de l'historique procédé opérateur.",
+        "en": "ML training dataset runs (RandomForest w60, April 2026 trials) — <b>demonstration</b>, strictly separate from operator process history.",
     },
     "historique.ml.caption": {
-        "fr": "Runs du jeu de données d'entraînement (modèle SVM w60, essais Avril 2026). Données historiques du modèle — distinctes de l'historique procédé opérateur.",
-        "en": "Training dataset runs (SVM w60 model, April 2026 trials). Model history data — separate from operator process history.",
+        "fr": "Runs du jeu de données d'entraînement (modèle RandomForest w60, essais Avril 2026). Données historiques du modèle — distinctes de l'historique procédé opérateur.",
+        "en": "Training dataset runs (RandomForest w60 model, April 2026 trials). Model history data — separate from operator process history.",
     },
     "historique.ml.col.run": {"fr": "Run", "en": "Run"},
     "historique.ml.col.start": {"fr": "Début", "en": "Start"},
@@ -1026,8 +1026,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "fr": "✦ AUCUNE ALERTE — Procédé nominal sur toutes les règles évaluées.",
         "en": "✦ NO ALERT — Nominal process on all evaluated rules."},
     "settings.expander.advanced": {
-        "fr": "⚙ Réglages avancés — seuils IA, variables surveillées, modèle SVM w60",
-        "en": "⚙ Advanced settings — AI thresholds, monitored variables, SVM w60 model"},
+        "fr": "⚙ Réglages avancés — seuils IA, variables surveillées, modèle RandomForest w60",
+        "en": "⚙ Advanced settings — AI thresholds, monitored variables, RandomForest w60 model"},
     "settings.adv.thresholds": {"fr": "Seuils de classification", "en": "Classification thresholds"},
     "settings.adv.th_stable": {"fr": "Score STABLE (≥)", "en": "STABLE score (≥)"},
     "settings.adv.th_critical": {"fr": "Score CRITIQUE (<)", "en": "CRITICAL score (<)"},
@@ -1055,8 +1055,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "en": "{z} — driven by Feeder #2 (Feeders grid). "
               "Enable/position feeder #2 to change the side-feed zone."},
     "settings.expander.svm": {
-        "fr": "📊 Modèle SVM w60 — métriques, calibration, top features, pipeline",
-        "en": "📊 SVM w60 model — metrics, calibration, top features, pipeline"},
+        "fr": "📊 Modèle RandomForest w60 — métriques, calibration, top features, pipeline",
+        "en": "📊 RandomForest w60 model — metrics, calibration, top features, pipeline"},
     "settings.svm.algo": {"fr": "Algorithme", "en": "Algorithm"},
     "settings.svm.window": {"fr": "Fenêtre", "en": "Window"},
     "settings.svm.threshold": {"fr": "Seuil déploiement", "en": "Deployment threshold"},
@@ -2155,10 +2155,16 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
     # demo_ml_run banner
     "demo.ml.banner_default": {
-        "fr": "Indicateurs issus du <b>dataset ML d'essais (avril 2026)</b> — données de "
-              "<b>démonstration</b>, non un run opérateur live.",
-        "en": "Indicators from the <b>ML trial dataset (April 2026)</b> — "
-              "<b>demonstration</b> data, not a live operator run."},
+        "fr": "Le score ML est calculé à partir de <b>fenêtres capteurs issues d'essais "
+              "enregistrés</b> (avril 2026) — <b>indicateur expérimental d'aide à la décision, "
+              "non calibré industriellement</b>. Il <b>ne réagit pas directement</b> à toute "
+              "modification live de la configuration opérateur. La <b>logique métier et les "
+              "recommandations</b>, elles, <b>réagissent à la configuration</b>.",
+        "en": "The ML score is computed from <b>sensor windows of recorded trials</b> "
+              "(April 2026) — an <b>experimental, industrially-uncalibrated decision-support "
+              "indicator</b>. It <b>does not react directly</b> to live changes of the operator "
+              "configuration. The <b>business logic and recommendations</b>, however, "
+              "<b>do react to the configuration</b>."},
 
     # Formula status labels (calc_audit)
     "calc.formula.plc_validated": {
@@ -2257,8 +2263,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
     # _ENRICHED_VERDICT
     "sr.verdict.ok": {
-        "fr": "garantit la stabilité globale du procédé",
-        "en": "guarantees overall process stability"},
+        "fr": "favorise la stabilité globale du procédé (modèle nominal, non calibré)",
+        "en": "favours overall process stability (nominal, uncalibrated model)"},
     "sr.verdict.watch": {
         "fr": "préserve un équilibre acceptable sous surveillance ciblée",
         "en": "preserves acceptable balance under targeted monitoring"},
@@ -2508,7 +2514,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "sr.sys.checks_title": {
         "fr": "Vérification globale après recommandations",
         "en": "Global verification after recommendations"},
-    "sr.sys.synthesis_prefix": {"fr": "PROFIL OPTIMISÉ", "en": "OPTIMIZED PROFILE"},
+    "sr.sys.synthesis_prefix": {"fr": "PROFIL ÉQUILIBRÉ (nominal)", "en": "BALANCED PROFILE (nominal)"},
 
     # Axis assessment labels
     "sr.axis.dispersion": {"fr": "Dispersion", "en": "Dispersion"},

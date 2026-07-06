@@ -130,15 +130,16 @@ def test_supervision_demo_ml_is_marked_demo():
     at = _run(SUP)
     assert not at.exception, [str(e.value) for e in at.exception]
     blob = _blob(at)
-    assert "DEMO" in blob and "dataset ML" in blob
+    # Marquage DEMO + indicateurs ML rattachés à des essais enregistrés (pas live).
+    assert "DEMO" in blob and "essais enregistr" in blob.lower()
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")
 def test_supervision_does_not_present_ml_run_as_operator_truth():
     at = _run(SUP)
     blob = _blob(at)
-    # Le bandeau marque les indicateurs ML comme non représentatifs d'un run live.
-    assert "run opérateur live" in blob
+    # Le bandeau marque les indicateurs ML comme NON réactifs à la config opérateur live.
+    assert "ne réagit pas directement" in blob and "configuration opérateur" in blob.lower()
 
 
 @pytest.mark.skipif(not _HAS, reason="streamlit.testing indisponible")

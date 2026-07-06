@@ -3,7 +3,7 @@
 
 Fusion réelle : la page Settings existante reçoit les capacités du moteur
 AgentIndustrial_v1 (feeders 1..5, règles explicables, recommandations
-chiffrées) tout en conservant la navigation, le moteur SVM w60 retenu et les
+chiffrées) tout en conservant la navigation, le moteur RandomForest w60 retenu et les
 clés session_state partagées avec Profile / Home (screw_rpm, feeder_g_per_min,
 bulk_density, side_feeder_zone, ff_target_low/high, target_screw_count,
 screw_config, monitored_zones, th_stable, th_critical).
@@ -109,7 +109,7 @@ from app_mode import is_demo_mode  # noqa: E402
 # ===========================================================================
 METRICS_PATH = ROOT / "reports" / "ml_metrics_w60.json"
 THRESHOLD_PATH = ROOT / "reports" / "threshold_calibration_w60.csv"
-FEAT_IMP_PATH = ROOT / "reports" / "feature_importance_SVM_w60_threshold80.csv"
+FEAT_IMP_PATH = ROOT / "reports" / "feature_importance_RandomForest_w60.csv"
 
 st.set_page_config(page_title=t("page.settings.title"), layout="wide")
 
@@ -1014,13 +1014,13 @@ with st.expander(t("settings.expander.svm"), expanded=False):
     feat_imp = load_feat_imp()
 
     if metrics is not None:
-        svm_test = metrics["test"].get("SVM", {})
+        rf_test = metrics["test"].get("RandomForest", {})
         c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric(t("settings.svm.algo"), "SVM (RBF)")
+        c1.metric(t("settings.svm.algo"), "RandomForest")
         c2.metric(t("settings.svm.window"), "60 s")
         c3.metric(t("settings.svm.threshold"), "80 / 100")
-        c4.metric("AUC-ROC (test)", f"{svm_test.get('roc_auc', 0):.3f}")
-        c5.metric("F1 macro (test)", f"{svm_test.get('f1_macro', 0):.3f}")
+        c4.metric("AUC-ROC (test)", f"{rf_test.get('roc_auc', 0):.3f}")
+        c5.metric("F1 macro (test)", f"{rf_test.get('f1_macro', 0):.3f}")
         st.caption(t(
             "settings.svm.split_caption",
             ntr=metrics.get("n_train", 0), rtr=metrics.get("n_runs_train", 0),
@@ -1041,13 +1041,13 @@ with st.expander(t("settings.expander.svm"), expanded=False):
         if rows:
             comp_df = pd.DataFrame(rows)
 
-            def _highlight_svm(row):
-                if row["Modèle"] == "SVM":
+            def _highlight_retained(row):
+                if row["Modèle"] == "RandomForest":
                     return ["background-color: #d4edda"] * len(row)
                 return [""] * len(row)
 
             st.dataframe(
-                comp_df.style.apply(_highlight_svm, axis=1),
+                comp_df.style.apply(_highlight_retained, axis=1),
                 use_container_width=True, hide_index=True,
             )
     else:

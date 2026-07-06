@@ -1,0 +1,32 @@
+{
+  "validation": "LeaveOneGroupOut sur essais RÉELS ; synthétique en TRAIN uniquement",
+  "n_real": 627,
+  "n_synthetic": 800,
+  "n_real_runs": 8,
+  "models": {
+    "LogisticRegression": {
+      "baseline_f1_macro_mean": 0.799,
+      "baseline_f1_macro_std": 0.163,
+      "augmented_f1_macro_mean": 0.86,
+      "augmented_f1_macro_std": 0.111,
+      "delta": 0.061,
+      "n_folds": 6
+    },
+    "SVM_RBF": {
+      "baseline_f1_macro_mean": 0.805,
+      "baseline_f1_macro_std": 0.171,
+      "augmented_f1_macro_mean": 0.868,
+      "augmented_f1_macro_std": 0.089,
+      "delta": 0.063,
+      "n_folds": 6
+    },
+    "RandomForest": {
+      "baseline_f1_macro_mean": 0.796,
+      "baseline_f1_macro_std": 0.187,
+      "augmented_f1_macro_mean": 0.918,
+      "augmented_f1_macro_std": 0.054,
+      "delta": 0.122,
+      "n_folds": 6
+    }
+  }
+}

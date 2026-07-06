@@ -64,20 +64,27 @@ data/processed/
 /build_preview_tests.py
 /capture_test_screenshots.py
 
-# ----- Modèles : ne garder que le SVM w60 consommé par l'app -----
+# ----- Modèles : RandomForest augmenté (déployé) + SVM (benchmark) -----
 models/*
+!models/RandomForest_w60_augmented.joblib
 !models/SVM_w60.joblib
 
-# ----- Datasets features : ne garder que w60 (consommé par l'app) -----
+# ----- Datasets features : w60 réel + augmenté (consommés par l'app / repro) -----
 data/features/*
 !data/features/dataset_ml_w60.csv
 !data/features/dataset_ml_w60_meta.json
+!data/features/dataset_ml_w60_augmented.csv
 
-# ----- Reports : ne garder que les 3 fichiers lus par la page Settings -----
+# ----- Reports : fichiers lus par la page Settings + championnat/augmentation -----
 reports/*
 !reports/ml_metrics_w60.json
 !reports/threshold_calibration_w60.csv
 !reports/feature_importance_SVM_w60_threshold80.csv
+!reports/feature_importance_RandomForest_w60.csv
+!reports/model_comparison_logo_w60.json
+!reports/augmentation_plan.md
+!reports/augmentation_report.json
+!reports/augmentation_eval.json
 
 # ----- References : ne garder QUE les images d'éléments de vis (chargées par l'app) -----
 references/*

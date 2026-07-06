@@ -1,7 +1,7 @@
 """
 Supervision.py — Supervision procédé Rondol — Version finale stable.
 
-Modèle : SVM w60  |  Seuil : 80  |  Données : Essais Avril 2026
+Modèle : RandomForest w60 (augmenté)  |  Seuil : 80  |  Données : Essais Avril 2026
 Lancement : streamlit run app/Supervision.py
 """
 
@@ -75,7 +75,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-MODEL_PATH   = ROOT / "models" / "SVM_w60.joblib"
+MODEL_PATH   = ROOT / "models" / "RandomForest_w60_augmented.joblib"
 DATASET_PATH = ROOT / "data" / "features" / "dataset_ml_w60.csv"
 LOGO_PATH    = Path(__file__).resolve().parent / "assets" / "rondol_logo.png"
 # Évalué une seule fois au chargement du module — jamais réévalué entre renders
@@ -359,8 +359,9 @@ _migrate_banner(st.session_state)
 _snap_banner = _get_applied_banner(st.session_state)
 try:
     from persistence import backend_name as _persist_backend_name  # noqa: PLC0415
-    _src = {"supabase": "Supabase", "external-file": "durable store",
-            "local-json": "local (dev)"}.get(_persist_backend_name(), "durable store")
+    _src = {"supabase": "Supabase (PostgreSQL)", "external-file": "fichier durable externe",
+            "local-json": "JSON local (Supabase activable par secrets)"}.get(
+                _persist_backend_name(), "JSON local")
 except Exception:
     _src = "durable store"
 if _snap_banner is not None and _snap_banner.label:

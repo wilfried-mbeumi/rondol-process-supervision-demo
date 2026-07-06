@@ -41,7 +41,7 @@ migrate_and_restore(st.session_state)
 hydrate_session_from_applied(st.session_state)
 restore_operator_state(st.session_state)
 
-MODEL_PATH   = ROOT / "models" / "SVM_w60.joblib"
+MODEL_PATH   = ROOT / "models" / "RandomForest_w60_augmented.joblib"
 DATASET_PATH = ROOT / "data" / "features" / "dataset_ml_w60.csv"
 THRESHOLD    = 80
 
@@ -116,7 +116,7 @@ selected_run = st.sidebar.selectbox(
 run_df = good_runs[good_runs["run_id"] == selected_run].sort_values("window_end").copy()
 
 # ---------------------------------------------------------------------------
-# Inférence SVM — vectorisée sur toutes les fenêtres
+# Inférence RandomForest — vectorisée sur toutes les fenêtres
 # ---------------------------------------------------------------------------
 X_run  = run_df[FEATURE_COLS]
 probas = model.predict_proba(X_run)[:, 1]   # proba_stable

@@ -1,0 +1,108 @@
+{
+  "window_sec": 60,
+  "validation": "LeaveOneGroupOut",
+  "n_runs": 8,
+  "models": {
+    "LogisticRegression": {
+      "logo_f1_macro_mean": 0.799,
+      "logo_f1_macro_std": 0.163,
+      "logo_f1_macro_min": 0.474,
+      "logo_f1_macro_max": 0.961,
+      "pooled_accuracy": 0.914,
+      "pooled_unstable_precision": 0.852,
+      "pooled_unstable_recall": 0.843,
+      "pooled_unstable_f1": 0.847,
+      "pooled_confusion_matrix": [
+        [
+          150,
+          28
+        ],
+        [
+          26,
+          423
+        ]
+      ]
+    },
+    "RandomForest": {
+      "logo_f1_macro_mean": 0.796,
+      "logo_f1_macro_std": 0.187,
+      "logo_f1_macro_min": 0.474,
+      "logo_f1_macro_max": 0.969,
+      "pooled_accuracy": 0.893,
+      "pooled_unstable_precision": 0.899,
+      "pooled_unstable_recall": 0.702,
+      "pooled_unstable_f1": 0.789,
+      "pooled_confusion_matrix": [
+        [
+          125,
+          53
+        ],
+        [
+          14,
+          435
+        ]
+      ]
+    },
+    "SVM_RBF": {
+      "logo_f1_macro_mean": 0.805,
+      "logo_f1_macro_std": 0.171,
+      "logo_f1_macro_min": 0.465,
+      "logo_f1_macro_max": 1.0,
+      "pooled_accuracy": 0.877,
+      "pooled_unstable_precision": 0.767,
+      "pooled_unstable_recall": 0.815,
+      "pooled_unstable_f1": 0.79,
+      "pooled_confusion_matrix": [
+        [
+          145,
+          33
+        ],
+        [
+          44,
+          405
+        ]
+      ]
+    },
+    "XGBoost": {
+      "logo_f1_macro_mean": 0.759,
+      "logo_f1_macro_std": 0.213,
+      "logo_f1_macro_min": 0.452,
+      "logo_f1_macro_max": 0.969,
+      "pooled_accuracy": 0.848,
+      "pooled_unstable_precision": 0.849,
+      "pooled_unstable_recall": 0.567,
+      "pooled_unstable_f1": 0.68,
+      "pooled_confusion_matrix": [
+        [
+          101,
+          77
+        ],
+        [
+          18,
+          431
+        ]
+      ]
+    },
+    "MLP": {
+      "logo_f1_macro_mean": 0.792,
+      "logo_f1_macro_std": 0.2,
+      "logo_f1_macro_min": 0.474,
+      "logo_f1_macro_max": 1.0,
+      "pooled_accuracy": 0.885,
+      "pooled_unstable_precision": 0.957,
+      "pooled_unstable_recall": 0.624,
+      "pooled_unstable_f1": 0.755,
+      "pooled_confusion_matrix": [
+        [
+          111,
+          67
+        ],
+        [
+          5,
+          444
+        ]
+      ]
+    }
+  },
+  "best_logo_f1_macro": "SVM_RBF"
+}
