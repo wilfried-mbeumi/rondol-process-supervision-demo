@@ -12,7 +12,7 @@ une interface type HMI industriel (Streamlit).
 ## Objectif manager / client
 
 Disposer d'un **outil R&D crédible et démontrable** permettant de :
-- visualiser l'état procédé et un **score de stabilité** (modèle ML SVM) ;
+- visualiser l'état procédé et un **score de stabilité** (modèle ML RandomForest, entraîné avec augmentation de données) ;
 - configurer un **profil de vis** (81 positions, 13 types d'éléments) et lire
   ses indicateurs (taux de remplissage, résidence, volumes) ;
 - paramétrer l'**IA & les feeders** et obtenir des recommandations
@@ -111,8 +111,8 @@ engine/             Moteur de physique-procédé (read-only, pur)
 machine/ materials/ physics/   Catalogues & formules (purs)
 AgentIndustrial_v1/ Agent IA explicable (règles + recommandations)
 i18n_messages.py    Catalogue pur des messages agent (FR/EN)
-models/             Modèle ML déployé : SVM_w60.joblib
-data/features/      Jeu de données consommé par l'app : dataset_ml_w60.csv
+models/             Modèle ML déployé : RandomForest_w60_augmented.joblib (SVM_w60.joblib = challenger)
+data/features/      Jeux de données : dataset_ml_w60.csv (réel) + dataset_ml_w60_augmented.csv (réel+synthétique)
 src/                Pipeline ML hors-ligne (optionnel, non requis pour l'app)
 tests/              Tests (moteur, pages, i18n)
 ```
