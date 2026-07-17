@@ -3,7 +3,7 @@ Liens du projet Rondol — thèse professionnelle RNCP 37137
 
 À COMPLÉTER PAR L'AUTEUR avant dépôt
 ------------------------------------
-URL publique (application Streamlit Cloud) : [À COMPLÉTER : https://<app>.streamlit.app]
+URL publique (application Streamlit Cloud) : https://rondol-process-supervision-demo.streamlit.app
 Dépôt Git (code source)                    : https://github.com/wilfried-mbeumi/rondol-process-supervision-demo
 
 Livrables

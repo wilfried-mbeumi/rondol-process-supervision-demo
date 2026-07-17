@@ -14,7 +14,7 @@ de test et l'accès d'administration. Il accompagne le livrable `MBEUMI_Wilfried
 
 | Élément | Lien |
 |---|---|
-| **URL publique de l'application** (Streamlit Cloud) | `[À COMPLÉTER : URL publique https://<app>.streamlit.app — fournie par l'auteur]` |
+| **URL publique de l'application** (Streamlit Cloud) | `https://rondol-process-supervision-demo.streamlit.app` (vérifier que le partage est réglé sur « public » dans Streamlit Cloud avant le dépôt) |
 | **Dépôt Git** (code source) | https://github.com/wilfried-mbeumi/rondol-process-supervision-demo |
 | **Dump SQL** | `database/rondol_state_dump.sql` (inclus dans le ZIP) |
 
@@ -107,7 +107,7 @@ RONDOL_EXTERNAL_STORE_PATH=/mnt/data/rondol_applied_state.json
 
 > Les valeurs réelles (URL projet, clés, mot de passe DB) sont **secrètes** et ne sont pas
 > versionnées. Elles sont fournies séparément au jury si une connexion live est requise :
-> `[À COMPLÉTER : identifiants Supabase de démonstration]`.
+> `[À COMPLÉTER PAR L'AUTEUR — uniquement dans la copie de ce fichier incluse dans le ZIP de dépôt : url + clé anon Supabase du projet de démonstration. Ne jamais committer ces valeurs dans le dépôt public ; les révoquer après la soutenance.]`.
 
 ## 7. Procédure de test / identifiants de test
 
