@@ -93,3 +93,8 @@ references/screw_elements/00 merde.png
 
 # État de run local (jamais committé — exigence manager S2)
 data/run_state/
+
+# ----- Audit finalisation juillet 2026 -----
+archive/
+data/consolidated/*.csv
+*.md.bak
