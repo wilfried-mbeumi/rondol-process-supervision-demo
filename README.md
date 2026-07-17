@@ -35,6 +35,13 @@ Disposer d'un **outil R&D crédible et démontrable** permettant de :
 | **Moteur Procédé** | Vue read-only du moteur de physique-procédé (couche `engine/`) |
 | **Sélecteur de langue FR / EN** | Bascule de l'interface (chrome) entre français et anglais professionnels |
 
+## Données et validation du modèle
+
+- **Campagne réelle** : essais du 07 au 13 avril 2026 (12 capteurs, 52 064 lignes brutes) → 798 fenêtres de 60 s (87 variables) pour l'entraînement.
+- **Base consolidée simulée** : 100 800 lignes générées à partir de l'échantillon réel (plateaux, bruit de régulation, manquants et codes d'erreur reproduits, épisodes d'instabilité) — plan de génération : `data/consolidated/rapport_generation.md`, script reproductible `scripts/generate_consolidated_dataset.py` (seed fixe ; CSV non versionné, régénérable).
+- **Validation externe** : le modèle déployé, évalué **sans réentraînement** sur cette base (`scripts/evaluate_on_consolidated.py`), conserve un pouvoir discriminant (AUC 0,753, erreurs majoritairement conservatrices) — `reports/eval_consolidated_w60.json`.
+- **Notebook d'accompagnement** : `notebooks/notebook_application_rondol.ipynb` (moteur procédé, EDA, ML — exécuté sans erreur).
+
 ## Lancement
 
 ```bash
