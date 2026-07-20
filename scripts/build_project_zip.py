@@ -42,8 +42,10 @@ DIR_RULES = {
     "data/features": {".csv", ".json"},
     "data/run_state": {".json"},
     "data/history": {".json"},
+    "data/consolidated": {".md", ".json"},
     "models": {".joblib"},
     "reports/memoire_captures": {".png"},
+    "notebooks": {".ipynb"},
 }
 
 # Fichiers individuels inclus
@@ -70,15 +72,20 @@ SINGLE_FILES = [
     "reports/runs_summary.csv",
     "reports/feature_importance_SVM_w60_threshold80.csv",
     "reports/feature_importance_RandomForest_w60.csv",
+    "reports/eval_consolidated_w60.json",
+    "reports/soutenance/MBEUMI_Wilfried_SOUTENANCE.pptx",
+    "reports/soutenance/GUIDE_SOUTENANCE_MBEUMI.pdf",
     "MBEUMI_Wilfried_THESE.pdf",
-    "MBEUMI_Wilfried_PREZ.pdf",
+    # NB : MBEUMI_Wilfried_PREZ.pdf (ancien deck 16 diapos) retiré du dépôt —
+    # remplacé par reports/soutenance/MBEUMI_Wilfried_SOUTENANCE.pptx (14 diapos,
+    # synchronisé). Réintégrer ici seulement si l'ancien deck doit rester canonique.
 ]
 
 EXCLUDE_DIR_PARTS = {"__pycache__", ".git", ".venv", ".pytest_cache", "node_modules"}
 
 LIENS = """Liens du projet Rondol — thèse professionnelle RNCP 37137
 ========================================================
-URL publique (application Streamlit) : [A COMPLETER PAR L'AUTEUR : https://<app>.streamlit.app]
+URL publique (application Streamlit) : https://rondol-process-supervision-demo.streamlit.app
 Depot Git (code source)              : https://github.com/wilfried-mbeumi/rondol-process-supervision-demo
 Dump SQL                             : database/rondol_state_dump.sql
 README / PDR (installation, test, BDD, deploiement) : PDR_README.md

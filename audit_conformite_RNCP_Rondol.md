@@ -93,7 +93,7 @@
 | Choix de méthode (Lean/Scrum/Kanban) | **OK** | 4.1 CRISP-DM adapté (justifié) |
 | Rétroplanning (livrables + échéances) | **OK** | 4.3 Tableau 4.1 |
 | Outil Gantt/Pert | **OK** | figure Gantt (`fig_gantt.png`) en 4.3 |
-| Tableaux de bord et indicateurs de suivi | **OK** | **4.8 ajouté** (KPIs : 685 tests, 6 pages, 798 fenêtres, F1, jalons) |
+| Tableaux de bord et indicateurs de suivi | **OK** | **4.8 ajouté** (KPIs : 694 tests, 6 pages, 798 fenêtres, F1, jalons) |
 | Estimation du budget | **OK** | **4.8 ajouté** Tableau 4.4 (temps-homme + coûts open source/freemium) |
 | Veille techno/sectorielle/réglementaire (tableau) | **OK** | **4.7 ajouté** Tableau 4.3 (sources, type, date, outil, canal, fréquence, impact) |
 | Cartographie des risques | **OK** | 4.4 Tableau 4.2 (qualité/sécurité données, cloud, etc.) |
@@ -124,7 +124,7 @@
 | URL d'une appli (flask/dash/shiny) local ou distant | **OK (équivalent justifié)** | Streamlit (appli web serveur Python) ; URL publique à coller (PDR §1) ; lancement local documenté |
 | Front (visuel) | **OK** | `app/` Streamlit, 6 pages |
 | Back intégrant l'algorithme supervisé | **OK** | `app/Supervision.py:78` charge `models/RandomForest_w60_augmented.joblib` |
-| Test et déploiement (serveur local/distant) | **OK** | 685 tests ; Streamlit Cloud ; `runtime.txt` |
+| Test et déploiement (serveur local/distant) | **OK** | 694 tests ; Streamlit Cloud ; `runtime.txt` |
 | RGPD / données personnelles | **OK** | 8.4 (aucune donnée perso) |
 | Accessibilité (handicap) | **PARTIEL** | 8.4 : WCAG 2.1 non implémenté, chantier identifié (honnête) |
 

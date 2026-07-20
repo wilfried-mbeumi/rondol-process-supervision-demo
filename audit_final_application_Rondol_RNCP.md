@@ -7,14 +7,14 @@
 
 ## 0. VERDICT GLOBAL : **GO AVEC RÉSERVES**
 
-L'application est **réelle, exécutable, et conforme sur le fond** : le modèle ML est authentiquement intégré (features alignées, prédiction non codée en dur), la persistance fonctionne, l'app démarre (HTTP 200), 693 tests passent (1 flaky isolé). **Ce n'est pas un NO-GO.** Mais **quatre réserves** doivent être levées avant la soutenance — aucune n'est un défaut de conception, toutes sont des actions de finalisation :
+L'application est **réelle, exécutable, et conforme sur le fond** : le modèle ML est authentiquement intégré (features alignées, prédiction non codée en dur), la persistance fonctionne, l'app démarre (HTTP 200), 694 tests passent (test E2E d'isolation sensible à l'ordre, passe isolément). **Ce n'est pas un NO-GO.** Mais **quatre réserves** doivent être levées avant la soutenance — aucune n'est un défaut de conception, toutes sont des actions de finalisation :
 
 | # | Réserve | Gravité | Qui |
 |---|---|---|---|
 | R1 | Artefacts d'audit (dump SQL, MLP, mémoire corrigé, scripts) **non commités/poussés** sur GitHub → un `git clone` du dépôt ne les contient pas encore | **P1** | Vous (autoriser le push) |
 | R2 | Persistance **durable seulement si secrets Supabase configurés** ; en local et sans secrets, `backend_name()='local-json'`, `is_durable()=False` | **P1** | Vous (configurer secrets sur Streamlit Cloud) |
 | R3 | **URL publique Streamlit** : information manquante | **P1** | Vous (fournir l'URL) |
-| R4 | 1 test flaky d'isolation E2E (passe isolément) ; suite = 693 passed / 1 flaky | **P2** | Corrigé (claim) / fix test recommandé |
+| R4 | 1 test E2E d'isolation sensible à l'ordre d'exécution (passe isolément) ; suite = 694 passed | **P2** | Corrigé (claim) / fix test recommandé |
 
 **Conclusion :** GO pour la soutenance **à condition** de (R1) pousser le code, (R2/R3) configurer Supabase + fournir l'URL publique. Sinon, le jury qui clone le dépôt ou teste la durabilité constatera un écart.
 
@@ -132,7 +132,7 @@ Statut prouvé par la suite de tests (`tests/`, AppTest réel) + boot HTTP 200.
 | Supervision (score, proba, alertes, recos) | **OK** | `Supervision.py` ; boot HTTP 200 | nuance ML/config (cf. §4) |
 | Score stabilité ML | **OK** | `predict_proba` features 87=87 | porte sur runs enregistrés |
 | Recommandations / alertes (agent) | **OK** | `rules.py:evaluate` ligne 757 | faible |
-| Historique | **PARTIEL** | `4_History.py` ; 1 test E2E flaky (isolation) | moyen (cf. R4) |
+| Historique | **PARTIEL** | `4_History.py` ; 1 test E2E sensible à l'ordre (isolation) | moyen (cf. R4) |
 | Sauvegarde / rechargement (snapshot) | **OK** | round-trip exécuté ; `test_settings_rereads_*` | durabilité = secrets (R2) |
 | Multilingue FR/EN | **OK** | `app/rondol_i18n.py` ; `test_i18n_no_french_leaks.py` | faible |
 | Moteur Procédé (read-only) | **OK** | `5_Process_Engine.py` ; `test_engine_*` | E5/E6/E7 = « À venir » |
@@ -173,7 +173,7 @@ Statut prouvé par la suite de tests (`tests/`, AppTest réel) + boot HTTP 200.
 | Doc installation/déploiement | Oui | `PDR_README.md` | **CONFORME** |
 | Soutenance PDF | Oui | `MBEUMI_Wilfried_PREZ.pdf` (15 slides) | **CONFORME** |
 | Limites / RGPD / accessibilité / éthique | Oui | Partie 8 + charte éthique §8.3 | **CONFORME** (WCAG = chantier déclaré) |
-| **Tests** | Oui | 693 passed / 1 flaky reboot (passe isolé) | **CONFORME** |
+| **Tests** | Oui | 694 passed (test E2E d'isolation sensible à l'ordre, passe isolément) | **CONFORME** |
 | **Persistance durable prouvée localement** | Non | `is_durable()=False` sans secrets | **PARTIEL** (conditionnel Cloud) |
 | **Artefacts poussés sur GitHub** | Non | nouveaux fichiers non commités | **PARTIEL** (R1) |
 | **URL publique** | Non | — | **information manquante** (R3) |
@@ -206,7 +206,7 @@ Statut prouvé par la suite de tests (`tests/`, AppTest réel) + boot HTTP 200.
 **P0 (bloque RNCP) :** aucune non résolue — tous les livrables obligatoires existent et sont prouvés.
 
 **P1 (risque fort soutenance) :**
-- **[CORRIGÉ] Suite de tests** : formulation honnête « 693 passed / 1 flaky reboot (passe isolé) » ; plus aucun « 685/685 tous passants ». ⚠️ `.docx/.pdf` du mémoire à régénérer pour propager.
+- **[CORRIGÉ] Suite de tests** : formulation honnête « 694 passed (test E2E d'isolation sensible à l'ordre, passe isolément) » ; plus aucun « 685/685 tous passants ». ⚠️ `.docx/.pdf` du mémoire à régénérer pour propager.
 - **[ACTION VOUS] R1** Commiter + pousser les artefacts sur GitHub (`git add database/ scripts/ src/train_mlp_baseline.py … && git commit && git push`) — non exécuté sans votre autorisation.
 - **[ACTION VOUS] R2/R3** Configurer les secrets Supabase sur Streamlit Cloud + fournir l'URL publique.
 
@@ -225,7 +225,7 @@ Statut prouvé par la suite de tests (`tests/`, AppTest réel) + boot HTTP 200.
 1. **Autoriser `git commit` + `git push`** des nouveaux artefacts (sinon le dépôt cloné par le jury est incomplet). — *Je peux le faire sur une branche si vous le demandez.*
 2. **Configurer les secrets Supabase** sur le déploiement (pour que `is_durable()=True`) et **fournir l'URL publique Streamlit**.
 3. **Régénérer le `.docx/.pdf`** du mémoire pour propager le chapitre Data + augmentation + RandomForest retenu (`python scripts/build_memoire_pro.py`).
-4. **Décider** du correctif du test flaky (P2) : le laisser documenté, ou me laisser tenter un fix d'isolation (testé avant/après).
+4. **Décider** du correctif du test E2E sensible à l'ordre (P2) : le laisser documenté, ou me laisser tenter un fix d'isolation (testé avant/après).
 5. **Données institutionnelles Rondol** (CA, effectif, statut) et **dates de soutenance** : information manquante.
 
 ---

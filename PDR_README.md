@@ -130,11 +130,11 @@ python -m pytest tests/ -q
 # sous-ensemble rapide (moteur pur) :
 python -m pytest tests/ -q --ignore=tests/test_streamlit_pages.py --ignore=tests/test_render_smoke.py
 ```
-> **Note d'honnêteté (test flaky connu)** : sur une exécution complète, la suite donne
-> **693 passed / 1 flaky**. L'unique échec éventuel — un test E2E de redémarrage/synchronisation
-> — est une **fragilité d'isolation/timing de la couche E2E Streamlit `AppTest`** (état disque
+> **Note d'honnêteté (test sensible à l'ordre d'exécution)** : sur une exécution complète, la suite donne
+> **694 passed**. Un test E2E de redémarrage/synchronisation reste **sensible à l'ordre d'exécution**
+> en suite complète (**fragilité d'isolation/timing de la couche E2E Streamlit `AppTest`** — état disque
 > partagé au niveau session + rendu lourd sous charge), **pas un défaut applicatif** : le test
-> **passe systématiquement en isolation** :
+> **passe systématiquement en isolation et en réexécution** :
 > ```powershell
 > python -m pytest tests/test_e2e_client_sync.py::test_history_has_same_snapshot -q   # 1 passed
 > ```

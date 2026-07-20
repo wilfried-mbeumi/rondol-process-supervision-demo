@@ -11,7 +11,7 @@
 
 **Verdict global : CONFORME à un mémoire de fin d'année professionnel (thèse pro Mastère 2), avec finitions résiduelles à compléter avant dépôt.**
 
-Le projet n'est pas un brouillon : c'est un système logiciel structuré, testé (685 tests), déployé (Streamlit Cloud + Supabase), accompagné d'un mémoire de 811 lignes couvrant la quasi-totalité du canevas attendu, et de livrables Word/PDF déjà générés. L'audit confirme que **le texte du mémoire ne ment pas sur le code** : tous les chiffres clés vérifiés (modèle intégré, métriques ML, nombre de tests, nombre d'essais, structure Supabase) concordent avec les fichiers du dépôt.
+Le projet n'est pas un brouillon : c'est un système logiciel structuré, testé (694 tests), déployé (Streamlit Cloud + Supabase), accompagné d'un mémoire de 811 lignes couvrant la quasi-totalité du canevas attendu, et de livrables Word/PDF déjà générés. L'audit confirme que **le texte du mémoire ne ment pas sur le code** : tous les chiffres clés vérifiés (modèle intégré, métriques ML, nombre de tests, nombre d'essais, structure Supabase) concordent avec les fichiers du dépôt.
 
 ### Points forts (à mettre en avant en soutenance)
 1. **Honnêteté scientifique exemplaire** — championnat de 5 modèles supervisés en validation par essai réel non vu ; écart validation naïve (F1 0.92) vs stricte (0.80) assumé ; augmentation de données documentée → **RandomForest retenu (0.918 ± 0.054)** et déployé (`reports/augmentation_eval.json`).
@@ -89,7 +89,7 @@ Le projet n'est pas un brouillon : c'est un système logiciel structuré, testé
 | Modèle déployé | `models/RandomForest_w60_augmented.joblib` chargé `Supervision.py:78` | Classifieur stabilité (augmenté), seuil 80 |
 | Benchmark | `models/{RandomForest,SVM,XGBoost}_w{30,60,120}.joblib` | Étude comparative |
 | Rapports perfs | `reports/ml_metrics_w*.json`, `robustness_full_w60.json`, `feature_importance_*.csv` | Métriques + robustesse + importances |
-| Tests | `tests/` (**693 passed / 1 flaky reboot**, passe isolé) | Logique, moteur, sync, persistance, singleton, garde-fous honnêteté |
+| Tests | `tests/` (**694 passed reboot**, passe isolé) | Logique, moteur, sync, persistance, singleton, garde-fous honnêteté |
 
 ---
 
@@ -176,7 +176,7 @@ Le projet n'est pas un brouillon : c'est un système logiciel structuré, testé
 | Recommandations chiffrées | `recommendations.py` | Robuste |
 | Persistance Supabase | `persistence.py` | Robuste |
 | Internationalisation FR/EN | `app/rondol_i18n.py`, `i18n_messages.py` | Prototype→robuste |
-| Tests automatisés | `tests/` (685) | Robuste |
+| Tests automatisés | `tests/` (694) | Robuste |
 | Déploiement Streamlit Cloud | `runtime.txt`, `.streamlit/` | Démonstration |
 
 ---
@@ -247,7 +247,7 @@ Posture : ces limites dessinent une feuille de route (Partie 8.5), elles ne disc
 
 **Q18 — Traçabilité ?** Chaque alerte porte une évidence chiffrée ; chaque reco porte `rationale`, `delta_label` (avant→après) et `linked_alert_code` vers l'alerte source. Snapshots validés horodatés en historique.
 
-**Q19 — Reproductibilité ?** Pipeline déterministe paramétré (`src/config.py`), split par essai (pas de fuite), seeds, cas de démonstration figés (`case_definitions.md`), 685 tests automatisés.
+**Q19 — Reproductibilité ?** Pipeline déterministe paramétré (`src/config.py`), split par essai (pas de fuite), seeds, cas de démonstration figés (`case_definitions.md`), 694 tests automatisés.
 
 **Q20 — Comment l'app aide concrètement l'opérateur ?** Elle rend lisible l'état procédé d'une config (remplissage, résidence, couple), anticipe une instabilité thermique (score RandomForest), localise le risque (zone), et propose des actions chiffrées justifiées — boucle C1→C5 démontrée (détection → reco → vérification).
 
