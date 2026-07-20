@@ -33,7 +33,10 @@ Disposer d'un **outil R&D crédible et démontrable** permettant de :
 | **Analyse du run** | Analyse temporelle d'un run de production (score, fenêtres, profil thermique) |
 | **Historique des procédés** | Historique persistant des configurations enregistrées (KPIs figés au commit) |
 | **Moteur Procédé** | Vue read-only du moteur de physique-procédé (couche `engine/`) |
+| **Compte** | Utilisateur connecté, déconnexion, historique des connexions (lu depuis la base) |
 | **Sélecteur de langue FR / EN** | Bascule de l'interface (chrome) entre français et anglais professionnels |
+
+> **Accès protégé** : l'application exige une connexion (`app/auth.py`, mot de passe hashé PBKDF2, jamais en clair). Chaque tentative est journalisée en base (`login_history`). Identifiants de test et création de compte : voir `PDR_README.md` §7 et `scripts/seed_user.py`.
 
 ## Données et validation du modèle
 

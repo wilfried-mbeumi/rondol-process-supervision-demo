@@ -111,11 +111,22 @@ RONDOL_EXTERNAL_STORE_PATH=/mnt/data/rondol_applied_state.json
 
 ## 7. Procédure de test / identifiants de test
 
-L'application est **mono-utilisateur** et **ne requiert pas d'authentification** (pas de
-compte ni de mot de passe utilisateur) : aucun identifiant de connexion n'est nécessaire
-pour la tester. Parcours de test (5 min) — cf. `docs/DEMO_MANAGER.md` :
+L'accès à l'application est **protégé par authentification** (`app/auth.py`). Le mot de
+passe n'est **jamais stocké en clair** : seul un hash **PBKDF2-HMAC-SHA256** (200 000
+itérations, sel par compte) est conservé dans la table `app_users` (Supabase). Chaque
+tentative de connexion, réussie ou non, est journalisée dans la table `login_history` et
+consultable dans la page **Compte**.
 
-1. Lancer `streamlit run app/Supervision.py`.
+**Identifiants de test** (à créer via `python scripts/seed_user.py`) :
+
+| Champ | Valeur |
+|---|---|
+| Email | `demo@rondol.local` |
+| Mot de passe | `0000` |
+
+Parcours de test (5 min) — cf. `docs/DEMO_MANAGER.md` :
+
+1. Lancer `streamlit run app/Supervision.py` puis **se connecter** avec les identifiants ci-dessus.
 2. *Supervision* : lire l'état machine, le score de stabilité (RandomForest augmenté), la probabilité de
    dérive, les alertes et recommandations ; changer de run/fenêtre dans la barre latérale.
 3. Basculer la langue **FR / EN**.
@@ -123,6 +134,10 @@ pour la tester. Parcours de test (5 min) — cf. `docs/DEMO_MANAGER.md` :
    observer les indicateurs (remplissage, résidence, volumes).
 5. *Paramètres IA & feeders* : ajuster une consigne, **Enregistrer**, puis vérifier la
    persistance dans *Historique* et *Moteur Procédé*.
+6. *Compte* : consulter l'**historique des connexions** (lu depuis la base) et se déconnecter.
+
+> Prérequis base : créer les tables d'authentification une fois via
+> `database/auth_tables.sql` (SQL Editor Supabase), puis exécuter `scripts/seed_user.py`.
 
 **Tests automatisés** (~695 tests collectés) :
 ```powershell
@@ -130,19 +145,21 @@ python -m pytest tests/ -q
 # sous-ensemble rapide (moteur pur) :
 python -m pytest tests/ -q --ignore=tests/test_streamlit_pages.py --ignore=tests/test_render_smoke.py
 ```
-> **Suite de tests** : sur une exécution complète, la suite donne **694 passed**,
-> **indépendamment de l'ordre d'exécution** (vérifié sur plusieurs graines `pytest-randomly`).
-> L'isolation inter-fichiers de l'historique procédé est garantie par `tests/conftest.py`
-> (remise à zéro de l'historique au début de chaque module). Vérification ciblée possible :
+> **Suite de tests** : sur une exécution complète, la suite donne **704 passed**
+> (dont 10 tests d'authentification), **indépendamment de l'ordre d'exécution** (vérifié
+> sur plusieurs graines `pytest-randomly`). L'isolation inter-fichiers des stores disque
+> est garantie par `tests/conftest.py`. Vérification ciblée possible :
 > ```powershell
 > python -m pytest tests/test_e2e_client_sync.py::test_history_has_same_snapshot -q   # 1 passed
 > ```
 
 ## 8. Accès administrateur / back-office
 
-Le prototype **ne comporte pas de back-office applicatif** : il s'agit d'un outil
-d'aide à la décision mono-poste, sans gestion d'utilisateurs ni rôles. Cette absence est
-un **choix assumé** cohérent avec le périmètre de démonstration (un opérateur à la fois).
+Le prototype comporte une **authentification applicative** (page de connexion + table
+`app_users`) et une **traçabilité des accès** (table `login_history`, page *Compte*),
+mais **pas de gestion multi-rôles** : un profil opérateur unique suffit au périmètre de
+démonstration. La création de comptes se fait côté serveur (`scripts/seed_user.py`), sans
+auto-inscription — cohérent avec un outil interne.
 
 Le rôle d'« administration des données » est tenu par la **console Supabase**
 (dashboard PostgreSQL : éditeur de table, requêtes SQL, logs), qui fait office de
