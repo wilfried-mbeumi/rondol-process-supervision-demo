@@ -101,3 +101,7 @@ data/run_state/
 archive/
 data/consolidated/*.csv
 *.md.bak
+
+# Secrets de dépôt (jamais committés) — injectés dans la copie PDR du ZIP
+.streamlit/secrets_depot.txt
+.streamlit/secrets.local.toml
