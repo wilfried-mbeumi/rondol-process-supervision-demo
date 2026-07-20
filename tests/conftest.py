@@ -78,7 +78,7 @@ def _isolate_history_store():
 
 @pytest.fixture(autouse=True)
 def _clear_run_state_file():
-    """Vide le store opérateur disque AVANT chaque test (isolation inter-tests).
+    """Vide le store opérateur + miroir applied AVANT chaque test (isolation).
 
     La persistance INTRA-test (Profile écrit → Moteur lit) reste valable ;
     seul le report d'un test à l'autre est empêché.
@@ -91,6 +91,25 @@ def _clear_run_state_file():
     try:
         if _APPLIED_PATH.exists():
             _APPLIED_PATH.unlink()
+    except Exception:
+        pass
+    yield
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _clear_history_between_modules():
+    """Remet l'historique procédé à zéro AU DÉBUT de chaque module de test.
+
+    Portée module (et non fonction) : les tests E2E qui commitent un snapshot
+    en fixture `scope="module"` puis relisent la page History au fil des tests
+    du même fichier continuent de voir leur propre historique. En revanche, un
+    snapshot validé par un fichier (ex. TEST_CLIENT_SYNC_001) ne fuite plus
+    dans la page History d'un autre fichier (ex. test_e2e_prod_reboot) — la
+    suite complète devient indépendante de l'ordre d'exécution.
+    """
+    try:
+        if _ISOLATED_PATH.exists():
+            _ISOLATED_PATH.unlink()
     except Exception:
         pass
     yield

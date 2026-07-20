@@ -130,11 +130,10 @@ python -m pytest tests/ -q
 # sous-ensemble rapide (moteur pur) :
 python -m pytest tests/ -q --ignore=tests/test_streamlit_pages.py --ignore=tests/test_render_smoke.py
 ```
-> **Note d'honnêteté (test sensible à l'ordre d'exécution)** : sur une exécution complète, la suite donne
-> **694 passed**. Un test E2E de redémarrage/synchronisation reste **sensible à l'ordre d'exécution**
-> en suite complète (**fragilité d'isolation/timing de la couche E2E Streamlit `AppTest`** — état disque
-> partagé au niveau session + rendu lourd sous charge), **pas un défaut applicatif** : le test
-> **passe systématiquement en isolation et en réexécution** :
+> **Suite de tests** : sur une exécution complète, la suite donne **694 passed**,
+> **indépendamment de l'ordre d'exécution** (vérifié sur plusieurs graines `pytest-randomly`).
+> L'isolation inter-fichiers de l'historique procédé est garantie par `tests/conftest.py`
+> (remise à zéro de l'historique au début de chaque module). Vérification ciblée possible :
 > ```powershell
 > python -m pytest tests/test_e2e_client_sync.py::test_history_has_same_snapshot -q   # 1 passed
 > ```
@@ -179,6 +178,6 @@ une extension navigateur n'est requise.
 - **URL publique Streamlit** : à renseigner par l'auteur dans `LIENS_URLS.txt` et §1.
 - **Score ML** : calculé sur des **fenêtres capteurs enregistrées** (campagne avril 2026),
   pas sur la configuration de vis éditée en direct (qui pilote l'agent à règles + les KPIs).
-- **Test E2E flaky** : cf. §7 (isolation/timing, non bloquant).
+- **Isolation des tests E2E** : garantie par conftest (historique remis à zéro par module) ; suite 694/694 indépendante de l'ordre, cf. §7.
 - **Dépôt Git « vitrine »** : `.gitignore` exclut `src/`, `scripts/`, `*.pdf/*.docx/*.zip` ;
   le **code source complet** (pipeline ML + scripts) est livré dans `MBEUMI_Wilfried_PROJET.zip`.
