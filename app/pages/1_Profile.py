@@ -94,6 +94,8 @@ from AgentIndustrial_v1.core.state_sync import state_from_session  # noqa: E402
 from AgentIndustrial_v1.core.screw_adapter import refresh_kpis  # noqa: E402
 
 st.set_page_config(page_title=t("page.profile.title"), layout="wide")
+from auth import require_login  # noqa: E402
+require_login(st)
 
 # Migration/réparation déterministe AVANT tout widget : un snapshot durable
 # dégénéré (ancien build) est réparé + réécrit dans Supabase, puis posé en

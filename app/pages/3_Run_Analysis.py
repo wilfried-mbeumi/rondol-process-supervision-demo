@@ -46,6 +46,8 @@ DATASET_PATH = ROOT / "data" / "features" / "dataset_ml_w60.csv"
 THRESHOLD    = 80
 
 st.set_page_config(page_title=t("page.analyse.title"), layout="wide")
+from auth import require_login  # noqa: E402
+require_login(st)
 language_selector()
 st.markdown(t("analyse.header"))
 

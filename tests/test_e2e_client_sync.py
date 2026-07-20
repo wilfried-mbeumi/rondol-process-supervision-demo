@@ -61,11 +61,17 @@ def _durable_store_env():
     """
     prev = os.environ.get(_EXT_ENV)
     os.environ[_EXT_ENV] = _DURABLE_STORE
-    try:
-        if Path(_DURABLE_STORE).exists():
-            Path(_DURABLE_STORE).unlink()
-    except Exception:
-        pass
+    # Ardoise propre au SETUP DU MODULE : le fixture `_committed` (module-scope)
+    # s'exécute avant le nettoyage per-fonction du conftest. Sans ce nettoyage
+    # explicite, il lit un applied_state/run_state laissé par un module exécuté
+    # avant (selon l'ordre aléatoire), d'où des éléments de vis résiduels.
+    for _env in (_EXT_ENV, "RONDOL_APPLIED_STATE_PATH", "RONDOL_RUN_STATE_PATH", "RONDOL_HISTORY_PATH"):
+        _p = os.environ.get(_env)
+        if _p:
+            try:
+                Path(_p).unlink()
+            except Exception:
+                pass
     yield
     if prev is None:
         os.environ.pop(_EXT_ENV, None)

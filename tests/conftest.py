@@ -45,6 +45,18 @@ _APPLIED_PATH = _ISOLATED_DIR / "applied_state.json"
 _PREVIOUS_APPLIED_ENV = os.environ.get(_APPLIED_PATH_ENV)
 os.environ[_APPLIED_PATH_ENV] = str(_APPLIED_PATH)
 
+# Authentification : DÉSACTIVÉE pendant les tests. La garde de connexion
+# (app/auth.py::require_login) est un no-op quand RONDOL_DISABLE_AUTH == "1",
+# afin que les tests d'intégration des pages (AppTest) pilotent les pages sans
+# formulaire de login. Les tests dédiés à l'auth (tests/test_auth.py) exercent
+# le vrai mécanisme sans dépendre de cette variable.
+os.environ["RONDOL_DISABLE_AUTH"] = "1"
+# Stores auth isolés (repli fichier) pour les tests qui exercent le backend.
+_AUTH_USERS_PATH = _ISOLATED_DIR / "auth_users.json"
+_AUTH_HISTORY_PATH = _ISOLATED_DIR / "auth_history.json"
+os.environ.setdefault("RONDOL_AUTH_USERS_PATH", str(_AUTH_USERS_PATH))
+os.environ.setdefault("RONDOL_AUTH_HISTORY_PATH", str(_AUTH_HISTORY_PATH))
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _isolate_history_store():

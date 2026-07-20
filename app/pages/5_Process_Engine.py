@@ -79,6 +79,8 @@ from run_state_adapter import (  # noqa: E402
 from operator_store import restore_operator_state  # noqa: E402
 
 st.set_page_config(page_title=_t("moteur.page_title"), layout="wide")
+from auth import require_login  # noqa: E402
+require_login(st)
 
 # ---------------------------------------------------------------------------
 # CSS global (cohérent avec les autres pages — bloc statique immuable)

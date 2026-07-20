@@ -105,3 +105,6 @@ data/consolidated/*.csv
 # Secrets de dépôt (jamais committés) — injectés dans la copie PDR du ZIP
 .streamlit/secrets_depot.txt
 .streamlit/secrets.local.toml
+
+# Auth : store local de repli (jamais committé)
+data/auth/

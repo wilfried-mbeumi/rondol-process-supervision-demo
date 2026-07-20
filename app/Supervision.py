@@ -93,6 +93,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Garde d'accès : exige une connexion (no-op en test / si déjà authentifié).
+from auth import require_login  # noqa: E402
+require_login(st)
+
 # Couleur d'accent Rondol (bandeau HMI vert)
 RONDOL_GREEN = "#4CAF50"
 
