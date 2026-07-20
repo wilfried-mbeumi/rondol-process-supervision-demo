@@ -84,6 +84,9 @@ reports/*
 !reports/augmentation_plan.md
 !reports/augmentation_report.json
 !reports/augmentation_eval.json
+!reports/eval_consolidated_w60.json
+!reports/soutenance/
+!reports/soutenance/*
 
 # ----- References : ne garder QUE les images d'éléments de vis (chargées par l'app) -----
 references/*
