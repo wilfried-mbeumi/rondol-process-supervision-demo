@@ -451,7 +451,7 @@ Le projet ayant été conduit par un acteur unique dans un cadre de formation, l
 
 *Tableau 4.4 — Budget prévisionnel : l'investissement est essentiellement en temps, le coût logiciel direct étant nul (open source / freemium).*
 
-Le suivi du projet s'est appuyé sur un tableau de bord d'indicateurs objectifs, réévalués au fil des itérations : nombre de tests automatisés passants (**694** sur 694 en exécution complète), couverture fonctionnelle (**6 pages** opérationnelles), volumétrie du jeu d'apprentissage (**798 fenêtres**, 8 essais), performance du modèle retenu (RandomForest augmenté, F1-macro 0,918 ± 0,054 sur essai réel), jalons tenus (campagne d'essais, démonstration du 16 juin 2026), et nombre d'incidents de production résolus et figés en tests de non-régression (cf. Tableau 6.1). Ces indicateurs constituent le tableau de bord de pilotage présenté à la Direction (tuteur industriel).
+Le suivi du projet s'est appuyé sur un tableau de bord d'indicateurs objectifs, réévalués au fil des itérations : nombre de tests automatisés passants (**694** sur 694 en exécution complète), couverture fonctionnelle (**6 pages** opérationnelles), volumétrie du jeu d'apprentissage (**798 fenêtres**, 8 essais), performance du modèle retenu (RandomForest augmenté, F1-macro 0,918 ± 0,054 sur essai réel), jalons tenus (campagne d'essais, démonstration du 16 juin 2026), et nombre d'incidents de production résolus et figés en tests de non-régression (cf. Tableau 6.1, Annexe F). Ces indicateurs constituent le tableau de bord de pilotage présenté à la Direction (tuteur industriel).
 
 [SAUT DE PAGE]
 

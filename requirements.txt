@@ -18,3 +18,10 @@ requests==2.32.3      # requis par app/persistence.py (REST Supabase, persistanc
 # --- Optionnel : pipeline ML hors-ligne (src/, non requis pour lancer l'app) ---
 # Décommenter pour réentraîner les modèles à partir des essais bruts.
 # xgboost==2.1.4
+
+# --- Optionnel : exécution du notebook d'accompagnement (notebooks/) ---
+# Requis uniquement pour rejouer notebooks/notebook_application_rondol.ipynb.
+# matplotlib==3.10.0
+# jupyter==1.1.1
+# nbformat==5.10.4
+# nbclient==0.10.2
