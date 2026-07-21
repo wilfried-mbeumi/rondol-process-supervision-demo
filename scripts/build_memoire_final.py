@@ -75,6 +75,8 @@ THEME_FILL = "EAF1F8"
 LTGREY = "F2F2F2"
 
 BASE_FONT = "Calibri"
+# Police des titres : serif institutionnel, contraste avec le corps Calibri.
+TITLE_FONT = "Cambria"
 CONTENT_W = Cm(16.0)
 FIG_W = Cm(11.0)   # largeur des figures (compacte, maîtrise de la pagination)
 
@@ -167,6 +169,39 @@ def para_bottom_border(p, color, sz="6"):
     pPr.append(pbdr)
 
 
+def enable_hyphenation(doc):
+    """Active la césure automatique du document.
+
+    Sans césure, un texte justifié en français produit de larges blancs entre
+    les mots (« rivières » typographiques) — le principal défaut visuel d'un
+    document composé par défaut. La césure les résorbe tout en conservant la
+    justification attendue dans un mémoire.
+    """
+    settings = doc.settings.element
+    for tag, val in (("w:autoHyphenation", "true"),
+                     ("w:doNotHyphenateCaps", "true")):
+        el = OxmlElement(tag)
+        el.set(qn("w:val"), val)
+        settings.append(el)
+    zone = OxmlElement("w:hyphenationZone")
+    zone.set(qn("w:val"), "357")          # ≈ 0,63 cm — zone de césure usuelle
+    settings.append(zone)
+    limit = OxmlElement("w:consecutiveHyphenLimit")
+    limit.set(qn("w:val"), "2")           # jamais plus de 2 césures d'affilée
+    settings.append(limit)
+
+
+def para_top_border(p, color, sz="6"):
+    """Filet fin au-dessus du paragraphe (utilisé pour le pied de page)."""
+    pPr = p._p.get_or_add_pPr()
+    pbdr = OxmlElement("w:pBdr")
+    top = OxmlElement("w:top")
+    top.set(qn("w:val"), "single"); top.set(qn("w:sz"), sz)
+    top.set(qn("w:space"), "4"); top.set(qn("w:color"), color)
+    pbdr.append(top)
+    pPr.append(pbdr)
+
+
 # --------------------------------------------------------------------------- #
 # Logos
 # --------------------------------------------------------------------------- #
@@ -203,19 +238,27 @@ def configure_styles(doc):
     normal.font.color.rgb = DARK
     pf = normal.paragraph_format
     pf.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
-    pf.line_spacing = 1.15             # conforme guide : interligne 1,5 maximum
-    pf.space_after = Pt(5)
-    specs = {"Heading 1": (16, BLUE, True), "Heading 2": (13.5, BLUE2, True),
-             "Heading 3": (12, DARK, True)}
-    for name, (size, color, bold) in specs.items():
+    # Interligne 1,30 (guide : 1,5 maximum) — respiration nettement meilleure
+    # que 1,15 pour un document de lecture longue.
+    pf.line_spacing = 1.30
+    pf.space_after = Pt(8)             # séparation nette entre paragraphes
+    # Appariement typographique : titres en serif (Cambria), corps en Calibri 12.
+    # Le guide impose la police du CORPS ; le contraste titres/corps est ce qui
+    # distingue un mémoire composé d'un document bureautique par défaut.
+    specs = {"Heading 1": (19, BLUE, True, TITLE_FONT, 22, 10),
+             "Heading 2": (14.5, BLUE2, True, TITLE_FONT, 18, 7),
+             "Heading 3": (12.5, DARK, True, BASE_FONT, 13, 5)}
+    for name, (size, color, bold, fnt, before, after) in specs.items():
         st = doc.styles[name]
-        st.font.name = BASE_FONT
+        st.font.name = fnt
         st.font.size = Pt(size)
         st.font.color.rgb = color
         st.font.bold = bold
-        st.paragraph_format.space_before = Pt(12)
-        st.paragraph_format.space_after = Pt(6)
+        st.paragraph_format.space_before = Pt(before)
+        st.paragraph_format.space_after = Pt(after)
         st.paragraph_format.keep_with_next = True
+        st.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+        st.paragraph_format.line_spacing = 1.08
 
 
 def configure_page(section):
@@ -447,6 +490,13 @@ def build_asset_map():
     P = POSTER / "generated_v2"
     PF = POSTER / "generated"
     return {
+        # --- Ajouts finalisation : authentification + championnat ML ---------
+        "écran de connexion de la plateforme": (C("cap_login.png"),
+            "Écran de connexion — accès protégé, mot de passe haché (PBKDF2), jamais stocké en clair"),
+        "page Compte — historique des connexions": (C("cap_account.png"),
+            "Page Compte — utilisateur connecté et historique des connexions lu depuis la base durable"),
+        "championnat des modèles supervisés en validation": (F("fig_championnat_modeles.png"),
+            "Championnat des modèles supervisés en validation Leave-One-Group-Out : F1-macro moyen et écart-type inter-essais"),
         # Figures
         "cartographie des trois domaines": (F("fig_domain_intersection.png"),
             "Cartographie des trois domaines (extrusion bivis, apprentissage automatique, batteries tout-solide) et zone d'intersection peu couverte"),
@@ -754,27 +804,26 @@ def build_header_footer(section, nexa_png, rondol_png):
     rh.font.size = Pt(8.5); rh.font.italic = True; rh.font.color.rgb = GREY; rh.font.name = BASE_FONT
     para_bottom_border(h, "BFBFBF", sz="4")
 
-    # Pied : table 3 colonnes (logo Rondol | page | logo Nexa)
-    ftbl = section.footer.add_table(rows=1, cols=3, width=CONTENT_W)
+    # Pied épuré : identité à gauche, numéro de page à droite, filet fin.
+    # (Les logos institutionnels figurent sur la page de garde ; les répéter
+    # sur chacune des 70 pages alourdit inutilement la lecture.)
+    ftbl = section.footer.add_table(rows=1, cols=2, width=CONTENT_W)
     no_borders(ftbl)
-    lc, cc, rc = ftbl.rows[0].cells
-    lc.width = Cm(5.2); cc.width = Cm(5.2); rc.width = Cm(5.2)
-    lp = lc.paragraphs[0]; lp.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    if rondol_png:
-        lp.add_run().add_picture(str(rondol_png), height=Cm(0.5))
-    cp = cc.paragraphs[0]; cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r1 = cp.add_run("Page "); r1.font.size = Pt(9); r1.font.color.rgb = GREY; r1.font.name = BASE_FONT
-    add_field(cp, "PAGE")
-    for r in cp.runs:
-        r.font.size = Pt(9); r.font.color.rgb = GREY; r.font.name = BASE_FONT
-    rp = rc.paragraphs[0]; rp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    if nexa_png:
-        rp.add_run().add_picture(str(nexa_png), height=Cm(0.5))
-    # ligne de pied
-    fnote = section.footer.add_paragraph()
-    fnote.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    rf = fnote.add_run(f"{AUTHOR} — {SCHOOL} — {YEAR}")
-    rf.font.size = Pt(8); rf.font.color.rgb = GREY; rf.font.name = BASE_FONT
+    lc, rc = ftbl.rows[0].cells
+    lc.width = Cm(11.5); rc.width = Cm(4.1)
+
+    lp = lc.paragraphs[0]
+    lp.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    para_top_border(lp, "D5DCE4", sz="4")
+    rl = lp.add_run(f"{AUTHOR}   ·   {SCHOOL}   ·   {YEAR}")
+    rl.font.size = Pt(8); rl.font.color.rgb = GREY; rl.font.name = BASE_FONT
+
+    rp = rc.paragraphs[0]
+    rp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    para_top_border(rp, "D5DCE4", sz="4")
+    add_field(rp, "PAGE")
+    for r in rp.runs:
+        r.font.size = Pt(9); r.font.color.rgb = BLUE; r.font.name = TITLE_FONT; r.font.bold = True
 
 
 # --------------------------------------------------------------------------- #
@@ -784,6 +833,7 @@ def build_document():
     nexa_png, rondol_png = ensure_logos()
     doc = Document()
     configure_styles(doc)
+    enable_hyphenation(doc)      # supprime les blancs du texte justifié
     configure_page(doc.sections[0])
 
     build_cover(doc, nexa_png, rondol_png)

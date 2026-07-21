@@ -200,8 +200,6 @@ La reconnaissance de l'entreprise dans son écosystème se traduit notamment par
 
 Certaines données institutionnelles usuellement attendues dans cette section ne figurent pas dans les sources internes du projet et ne sont pas inventées ici : `[À COMPLÉTER : chiffre d'affaires, effectif, statut juridique, dirigeants]`.
 
-[INSÉRER LOGO RONDOL — fichier : assets/rondol_logo.png]
-[INSÉRER CAPTURE : photographie ou vue CAO de l'extrudeuse bivis Rondol 10,5 mm en configuration horizontale]
 
 ## 1.2 Valeurs, missions et activité principale
 
@@ -635,6 +633,10 @@ La motivation profonde de cette architecture tient à un défaut structurel de l
 
 **Authentification et traçabilité des accès.** L'accès à la plateforme est protégé par une couche d'authentification dédiée (`app/auth.py`). Le mot de passe n'est jamais conservé en clair : seul un condensat **PBKDF2-HMAC-SHA256** (200 000 itérations, sel aléatoire par compte) est stocké dans la table `app_users`. Chaque tentative de connexion, réussie ou non, est journalisée dans la table `login_history` (email, horodatage, succès/échec), consultable dans la page *Compte* — ce qui démontre concrètement l'interaction de l'application avec sa base de données au-delà du seul état procédé. La garde `require_login`, placée en tête de chaque page après `set_page_config`, exige une session authentifiée et s'efface (via une variable d'environnement dédiée) durant les tests automatisés afin de ne pas perturber les tests d'intégration des pages. Les comptes sont créés côté serveur (`scripts/seed_user.py`), sans auto-inscription — cohérent avec un outil interne mono-profil (Source interne : app/auth.py ; database/auth_tables.sql).
 
+[INSÉRER CAPTURE : écran de connexion de la plateforme]
+
+[INSÉRER CAPTURE : page Compte — historique des connexions]
+
 **Indexation et performance des requêtes.** La table `rondol_state` est dotée d'une clé primaire (`key TEXT PRIMARY KEY`), qui crée un index B-tree implicite servant directement le motif d'accès réel de l'application — la lecture du snapshot par sa clé (`SELECT payload FROM rondol_state WHERE key = 'applied_state'`). Le projet n'exploite **aucune indexation vectorielle** : il ne s'agit pas d'un système RAG (cf. Annexe B), mais d'une base relationnelle classique. Pour objectiver l'effet de l'optimisation exigé par le référentiel, un micro-benchmark reproductible compare le temps d'exécution de cette requête entre une table **non indexée** et une table **indexée**, à volumétrie simulée de 50 000 lignes (Source interne : scripts/sql_benchmark.py ; reports/sql_benchmark.json).
 
 | Configuration de table | Temps moyen par requête | Interprétation |
@@ -904,7 +906,7 @@ Le résultat valide la trajectoire prédite par l'agent. Le score de compatibili
 [INSÉRER CAPTURE : Supervision après correction (cas C5, alerte levée)]
 
 
-## Annexe E — Captures à insérer
+## Annexe E — Captures de l'application
 
 [INSÉRER CAPTURE : page Supervision — statut machine, score de stabilité, probabilité de dérive, alertes, recommandations IA et KPIs procédé]
 [INSÉRER CAPTURE : page Profile — configuration du profil de vis (zones, éléments, compteurs +/-, KPIs)]
@@ -913,18 +915,6 @@ Le résultat valide la trajectoire prédite par l'agent. Le score de compatibili
 [INSÉRER CAPTURE : recommandation C4 — action corrective chiffrée et justifiée émise par l'agent]
 [INSÉRER CAPTURE : état après correction C5 — retour à un régime stable (LATP 17 %, score 78, probabilité 0,87)]
 [INSÉRER CAPTURE : page Moteur Procédé (Process Engine) — vue moteur en lecture seule]
-
-# Points à compléter avant dépôt
-
-- **Données institutionnelles Rondol Industrie** : chiffre d'affaires, effectif, statut juridique et dirigeants (non présents dans les sources internes).
-- **Calendrier académique** : date de dépôt et date de soutenance du mémoire.
-- **Rétroplanning** : périodes exactes des phases du projet signalées [À COMPLÉTER] dans le Tableau 4.1 (cadrage, état de l'art, préparation des données, développement du moteur, modélisation ML, développement de l'interface, rédaction et dépôt).
-- **Étude de marché** : chiffrage du marché de l'extrusion de laboratoire (taille, taux de croissance annuel / CAGR, segmentation géographique).
-- **Analyse concurrentielle** : données chiffrées sur les concurrents (brevets, outils IA intégrés, parts de marché, chiffres d'affaires) — cellules [À COMPLÉTER] des Tableaux 2.1.
-- **Bibliographie** : intégration des 38 références complètes de l'état de l'art V5, avec volumes, numéros, pages et DOI.
-- **Dictionnaire de données** : dictionnaire exhaustif des 96 variables dérivées (Annexe A).
-- Validation de la mise en page finale : insertion des captures et figures réelles, mise à jour du sommaire automatique et vérification de la pagination dans le document Word/PDF de dépôt.
-- **Captures d'écran réelles** : intégration des sept captures listées en Annexe E (Supervision, Profile, Settings, C3, C4, C5, Moteur Procédé) et des figures / logos signalés [INSÉRER FIGURE] / [INSÉRER CAPTURE] dans le corps du mémoire.
 
 ## Annexe F — Suivi des problématiques techniques (Tableau 6.1)
 

@@ -80,7 +80,17 @@ def parse_body(doc, md_text):
             just_broke = False
             continue
         if stripped == "[SAUT DE PAGE]":
-            if not just_broke:
+            # Anticipation : un titre de niveau 1 produit déjà son propre saut
+            # de page. Un [SAUT DE PAGE] juste avant en ajouterait un second et
+            # laisserait une page entièrement blanche dans le document.
+            k = i
+            while k < len(lines) and (not lines[k].strip()
+                                      or lines[k].strip() in ("---", "***", "___")):
+                k += 1
+            next_is_h1 = k < len(lines) and lines[k].strip().startswith("# ")
+            if next_is_h1:
+                just_broke = False        # on laisse le titre gérer le saut
+            elif not just_broke:
                 doc.add_page_break(); just_broke = True
             continue
         if stripped.startswith("!["):
