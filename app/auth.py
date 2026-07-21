@@ -79,17 +79,30 @@ def verify_password(pw: str, salt_hex: str, hash_hex: str) -> bool:
 # Configuration Supabase (lecture des mêmes secrets que persistence.py)
 # ---------------------------------------------------------------------------
 def _streamlit_secret(section: str, name: str) -> str | None:
+    # Lecture alignée sur app/persistence.py (pattern éprouvé en production).
     try:
         import streamlit as st  # noqa: PLC0415
-        sec = st.secrets  # type: ignore[attr-defined]
-        if section in sec and name in sec[section]:
-            return str(sec[section][name])
+        sec = st.secrets.get(section)  # type: ignore[attr-defined]
+        if isinstance(sec, Mapping) and name in sec:
+            v = str(sec[name]).strip()
+            return v or None
     except Exception:
         pass
     return None
 
 
 def _supabase_config() -> dict[str, str] | None:
+    # SOURCE UNIQUE : réutiliser exactement la résolution de la persistance
+    # procédé, pour que l'authentification voie Supabase quand — et seulement
+    # quand — la persistance le voit (évite toute divergence env/secrets).
+    try:
+        import persistence  # noqa: PLC0415
+        cfg = persistence._supabase_config()
+        if cfg and cfg.get("url") and cfg.get("key"):
+            return {"url": cfg["url"].rstrip("/"), "key": cfg["key"]}
+    except Exception:
+        pass
+    # Repli direct (dev local sans le module persistence sur le chemin).
     url = os.environ.get("RONDOL_SUPABASE_URL") or _streamlit_secret("supabase", "url")
     key = os.environ.get("RONDOL_SUPABASE_KEY") or _streamlit_secret("supabase", "key")
     if not url or not key:
