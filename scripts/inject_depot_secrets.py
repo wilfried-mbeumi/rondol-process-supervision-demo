@@ -52,7 +52,8 @@ def _read_secrets() -> dict[str, str]:
         if not line or line.startswith("#") or "=" not in line:
             continue
         k, v = line.split("=", 1)
-        vals[k.strip().lower()] = v.strip()
+        # tolère les guillemets éventuels autour de la valeur (style TOML)
+        vals[k.strip().lower()] = v.strip().strip('"').strip("'")
     if not vals.get("url") or not vals.get("key"):
         sys.exit("Le fichier doit contenir au moins 'url = ...' et 'key = ...'.")
     return vals
