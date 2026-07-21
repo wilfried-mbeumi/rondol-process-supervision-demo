@@ -42,7 +42,7 @@ def main() -> int:
     auc_ext = f"{ext['roc_auc']:.3f}".replace(".", ",")         # ex. 0,753
     n_rows = f"{gen['n_rows']:,}".replace(",", " ")             # 100 800
     n_win_ext = f"{ext['n_windows']:,}".replace(",", " ")       # 3 479
-    TESTS = "704"
+    TESTS = "705"
 
     print(f"Vérités : RF acc {acc_rf} / F1 {f1_rf} · ext AUC {auc_ext} ({n_win_ext} fen.) · base {n_rows} · tests {TESTS}")
 

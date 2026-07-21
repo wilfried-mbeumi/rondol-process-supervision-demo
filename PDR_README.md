@@ -145,8 +145,8 @@ python -m pytest tests/ -q
 # sous-ensemble rapide (moteur pur) :
 python -m pytest tests/ -q --ignore=tests/test_streamlit_pages.py --ignore=tests/test_render_smoke.py
 ```
-> **Suite de tests** : sur une exécution complète, la suite donne **704 passed**
-> (dont 10 tests d'authentification), **indépendamment de l'ordre d'exécution** (vérifié
+> **Suite de tests** : sur une exécution complète, la suite donne **705 passed**
+> (dont 11 tests d'authentification), **indépendamment de l'ordre d'exécution** (vérifié
 > sur plusieurs graines `pytest-randomly`). L'isolation inter-fichiers des stores disque
 > est garantie par `tests/conftest.py`. Vérification ciblée possible :
 > ```powershell
