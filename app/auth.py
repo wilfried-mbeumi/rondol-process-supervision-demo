@@ -276,16 +276,6 @@ def _render_login(st) -> None:
         "Plateforme prédictive d'aide à la décision — accès réservé. "
         "Identifiants de test fournis dans le PDR de dépôt."
     )
-    # --- Diagnostic temporaire (à retirer une fois l'auth confirmée) ----------
-    try:
-        _cfg = _supabase_config()
-        _diag = f"diag · backend={backend_name()} · supabase_cfg={'oui' if _cfg else 'non'}"
-        if _cfg:
-            _diag += f" · url_ok={_cfg.get('url','')[:24]}… · key_prefix={_cfg.get('key','')[:12]}…"
-    except Exception as _e:  # noqa: BLE001
-        _diag = f"diag · erreur config: {type(_e).__name__}"
-    st.caption(_diag)
-    # -------------------------------------------------------------------------
     with st.form("login_form", clear_on_submit=False):
         email = st.text_input("Email", key="login_email", placeholder="demo@rondol.local")
         pw = st.text_input("Mot de passe", key="login_pw", type="password")
