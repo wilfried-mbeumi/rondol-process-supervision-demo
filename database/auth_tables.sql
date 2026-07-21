@@ -38,19 +38,27 @@ COMMENT ON TABLE login_history IS 'Historique des tentatives de connexion (traç
 CREATE INDEX IF NOT EXISTS idx_login_history_ts ON login_history (ts DESC);
 
 -- --------------------------------------------------------------------
--- 3. Politiques d'accès (si la Row Level Security est activée sur le
---    projet Supabase). La clé publiable/anon doit pouvoir :
---      - LIRE app_users (vérification du mot de passe côté application),
---      - INSÉRER dans login_history (journalisation),
---      - LIRE login_history (page Compte).
---    Adapter selon ta politique de sécurité ; pour une démonstration
---    mono-utilisateur, des règles permissives suffisent.
+-- 3. Politiques d'accès (Row Level Security).
+--    Supabase active la RLS par défaut : sans politique, toute écriture
+--    de la clé publiable est refusée (erreur 401 / 42501). L'application
+--    (client REST avec la clé publiable) doit pouvoir :
+--      - LIRE app_users     (vérification du mot de passe, hash PBKDF2),
+--      - LIRE/INSÉRER app_users (seed du compte),
+--      - INSÉRER + LIRE login_history (journalisation + page Compte).
+--    Périmètre : démonstration mono-profil ; règles permissives assumées.
+--    Note de sécurité : la lecture d'app_users expose les condensats
+--    PBKDF2 (non réversibles), jamais de mot de passe en clair.
 -- --------------------------------------------------------------------
--- ALTER TABLE app_users     ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE login_history ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY app_users_read   ON app_users     FOR SELECT USING (true);
--- CREATE POLICY history_insert   ON login_history FOR INSERT WITH CHECK (true);
--- CREATE POLICY history_read     ON login_history FOR SELECT USING (true);
+ALTER TABLE app_users     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE login_history ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS app_users_all     ON app_users;
+DROP POLICY IF EXISTS history_insert    ON login_history;
+DROP POLICY IF EXISTS history_read      ON login_history;
+
+CREATE POLICY app_users_all   ON app_users     FOR ALL    USING (true) WITH CHECK (true);
+CREATE POLICY history_insert  ON login_history FOR INSERT WITH CHECK (true);
+CREATE POLICY history_read    ON login_history FOR SELECT USING (true);
 
 COMMIT;
 
