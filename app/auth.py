@@ -290,6 +290,30 @@ def _render_login(st) -> None:
             st.error("Identifiants invalides. Tentative enregistrée.")
 
 
+_DEFAULT_LOCAL_USER = "demo@rondol.local"
+_DEFAULT_LOCAL_PW = "0000"
+
+
+def _ensure_local_default_user() -> None:
+    """Backend fichier uniquement (exécution locale sans Supabase) : garantit
+    qu'un compte de démonstration existe, pour que `streamlit run` fonctionne
+    immédiatement après un clone du dépôt, sans étape de seed manuelle.
+
+    N'écrit JAMAIS dans Supabase : en production, les comptes sont créés côté
+    serveur par scripts/seed_user.py. Les identifiants de démonstration sont
+    publics et documentés (PDR §7) — leur présence ici n'expose aucun secret.
+    """
+    if _supabase_config():
+        return
+    if _file_read(_users_path()):
+        return
+    try:
+        salt, h = hash_password(_DEFAULT_LOCAL_PW)
+        _file_write(_users_path(), {_DEFAULT_LOCAL_USER: {"salt": salt, "pw_hash": h}})
+    except Exception:
+        pass
+
+
 def require_login(st) -> None:
     """Garde à placer en tête de chaque page (après set_page_config).
 
@@ -301,5 +325,6 @@ def require_login(st) -> None:
         return
     if st.session_state.get(_SESSION_KEY):
         return
+    _ensure_local_default_user()
     _render_login(st)
     st.stop()

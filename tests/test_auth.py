@@ -121,6 +121,18 @@ def test_require_login_blocks_when_unauthenticated(auth, monkeypatch):
         auth.require_login(st)
 
 
+def test_local_default_user_auto_provisioned(auth):
+    """Démarrage local frais (backend fichier, pas de Supabase) : le compte de
+    démonstration doit être auto-créé pour que le login fonctionne sans seed."""
+    assert auth.backend_name() == "file"
+    assert auth._file_read(auth._users_path()) is None  # aucun utilisateur au départ
+    auth._ensure_local_default_user()
+    assert auth.verify_credentials("demo@rondol.local", "0000") is True
+    # idempotent : un 2e appel n'écrase pas / ne duplique pas
+    auth._ensure_local_default_user()
+    assert auth.verify_credentials("demo@rondol.local", "0000") is True
+
+
 def test_current_user_and_logout(auth):
     st = _FakeSt()
     assert auth.current_user(st) is None

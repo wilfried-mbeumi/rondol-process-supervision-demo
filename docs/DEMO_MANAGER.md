@@ -52,6 +52,10 @@ haché, jamais stocké en clair). Identifiants de démonstration :
 | **Email** | `demo@rondol.local` |
 | **Mot de passe** | `0000` |
 
+> En **local**, ce compte de démonstration est créé automatiquement au premier
+> lancement — aucune étape supplémentaire n'est requise. En production
+> (Supabase), les comptes sont créés côté serveur via `scripts/seed_user.py`.
+
 Après connexion, la page **Compte** affiche l'historique des connexions
 (lu depuis la base Supabase) — une illustration concrète de l'interaction de
 l'application avec sa base de données.
