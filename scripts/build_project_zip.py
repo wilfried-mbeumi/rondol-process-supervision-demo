@@ -45,6 +45,7 @@ DIR_RULES = {
     "data/consolidated": {".md", ".json"},
     "models": {".joblib"},
     "reports/memoire_captures": {".png"},
+    "reports/memoire_figures": {".png"},
     "notebooks": {".ipynb"},
 }
 
