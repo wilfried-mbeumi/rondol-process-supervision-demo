@@ -33,9 +33,28 @@ L'application s'ouvre sur **http://localhost:8501**.
 
 ## Option B — Lien web (Streamlit Cloud)
 
-Si un lien de démonstration a été déployé, il suffit de l'ouvrir dans un
-navigateur — aucune installation requise, **aucun identifiant / secret**
-nécessaire.
+Un lien de démonstration est déployé :
+`https://rondol-process-supervision-demo.streamlit.app` — il suffit de l'ouvrir
+dans un navigateur, aucune installation requise.
+
+> **Si l'application « dort »** (mise en veille automatique après inactivité),
+> cliquer sur *« Yes, get this app back up! »* et patienter ~1 minute.
+
+---
+
+## Connexion (accès protégé)
+
+L'application demande une **connexion** au premier accès (le mot de passe est
+haché, jamais stocké en clair). Identifiants de démonstration :
+
+| Champ | Valeur |
+|---|---|
+| **Email** | `demo@rondol.local` |
+| **Mot de passe** | `0000` |
+
+Après connexion, la page **Compte** affiche l'historique des connexions
+(lu depuis la base Supabase) — une illustration concrète de l'interaction de
+l'application avec sa base de données.
 
 ---
 

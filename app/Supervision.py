@@ -663,16 +663,27 @@ with _dec_col1:
         f'{t("home.rec_config.elements")} · {_count_rec.tagline}</div>'
         f'</div>'
     )
+def _md_bold(s) -> str:
+    """Convertit le gras markdown **x** en <b>x</b> pour l'insertion dans
+    st.html (qui n'interprète pas le markdown). Sûr : laisse la chaîne
+    inchangée si les ** sont absents ou déséquilibrés."""
+    s = str(s)
+    if s.count("**") < 2 or s.count("**") % 2 != 0:
+        return s
+    parts = s.split("**")
+    return "".join(p if i % 2 == 0 else f"<b>{p}</b>" for i, p in enumerate(parts))
+
+
 with _dec_col2:
     # Reco principale 4-champs (zone + physics + impact + action).
     if _main_reco is not None:
         sev = _main_reco.get("severity", "info")
         accent = _SEV_ACCENT.get(sev, "#3B82F6")
         zone = _main_reco.get("zone", "—") or "—"
-        physics = _main_reco.get("physics", _main_reco.get("title", ""))
-        impact = _main_reco.get("impact", "")
-        action = _main_reco.get("action", _main_reco.get("detail", ""))
-        evidence = _main_reco.get("evidence", "")
+        physics = _md_bold(_main_reco.get("physics", _main_reco.get("title", "")))
+        impact = _md_bold(_main_reco.get("impact", ""))
+        action = _md_bold(_main_reco.get("action", _main_reco.get("detail", "")))
+        evidence = _md_bold(_main_reco.get("evidence", ""))
         impact_html = (
             f'<div style="color:#D1D5DB;font-size:0.78rem;line-height:1.4;'
             f'margin-top:0.25rem;"><span style="color:#9CA3AF;font-weight:600;'
@@ -738,7 +749,7 @@ if _main_action:
         f'<div style="color:#10B981;font-size:0.7rem;font-weight:700;'
         f'letter-spacing:0.04em;">{t("home.priority_action")}</div>'
         f'<div style="color:#F9FAFB;font-size:0.86rem;line-height:1.45;'
-        f'margin-top:0.2rem;">→ {_main_action}</div>'
+        f'margin-top:0.2rem;">→ {_md_bold(_main_action)}</div>'
         f'</div>'
     )
 else:
