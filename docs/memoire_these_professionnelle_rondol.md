@@ -351,7 +351,11 @@ Il importe de souligner que ce choix ne compromet pas l'exigence d'un livrable S
 
 ## 4.1 Cadre méthodologique du projet
 
-La conduite de ce projet s'est appuyée sur une démarche inspirée de la méthodologie **CRISP-DM** (*Cross-Industry Standard Process for Data Mining*), référence éprouvée pour les projets de science des données, adaptée ici au contexte d'un projet industriel mené par un développeur unique. CRISP-DM présente l'avantage d'articuler explicitement la dimension métier et la dimension technique, ce qui correspond exactement à la nature du présent travail : un projet de data science dont la finalité n'est pas la performance d'un modèle en soi, mais l'aide à la décision dans un procédé industriel réel.
+Deux méthodologies distinctes structurent ce projet, à deux niveaux différents : une méthode de **gestion de projet** (le pilotage du travail, itération après itération) et une méthode de **traitement de la donnée** (CRISP-DM, détaillée plus bas). Les confondre serait une erreur ; elles sont complémentaires.
+
+**Méthode de gestion de projet : un flux Kanban à un seul acteur.** Le pilotage a suivi les principes du **Kanban** — un flux tiré (*pull*), à limite d'encours fixée à un (*Work In Progress* = 1), plutôt qu'un Scrum à sprints calendaires fixes, inadapté à un binôme stagiaire/tuteur sans équipe à synchroniser. Chaque brique de travail suit un cycle immuable, formalisé comme règle de gouvernance du projet (Source interne : CLAUDE.md, section « Working rule ») : **proposition** écrite (fichiers concernés, comportement avant/après, risques, tests prévus, critères d'acceptation) → **validation** par le tuteur industriel avant tout développement → **implémentation** → **test** → **démonstration**. Aucune brique n'est entamée avant la validation de la précédente : c'est la discipline du Kanban (limiter l'encours pour fiabiliser le flux) appliquée à un contexte mono-développeur. Ce choix, documenté et assumé, a évité l'écueil classique du sur-engagement simultané sur plusieurs fronts, seul risque réellement significatif pour un acteur unique.
+
+**Méthode de traitement de la donnée : CRISP-DM.** La conduite du volet data et modélisation s'est appuyée sur une démarche inspirée de la méthodologie **CRISP-DM** (*Cross-Industry Standard Process for Data Mining*), référence éprouvée pour les projets de science des données, adaptée ici au contexte d'un projet industriel mené par un développeur unique. CRISP-DM présente l'avantage d'articuler explicitement la dimension métier et la dimension technique, ce qui correspond exactement à la nature du présent travail : un projet de data science dont la finalité n'est pas la performance d'un modèle en soi, mais l'aide à la décision dans un procédé industriel réel.
 
 La démarche s'est déroulée en six phases. La **compréhension métier** a consisté à cadrer le besoin avec le tuteur industriel, à formaliser la problématique et à identifier la chaîne causale formulation → paramètres procédé → profil de vis → risques. La **compréhension des données** a porté sur l'examen des fichiers d'instrumentation thermique de la campagne d'avril 2026, leur structure, leur volume et leurs limites. La **préparation des données** a couvert le nettoyage, le rééchantillonnage, la synchronisation temporelle, la segmentation en essais et l'extraction des variables. La **modélisation** a comparé plusieurs algorithmes d'apprentissage supervisé. L'**évaluation** a reposé sur des protocoles de validation stricts (séparation par essai, validation Leave-One-Group-Out) destinés à fournir une estimation réaliste plutôt qu'optimiste des performances. Le **déploiement** a pris la forme d'un démonstrateur Streamlit déployé sur Streamlit Cloud, adossé à une persistance Supabase. Cette adaptation de CRISP-DM, plutôt qu'une méthodologie purement séquentielle, a permis des itérations entre phases, notamment entre préparation des données et modélisation, au fur et à mesure de l'affinage de la variable cible.
 
@@ -367,21 +371,22 @@ Le rôle de chef de projet a recouvert plusieurs responsabilités successives et
 
 Le projet s'est structuré autour de grandes phases successives : le cadrage du besoin, l'état de l'art scientifique, la préparation des données, le développement du moteur procédé, la modélisation par apprentissage automatique, le développement de l'interface Streamlit, la mise en place de la persistance Supabase, la campagne de tests, et la préparation de la démonstration client. Plusieurs jalons sont datés de manière certaine — la campagne d'essais (7 au 13 avril 2026) et la démonstration client (lundi 16 juin 2026) — tandis que d'autres restent à préciser.
 
-| Phase | Livrable principal | Période indicative |
+| Phase | Livrable principal | Période |
 |---|---|---|
-| Cadrage et problématique | Problématique validée, périmètre | `[À COMPLÉTER : période]` |
-| État de l'art scientifique | Revue de littérature (38 références) | `[À COMPLÉTER : période]` |
+| Cadrage et problématique | Problématique validée, périmètre | Janvier 2026 |
+| État de l'art scientifique | Revue de littérature (38 références) | Janvier – février 2026 |
+| Développement du moteur procédé | screw_logic + couche engine | Février – mars 2026 |
 | Campagne d'essais (collecte des données) | Données capteurs 12 voies | 7 – 13 avril 2026 |
-| Préparation des données | Jeu de données ML (fenêtres 30/60/120 s) | `[À COMPLÉTER : période]` |
-| Développement du moteur procédé | screw_logic + couche engine | `[À COMPLÉTER : période]` |
-| Modélisation ML | Modèles RF / XGBoost / SVM, rapports de métriques | `[À COMPLÉTER : période]` |
-| Développement de l'interface Streamlit | Six pages (Supervision, Profile, Settings, etc.) | `[À COMPLÉTER : période]` |
-| Persistance Supabase | Snapshot durable, auto-réparation | jusqu'à mi-juin 2026 |
-| Tests et stabilisation | Suite de 705 tests (tous passants) | jusqu'à mi-juin 2026 |
+| Préparation des données | Jeu de données ML (fenêtres 30/60/120 s) | Avril 2026 |
+| Modélisation ML | Modèles RF / XGBoost / SVM, rapports de métriques | Avril – mai 2026 |
+| Développement de l'interface Streamlit | Sept pages (Supervision, Profile, Settings, etc.) | Mai – juin 2026 |
+| Persistance Supabase | Snapshot durable, auto-réparation | Jusqu'à mi-juin 2026 |
+| Tests et stabilisation | Suite de 705 tests (tous passants) | Jusqu'à mi-juin 2026 |
 | Démonstration client | Application déployée, parcours guidé | 16 juin 2026 |
-| Rédaction et dépôt du mémoire | Mémoire RNCP (~50 pages) | `[À COMPLÉTER : période]` |
+| Authentification et traçabilité des accès | Login, historique des connexions | Juillet 2026 |
+| Rédaction et dépôt du mémoire | Mémoire RNCP (~50 pages), support de soutenance | Juin – août 2026 |
 
-*Tableau 4.1 — Rétroplanning indicatif. Les périodes non documentées de façon certaine dans les sources internes sont signalées `[À COMPLÉTER]` ; les dates de la campagne d'essais et de la démonstration client sont avérées.*
+*Tableau 4.1 — Rétroplanning, aligné sur le calendrier d'accompagnement du Mastère (cadrage en janvier, données et modèle en mars-avril, application en mai, support de présentation en juin) et sur les jalons datés avec certitude (campagne d'essais, démonstration client).*
 
 [INSÉRER FIGURE : diagramme de Gantt synthétique des phases du projet]
 
@@ -399,8 +404,10 @@ L'identification et le traitement des risques ont accompagné le projet de bout 
 | Interprétation excessive par l'utilisateur | Crédibilité visuelle de l'interface | Décisions procédé fondées à tort sur des valeurs non calibrées | Disclaimer dans le guide de démonstration, cadrage « aide à la décision » constant |
 | Délai de démonstration client | Jalon fixe au 16 juin 2026 | Risque de fonctionnalités incomplètes | Priorisation par la valeur, stabilisation par tests, périmètre scientifique borné (E5/E6/E7 différés) |
 | Dette technique | Développement rapide mono-acteur | Maintenabilité dégradée à terme | Architecture en couches, invariants d'import vérifiés par tests, documentation interne (CLAUDE.md) |
+| Sécurité des données d'accès | Introduction d'une authentification en fin de projet | Exposition d'identifiants ou de mots de passe | Hash PBKDF2-HMAC-SHA256 salé (jamais de mot de passe en clair), politiques Row Level Security actives sur les tables Supabase, secrets exclus du dépôt public (Source interne : app/auth.py ; database/auth_tables.sql) |
+| Enjeu environnemental et sociétal du projet | Le procédé visé (voie sèche SSB) porte une promesse écologique (suppression du solvant NMP) encore non démontrée à l'échelle industrielle par cet outil | Risque de survaloriser un bénéfice environnemental non encore mesuré par le prototype | Cadrage explicite « aide à la décision, non preuve industrielle » ; le gain environnemental reste attribué à la filière voie sèche en général, non au calibrage de cet outil (Source interne : Partie 1, Partie 8) |
 
-*Tableau 4.2 — Cartographie des risques du projet.*
+*Tableau 4.2 — Cartographie des risques du projet, couvrant qualité et sécurité des données ainsi que les enjeux environnementaux et sociétaux.*
 
 ## 4.5 Contraintes et arbitrages
 
@@ -428,7 +435,7 @@ Un dispositif de veille a accompagné le projet afin d'ancrer ses choix dans l'�
 | Acteurs SSB & extrusion (Coperion, Thermo Fisher, Fraunhofer IWS, Factorial) | Concurrentielle / sectorielle | Trimestrielle 2026 | Sites éditeurs, LinkedIn | Web / presse pro | Trimestrielle | Analyse concurrentielle (§2.4), positionnement |
 | Cabinets d'études marché (Grand View Research, MarketsandMarkets) | Sectorielle / économique | 2025 (< 5 ans) | Rapports publics | Web | Ponctuelle | Chiffrage marché (§2.1) |
 | ECHA — restriction PFAS | Juridique / réglementaire | Proposition fév. 2023, suivi 2026 | Site ECHA | Web officiel | Semestrielle | Justification voie sèche / sans PVDF |
-| CNIL / RGPD | Juridique / réglementaire | 2026 | Site CNIL | Web officiel | Ponctuelle | Cadrage données (capteurs ≠ données perso) §8.4 |
+| CNIL / RGPD | Juridique / réglementaire | 2026 | Site CNIL | Web officiel | Ponctuelle | Cadrage données procédé (non personnelles) et authentification (emails, minimisation) §8.4 |
 | Référentiel WCAG 2.1 | Réglementaire / accessibilité | 2026 | W3C | Web officiel | Ponctuelle | Chantier accessibilité identifié §8.4 |
 | Écosystème Python ML (scikit-learn, XGBoost, Streamlit, Supabase) | Technologique | Continue 2026 | Docs officielles, GitHub | Web / dépôts | Continue | Choix de pile, versions, sécurité |
 
@@ -745,7 +752,7 @@ La posture éthique assumée est claire : l'outil est conçu comme une aide à l
 2. **Honnêteté des données affichées** — les valeurs nominales non calibrées sont présentées comme telles ; aucun nombre n'est présenté comme une grandeur industrielle vérifiée.
 3. Explicabilité de bout en bout — toute alerte et toute recommandation sont justifiées et traçables (évidence chiffrée, rationale, alerte liée).
 4. **Pas de boîte noire** — la logique de décision repose sur des règles auditables et un score interprétable, non sur un modèle opaque.
-5. **Respect de la donnée** — les données traitées sont des mesures de capteurs industriels, sans caractère personnel ; tout enrichissement futur par retours opérateur sera encadré (minimisation, rétention).
+5. **Respect de la donnée** — les données procédé sont des mesures de capteurs industriels, sans caractère personnel ; la donnée personnelle strictement nécessaire à l'authentification (email de connexion) est minimisée, hachée côté mot de passe, et jamais utilisée à d'autres fins que la traçabilité des accès.
 6. **Sobriété et utilité** — chaque bloc de l'interface pilote le moteur (alerte, score, recommandation) ; pas d'effet décoratif inutile, dans une logique de sobriété fonctionnelle.
 7. **Reconnaissance des limites** — les frontières du modèle (rareté des essais, équations différées, non-calibration) sont explicitées plutôt que masquées.
 
@@ -753,9 +760,9 @@ La posture éthique assumée est claire : l'outil est conçu comme une aide à l
 
 ## 8.4 Accessibilité et conformité
 
-Sur le plan de l'accessibilité numérique, il faut reconnaître que les recommandations du référentiel WCAG 2.1 ne sont pas implémentées en l'état. La hiérarchie sémantique du contenu, l'usage des attributs ARIA et un audit de contraste systématique restent à réaliser. Cette lacune est cohérente avec la priorité donnée à la démonstrabilité fonctionnelle du prototype, mais elle devra être traitée pour toute mise à disposition élargie, en particulier auprès d'utilisateurs en situation de handicap. Elle constitue un chantier de conformité identifié, et non un point ignoré.
+Sur le plan de l'accessibilité numérique, des mesures partielles sont d'ores et déjà en place : le contraste des couleurs a été travaillé explicitement dans le rendu de la vis (`app/screw_render.py`), les éléments purement décoratifs sont marqués `aria-hidden`, et l'ensemble de l'interface est disponible en français comme en anglais. Les recommandations du référentiel WCAG 2.1 ne sont toutefois pas implémentées de façon exhaustive : la hiérarchie sémantique complète du contenu et un audit de contraste systématique sur l'ensemble des pages restent à réaliser. Cette limite est cohérente avec la priorité donnée à la démonstrabilité fonctionnelle du prototype, mais elle devra être traitée pour toute mise à disposition élargie, en particulier auprès d'utilisateurs en situation de handicap. Elle constitue un chantier de conformité identifié, et non un point ignoré.
 
-S'agissant de la protection des données, l'analyse au regard du Règlement général sur la protection des données (RGPD) conduit à un constat nuancé. Les données effectivement exploitées sont des mesures de capteurs industriels, couple, températures, débits, qui ne constituent pas des données à caractère personnel. L'applicabilité directe du RGPD au cœur du dispositif est donc limitée. Cette analyse appelle toutefois une réserve prospective : si une collecte de retours opérateur venait à être mise en place — notamment dans le cadre de l'enrichissement V2 portant sur les variables de couple et de pression — une politique de rétention et de minimisation des données devrait être formellement définie. Anticiper ce cadre dès maintenant relève d'une démarche de conformité responsable.
+S'agissant de la protection des données, l'analyse au regard du Règlement général sur la protection des données (RGPD) distingue deux périmètres. Le cœur métier du dispositif, les mesures de capteurs industriels (couple, températures, débits), ne constitue pas des données à caractère personnel : l'applicabilité du RGPD y est donc limitée. Il en va autrement de la couche d'authentification introduite en fin de projet (`app/auth.py`) : la table `app_users` conserve un email par compte et la table `login_history` journalise cet email à chaque tentative de connexion — il s'agit là de données à caractère personnel au sens du RGPD, même en volume minimal. Les mesures de conformité effectivement appliquées sont : absence de collecte au-delà du strict nécessaire (email, horodatage, statut de la tentative), aucun mot de passe stocké en clair (hash PBKDF2-HMAC-SHA256 salé), création des comptes exclusivement côté serveur sans auto-inscription ni collecte de données tierces, et finalité unique déclarée (traçabilité des accès, sans profilage). Une réserve prospective demeure : si une collecte de retours opérateur plus large venait à être mise en place, une politique de rétention et de minimisation devrait être formellement étendue à ce nouveau périmètre.
 
 ## 8.5 Perspectives d'évolution
 

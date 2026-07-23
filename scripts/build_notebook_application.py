@@ -97,17 +97,111 @@ num.corr().round(2)""")
 md("""On retrouve les corrélations physiques attendues : le couple croît avec le débit
 d'alimentation et décroît quand la température de fusion monte (la viscosité
 chute), et les zones adjacentes sont fortement corrélées — exactement comme dans
-les mesures brutes de la campagne.""")
+les mesures brutes de la campagne.
 
-md("""## 3. Le modèle de Machine Learning intégré à la supervision
+### Valeurs manquantes et incohérences (données brutes de la campagne)
 
-Trois familles de modèles ont été comparées (RandomForest, XGBoost, SVM) sur les
-fenêtres de 60 s, avec une validation stricte **par run d'essai**
-(GroupShuffleSplit) : un run vu à l'entraînement ne peut pas servir au test.
-Le RandomForest entraîné sur données augmentées est le modèle retenu et déployé.""")
+Avant toute modélisation, les données brutes de la campagne d'avril ont dû être
+auditées : couverture par capteur, codes d'erreur, doublons. Ce constat motive
+directement le choix de fenêtrage et d'imputation retenu par le pipeline
+(`src/preprocess.py`).""")
+
+code("""raw = pd.read_csv(ROOT / "data/interim/merged_timeseries.csv", parse_dates=["timestamp"])
+cov = raw.drop(columns=["timestamp"]).notna().mean().mul(100).round(1).sort_values()
+print("Couverture par capteur (% de lignes renseignées, sur 6 jours d'essais) :")
+print(cov.to_string())
+n_glitch = (raw.drop(columns=["timestamp"]) > 1000).sum().sum()
+print(f"\\nCode d'erreur thermocouple (valeur ≈ 3276,7 °C) : {n_glitch} occurrences détectées et neutralisées avant fenêtrage.")""")
+
+md("""La couverture très inégale (10 à 16 % selon les capteurs) confirme la nécessité
+d'une segmentation stricte en runs productifs avant toute extraction de
+caractéristiques : fenêtrer sur des données where la machine était à l'arrêt
+produirait des artefacts.
+
+### Sécurisation des données
+
+Deux mécanismes protègent les données du prototype. Le premier concerne l'état
+procédé : la persistance durable (Supabase) applique des politiques **Row Level
+Security**, vérifiables directement en base.""")
+
+code("""import os
+sec = {}
+secrets_path = ROOT / ".streamlit" / "secrets_depot.txt"
+if secrets_path.exists():
+    for line in secrets_path.read_text(encoding="utf-8").splitlines():
+        if "=" in line and not line.strip().startswith("#"):
+            k, v = line.split("=", 1)
+            sec[k.strip().lower()] = v.strip().strip('"').strip("'")
+
+if sec.get("url") and sec.get("key"):
+    import requests
+    H = {"apikey": sec["key"], "Authorization": f"Bearer {sec['key']}"}
+    r = requests.get(f"{sec['url'].rstrip('/')}/rest/v1/app_users",
+                      headers=H, params={"select": "email,pw_hash", "limit": 1}, timeout=8)
+    if r.status_code == 200 and r.json():
+        row = r.json()[0]
+        print("Extrait de la table app_users (accès direct à la base) :")
+        print("  email   :", row["email"])
+        print("  pw_hash :", row["pw_hash"][:24] + "…  (PBKDF2-HMAC-SHA256, 200 000 itérations — jamais de mot de passe en clair)")
+    else:
+        print("Table app_users non accessible depuis cet environnement (secrets non configurés ici).")
+else:
+    print("Aucun secret local configuré ici — démonstration à exécuter avec .streamlit/secrets_depot.txt renseigné.")""")
+
+md("""Le second mécanisme concerne les mots de passe eux-mêmes : `app/auth.py`
+n'écrit jamais de mot de passe en clair, seulement un condensat salé, comme le
+montre l'extrait ci-dessus.
+
+### Optimisation des requêtes : table indexée vs non indexée
+
+Le référentiel de certification exige une mesure comparative du temps
+d'exécution entre une table optimisée et une table non optimisée. Le
+micro-benchmark ci-dessous reproduit le motif d'accès réel de l'application
+(`SELECT payload FROM rondol_state WHERE key = 'applied_state'`) sur une table
+simulée à volumétrie réaliste (50 001 lignes).""")
 
 code("""import json
-metrics = json.load(open(ROOT / "reports/ml_metrics_w60.json"))
+bench = json.load(open(ROOT / "reports/sql_benchmark.json"))
+print(f"Requête : {bench['query']}")
+print(f"Volumétrie simulée : {bench['non_optimisee']['n_rows']:,} lignes, {bench['non_optimisee']['n_queries']} requêtes".replace(",", " "))
+print(f"\\n  Non indexée (balayage séquentiel) : {bench['non_optimisee']['avg_query_ms']:.3f} ms / requête")
+print(f"  Indexée (B-tree)                   : {bench['optimisee_index_btree']['avg_query_ms']:.4f} ms / requête")
+print(f"\\n  Accélération : ×{bench['speedup_x']:.0f}")""")
+
+md("""L'écart, d'un facteur supérieur à 1000, illustre concrètement le passage d'un
+balayage séquentiel O(n) à une recherche logarithmique O(log n) — l'index
+B-tree sur la clé primaire `key` de la table `rondol_state` suffit à ce gain,
+sans indexation vectorielle : il ne s'agit pas d'un système RAG.
+
+## 3. Le modèle de Machine Learning intégré à la supervision
+
+**Un point d'architecture à ne pas manquer** : ce modèle produit un **score de
+stabilité**, pas les recommandations elles-mêmes. Les recommandations
+affichées à l'opérateur proviennent d'un système **séparé, à règles
+expertes** (`AgentIndustrial_v1/core/rules.py` et `recommendations.py`), non
+d'une sortie du modèle. La section 4 démontre cette seconde chaîne en code.
+
+Le modèle de stabilité, lui, résulte d'un championnat de cinq algorithmes
+supervisés (régression logistique, SVM, Random Forest, XGBoost, un réseau de
+neurones), départagés en validation **Leave-One-Group-Out** — un essai
+entièrement écarté à chaque pli, sur les 8 essais disponibles.""")
+
+code("""champ = json.load(open(ROOT / "reports/model_comparison_logo_w60.json"))
+rows = {name: {"F1-macro moyen (LOGO)": v["logo_f1_macro_mean"],
+               "Écart-type inter-essais": v["logo_f1_macro_std"],
+               "Accuracy (pooled)": v["pooled_accuracy"]}
+        for name, v in champ["models"].items()}
+pd.DataFrame(rows).T.round(3).sort_values("F1-macro moyen (LOGO)", ascending=False)""")
+
+md("""Les cinq modèles sont dans le bruit (F1-macro 0,76 à 0,81, écarts-types de
+0,16 à 0,21) : avec 8 essais seulement, aucun ne se détache de façon
+significative. C'est cette variabilité — et non un classement flatteur — qui
+motive l'augmentation de données présentée ensuite. Après augmentation et
+validation stricte **par run** (GroupShuffleSplit, un run vu à l'entraînement
+ne peut jamais servir au test), le Random Forest est le modèle retenu et
+déployé.""")
+
+code("""metrics = json.load(open(ROOT / "reports/ml_metrics_w60.json"))
 pd.DataFrame(metrics["test"]).T[["accuracy","f1_macro","f1_unstable","roc_auc"]].round(3)""")
 
 code("""import joblib
@@ -138,15 +232,80 @@ distribution.""")
 code("""ext = json.load(open(ROOT / "reports/eval_consolidated_w60.json"))
 pd.Series(ext).drop("confusion_matrix").to_frame("validation externe (base simulée)")""")
 
-md("""## 4. Ce que fait l'application avec tout cela
+md("""## 4. De la donnée à la recommandation : le moteur à règles expert
+
+C'est la particularité centrale de ce projet, et celle qui distingue l'agent
+d'un simple classifieur : **les recommandations ne sortent jamais du modèle de
+Machine Learning**. Le modèle (section 3) ne produit qu'un score de stabilité.
+Les alertes et les recommandations proviennent d'un moteur à **règles
+expertes**, entièrement auditable, qui lit l'état procédé directement — sans
+boîte noire. La démonstration ci-dessous exécute cette chaîne de bout en bout,
+sur le code réellement déployé dans l'application.""")
+
+code("""import sys as _sys
+for p in (str(ROOT), str(ROOT / "AgentIndustrial_v1" / "core"), str(ROOT / "AgentIndustrial_v1")):
+    if p not in _sys.path:
+        _sys.path.insert(0, p)
+
+from AgentIndustrial_v1.core.process import ProcessState
+from AgentIndustrial_v1.core import rules, recommendations
+from AgentIndustrial_v1.core.screw_adapter import refresh_kpis
+
+# État procédé de démonstration : une vis garnie (comme en section 1), un
+# feeder actif à un débit cohérent avec sa capacité, PUIS une zone Z4
+# délibérément surchauffée (+35 °C). Le diagnostic thermique de l'agent cible
+# automatiquement la zone la plus chaude du profil — pas nécessairement celle
+# perturbée en premier lieu, du fait de la cascade thermique zone à zone.
+state = ProcessState()
+state.screw_config = list(config)          # vis de la section 1 (garnie)
+state.screw_rpm = 200.0
+state.feeders[0].mass_flow_g_per_min = 12.0  # débit modéré, cohérent avec la capacité
+refresh_kpis(state)                         # recalcule Fill Factor / résidence depuis la vis
+
+state.zone_temps_C["Z4"] = state.zone_temps_C.get("Z4", 158.0) + 35.0
+
+report = rules.evaluate(state, lang="fr")
+print(f"Score de risque de l'agent : {report.risk_score}/100  →  état : {report.state}")
+print(f"Nombre d'alertes déclenchées : {len(report.alerts)}\\n")
+for a in report.alerts[:3]:
+    print(f"  [{a.severity.upper()}] {a.code} — {a.title}")
+    print(f"    {a.description}")
+    print(f"    Preuve chiffrée : {a.evidence}\\n")""")
+
+md("""Chaque alerte porte une **preuve chiffrée** (`evidence`) — pas une simple
+étiquette. La perturbation en Z4 se propage : le diagnostic remonte
+correctement la zone effectivement la plus chaude du profil (ici Z8), exactement
+le comportement attendu d'un diagnostic procédé réaliste plutôt que d'un simple
+seuillage position par position. Chaque alerte déclenche ensuite une
+recommandation concrète :""")
+
+code("""recos = recommendations.build_recommendations(state, report.alerts, lang="fr")
+print(f"{len(recos)} recommandation(s) générée(s) à partir de {len(report.alerts)} alerte(s)\\n")
+for r in recos[:2]:
+    print(f"  [{r.severity.upper()}] {r.title}")
+    print(f"    Pourquoi   : {r.rationale}")
+    print(f"    Action     : {r.action}")
+    print(f"    Effet visé : {r.delta_label}")
+    print(f"    ↳ déclenchée par l'alerte : {r.linked_alert_code}\\n")""")
+
+md("""La traçabilité est complète : chaque recommandation cite explicitement
+l'alerte (`linked_alert_code`) qui l'a déclenchée, elle-même appuyée sur une
+mesure chiffrée. Aucune étape de cette chaîne n'est un modèle statistique
+opaque — c'est le sens de l'explicabilité revendiquée dans ce projet
+(Partie 8 du mémoire).
+
+## 5. Ce que fait l'application avec tout cela
 
 - **Supervision** : le modèle produit un score de stabilité et une probabilité de
-  dérive ; l'agent à règles expliquant chaque alerte reste décisionnaire.
+  dérive (section 3) ; l'agent à règles (section 4) reste seul décisionnaire des
+  alertes et recommandations affichées.
 - **Configuration** : chaque profil de vis est recalculé par le moteur et ses KPIs
   sont figés à l'enregistrement (persistance à trois couches : édition → validé →
   historique).
 - **Analyse de run / Historique** : relecture des productions passées avec les
   mêmes calculs que le direct.
+- **Compte** : accès protégé par authentification (section 2), historique des
+  connexions consultable en base.
 
 Pour lancer l'application : `streamlit run app/Supervision.py`.""")
 
