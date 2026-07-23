@@ -1,26 +1,27 @@
 Liens du projet Rondol — thèse professionnelle RNCP 37137
 =========================================================
 
-À COMPLÉTER PAR L'AUTEUR avant dépôt
-------------------------------------
+Liens
+-----
 URL publique (application Streamlit Cloud) : https://rondol-process-supervision-demo.streamlit.app
 Dépôt Git (code source)                    : https://github.com/wilfried-mbeumi/rondol-process-supervision-demo
 
-Livrables
----------
-Dump SQL (base de persistance)             : database/rondol_state_dump.sql
-README / PDR (install, test, BDD, déploiement) : PDR_README.md
+Livrables (déposés séparément sur Teams, cf. modalités du guide)
+------------------------------------------------------------------
 Mémoire (PDF)                              : MBEUMI_Wilfried_THESE.pdf
 Support de soutenance (PDF)                : MBEUMI_Wilfried_PREZ.pdf
-Audit technique application                : audit_final_application_Rondol_RNCP.md
+ZIP code source (ce périmètre)             : MBEUMI_Wilfried_PROJET.zip
+  Dump SQL (persistance procédé)           : database/rondol_state_dump.sql
+  Dump SQL (authentification)              : database/auth_tables.sql
+  README / PDR (install, test, BDD, déploiement, identifiants de test) : PDR_README.md
 
 Base de données
 ---------------
 Moteur : PostgreSQL (Supabase, service géré).
-Table  : rondol_state(key TEXT PRIMARY KEY, payload JSONB).
-Stocké : snapshot d'état validé `applied_state` (profil de vis, consignes thermiques, feeders, calibrations).
-Index  : PRIMARY KEY (B-tree) sur `key` + index GIN sur `payload`.
-Identifiants de connexion (URL projet + clé API + mot de passe DB) : fournis séparément, NON versionnés (sécurité).
+Table  : rondol_state(key TEXT PRIMARY KEY, payload JSONB) — snapshot d'état validé (profil de vis,
+         consignes thermiques, feeders, calibrations). Index : PRIMARY KEY (B-tree) + index GIN sur payload.
+Tables : app_users, login_history — authentification (mot de passe haché PBKDF2-HMAC-SHA256, jamais en clair).
+Identifiants de connexion à la base (URL projet + clé API) : fournis séparément, NON versionnés (sécurité).
 
 Persistance — état de configuration (à vérifier après config des secrets)
 -------------------------------------------------------------------------
@@ -33,4 +34,5 @@ Lancement local (le jury peut relancer)
 1. pip install -r requirements.txt
 2. streamlit run app/Supervision.py
 3. Health check : http://localhost:8501/_stcore/health  ->  HTTP 200
-Application mono-utilisateur : aucun identifiant de connexion requis pour la tester (cf. PDR_README.md sec.7-8).
+4. Connexion requise dès l'ouverture (identifiants de test : PDR_README.md section 7). En local sans
+   Supabase configuré, le compte de démonstration est créé automatiquement au premier lancement.
