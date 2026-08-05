@@ -24,9 +24,13 @@ if str(APP) not in sys.path:
     sys.path.insert(0, str(APP))
 
 import auth  # noqa: E402
+from rondol_i18n import current_lang, language_selector  # noqa: E402
 
 # Libellés bilingues locaux (respecte ui_lang — pas de français en mode EN).
-_LANG = st.session_state.get("ui_lang", "fr")
+# Repli délégué à rondol_i18n.current_lang() : une seule source de vérité pour
+# la langue par défaut (DEFAULT_LANG), sinon cette page divergeait des six
+# autres tant que le sélecteur n'avait pas encore été rendu.
+_LANG = current_lang()
 _TX = {
     "fr": {
         "title": "Compte & accès",
@@ -61,19 +65,28 @@ _TX = {
         "ko": "Failed",
     },
 }
-_T = _TX.get(_LANG, _TX["fr"])
+_T = _TX.get(_LANG, _TX["en"])
 
 st.set_page_config(page_title=_T["page_title"], layout="wide")
 from auth import require_login  # noqa: E402
 require_login(st)
+
+# Sélecteur FR/EN — appelé comme sur les six autres pages (cf. docstring de
+# rondol_i18n.language_selector : chaque page rend le widget, toutes lisent la
+# même clé de session). Placé après set_page_config, qui doit rester le premier
+# appel Streamlit de la page.
+language_selector()
 
 st.markdown(f"## 👤 {_T['title']}")
 
 user = auth.current_user(st) or "—"
 col_a, col_b = st.columns([3, 1])
 with col_a:
-    st.markdown(f"**{_T['connected']} :** `{user}`")
-    st.caption(f"{_T['backend']} : `{auth.backend_name()}`")
+    # Espace insécable avant « : » en français uniquement ; l'anglais colle le
+    # deux-points au mot (sinon fuite typographique FR en mode EN).
+    _sep = " :" if _LANG == "fr" else ":"
+    st.markdown(f"**{_T['connected']}{_sep}** `{user}`")
+    st.caption(f"{_T['backend']}{_sep} `{auth.backend_name()}`")
 with col_b:
     if st.button(_T["logout"], key="btn_logout", use_container_width=True):
         auth.logout(st)

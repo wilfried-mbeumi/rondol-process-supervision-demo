@@ -10,7 +10,9 @@ plotly==6.5.2
 pandas==2.3.3
 numpy==2.3.0
 scipy==1.17.1
-scikit-learn==1.7.0   # requis pour dé-sérialiser models/SVM_w60.joblib
+scikit-learn==1.7.0   # requis pour dé-sérialiser models/RandomForest_w60_augmented.joblib
+                      # (modèle retenu, chargé par app/Supervision.py) et le
+                      # challenger models/SVM_w60.joblib
 joblib==1.5.1
 Pillow==12.1.0
 requests==2.32.3      # requis par app/persistence.py (REST Supabase, persistance durable)

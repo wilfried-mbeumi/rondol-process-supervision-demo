@@ -26,6 +26,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
+# Console Windows : la sortie par défaut est cp1252 et lève UnicodeEncodeError sur
+# les accents et les flèches « → » de ce script. On force UTF-8 pour que la
+# commande de preuve soit rejouable telle quelle par un évaluateur sous Windows.
+try:  # pragma: no cover - dépend de l'OS/console
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass
+
 import persistence as P  # noqa: E402
 
 TEST_KEY = "__healthcheck__"

@@ -7,7 +7,8 @@ traduites en B1 ; le contenu agent en B2 ; le rendu vis en B3 ; les pages
 validées (Moteur Procédé, Historique) en B4.
 
 Conception :
-  - langue stockée dans ``st.session_state["ui_lang"]`` (défaut ``"fr"``) ;
+  - langue stockée dans ``st.session_state["ui_lang"]`` (défaut ``DEFAULT_LANG``,
+    soit ``"en"``) ;
   - ``t(key, **kwargs)`` : texte du *chrome* (titres, boutons, sections…) ;
   - ``m(msg_id, **params)`` : wrapper Streamlit du catalogue PUR
     ``i18n_messages`` (messages agent) avec la langue courante ;
@@ -2840,7 +2841,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 # Langue courante
 # ---------------------------------------------------------------------------
 def current_lang() -> str:
-    """Langue active (``"fr"`` par défaut).
+    """Langue active (``DEFAULT_LANG``, soit ``"en"``, par défaut).
 
     Tolérant hors contexte Streamlit (tests purs) : si ``session_state`` n'est
     pas accessible, retourne la langue par défaut.
