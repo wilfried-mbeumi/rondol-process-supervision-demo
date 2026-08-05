@@ -85,6 +85,13 @@ reports/*
 !reports/augmentation_report.json
 !reports/augmentation_eval.json
 !reports/eval_consolidated_w60.json
+# Lus par notebooks/notebook_application_rondol.ipynb : sans eux, le notebook
+# n'est pas rejouable depuis le dépôt (benchmark SQL + tableau de l'augmentation
+# par pli). Deux fichiers de moins de 1 Ko chacun.
+!reports/sql_benchmark.json
+!reports/AI_thesis_results/
+!reports/AI_thesis_results/block_2_model_augmentation/
+!reports/AI_thesis_results/block_2_model_augmentation/table_for_thesis.csv
 !reports/soutenance/
 !reports/soutenance/*
 

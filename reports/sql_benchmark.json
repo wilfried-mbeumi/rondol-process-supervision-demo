@@ -1,0 +1,20 @@
+{
+  "engine": "SQLite (in-memory) — schéma et motif d'accès de rondol_state",
+  "query": "SELECT payload FROM rondol_state WHERE key = 'applied_state'",
+  "non_optimisee": {
+    "indexed": false,
+    "n_rows": 50001,
+    "n_queries": 2000,
+    "total_ms": 9472.37,
+    "avg_query_ms": 4.73618
+  },
+  "optimisee_index_btree": {
+    "indexed": true,
+    "n_rows": 50001,
+    "n_queries": 2000,
+    "total_ms": 9.2,
+    "avg_query_ms": 0.0046
+  },
+  "speedup_x": 1029.6,
+  "interpretation": "Sans index, le moteur effectue un balayage séquentiel (O(n)) des 50001 lignes à chaque lecture. Avec un index B-tree sur la clé (équivalent du PRIMARY KEY PostgreSQL utilisé en production), la lecture devient logarithmique (O(log n)). Le motif d'accès réel de l'application est une lecture par clé unique : il bénéficie directement de cette optimisation."
+}

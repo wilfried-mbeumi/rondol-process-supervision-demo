@@ -73,7 +73,16 @@ l'entraînement, et la base consolidée continue (100 800 lignes) construite en
 calibrant chaque distribution sur les mesures réelles.""")
 
 code("""import pandas as pd
-df = pd.read_csv(ROOT / "data/consolidated/dataset_consolide_rondol.csv", parse_dates=["timestamp"])
+# La base consolidée (10 Mo) n'est pas versionnée : elle est REGENERABLE à
+# graine fixe, donc on ne l'embarque pas dans le dépôt. Si elle est absente, on
+# le dit explicitement plutôt que de laisser une trace d'erreur dans le notebook.
+_consolide = ROOT / "data/consolidated/dataset_consolide_rondol.csv"
+if not _consolide.exists():
+    raise SystemExit(
+        "Base consolidée absente (non versionnée car régénérable).\\n"
+        "Régénérez-la depuis la racine du dépôt :\\n"
+        "    python scripts/generate_consolidated_dataset.py")
+df = pd.read_csv(_consolide, parse_dates=["timestamp"])
 print(df.shape)
 df[["timestamp","Z4","Z8","DIE","screw_rpm","feed_rate_gph","torque_pct","phase","recipe"]].sample(6, random_state=7)""")
 
@@ -106,7 +115,15 @@ auditées : couverture par capteur, codes d'erreur, doublons. Ce constat motive
 directement le choix de fenêtrage et d'imputation retenu par le pipeline
 (`src/preprocess.py`).""")
 
-code("""raw = pd.read_csv(ROOT / "data/interim/merged_timeseries.csv", parse_dates=["timestamp"])
+code("""# Séries brutes fusionnées (3 Mo) : non versionnées, reconstruites par le
+# pipeline. Message explicite si absentes, plutôt qu'une trace d'erreur brute.
+_interim = ROOT / "data/interim/merged_timeseries.csv"
+if not _interim.exists():
+    raise SystemExit(
+        "Séries brutes absentes (non versionnées car reconstruites).\\n"
+        "Régénérez-les depuis la racine du dépôt :\\n"
+        "    python -m src.build_dataset")
+raw = pd.read_csv(_interim, parse_dates=["timestamp"])
 cov = raw.drop(columns=["timestamp"]).notna().mean().mul(100).round(1).sort_values()
 print("Couverture par capteur (% de lignes renseignées, sur 6 jours d'essais) :")
 print(cov.to_string())
@@ -161,7 +178,7 @@ micro-benchmark ci-dessous reproduit le motif d'accès réel de l'application
 simulée à volumétrie réaliste (50 001 lignes).""")
 
 code("""import json
-bench = json.load(open(ROOT / "reports/sql_benchmark.json"))
+bench = json.load(open(ROOT / "reports/sql_benchmark.json", encoding="utf-8"))
 print(f"Requête : {bench['query']}")
 print(f"Volumétrie simulée : {bench['non_optimisee']['n_rows']:,} lignes, {bench['non_optimisee']['n_queries']} requêtes".replace(",", " "))
 print(f"\\n  Non indexée (balayage séquentiel) : {bench['non_optimisee']['avg_query_ms']:.3f} ms / requête")
@@ -186,7 +203,7 @@ supervisés (régression logistique, SVM, Random Forest, XGBoost, un réseau de
 neurones), départagés en validation **Leave-One-Group-Out** — un essai
 entièrement écarté à chaque pli, sur les 8 essais disponibles.""")
 
-code("""champ = json.load(open(ROOT / "reports/model_comparison_logo_w60.json"))
+code("""champ = json.load(open(ROOT / "reports/model_comparison_logo_w60.json", encoding="utf-8"))
 rows = {name: {"F1-macro moyen (LOGO)": v["logo_f1_macro_mean"],
                "Écart-type inter-essais": v["logo_f1_macro_std"],
                "Accuracy (pooled)": v["pooled_accuracy"]}
@@ -196,13 +213,76 @@ pd.DataFrame(rows).T.round(3).sort_values("F1-macro moyen (LOGO)", ascending=Fal
 md("""Les cinq modèles sont dans le bruit (F1-macro 0,76 à 0,81, écarts-types de
 0,16 à 0,21) : avec 8 essais seulement, aucun ne se détache de façon
 significative. C'est cette variabilité — et non un classement flatteur — qui
-motive l'augmentation de données présentée ensuite. Après augmentation et
-validation stricte **par run** (GroupShuffleSplit, un run vu à l'entraînement
-ne peut jamais servir au test), le Random Forest est le modèle retenu et
-déployé.""")
+motive l'augmentation de données, examinée plus bas.
 
-code("""metrics = json.load(open(ROOT / "reports/ml_metrics_w60.json"))
+Le tableau suivant montre autre chose, et il faut le lire avec précaution : il
+donne les scores sur un **unique découpage de tenue à l'écart** (`GroupShuffleSplit`,
+3 essais de test sur 8), **sans augmentation** — c'est le protocole du premier
+jalon du projet. Les chiffres y sont nettement plus flatteurs que ceux du
+tableau précédent : Random Forest à 0,92 de F1-macro contre 0,80 en
+Leave-One-Group-Out. L'écart ne vient pas du modèle mais du **protocole** : un
+seul tirage de 3 essais peut tomber sur une combinaison favorable, là où le
+Leave-One-Group-Out moyenne sur les 8 essais. C'est le tableau
+Leave-One-Group-Out qui fait référence.""")
+
+code("""metrics = json.load(open(ROOT / "reports/ml_metrics_w60.json", encoding="utf-8"))
+print(f"Protocole : {metrics['split_method']} — "
+      f"{metrics['n_train']} fenêtres d'entraînement / {metrics['n_test']} de test "
+      f"({metrics['n_runs_test']} essais de test), SANS augmentation.")
 pd.DataFrame(metrics["test"]).T[["accuracy","f1_macro","f1_unstable","roc_auc"]].round(3)""")
+
+md("""### L'augmentation de données, et la fuite qu'elle cachait
+
+Pour compenser les 8 essais disponibles, 800 fenêtres synthétiques ont été
+générées par bootstrap et jitter, puis injectées **à l'entraînement uniquement**.
+Le gain mesuré était spectaculaire : Random Forest passait de 0,809 à **0,918**
+de F1-macro.
+
+Ce gain était un artefact. Le pool synthétique était généré **une seule fois à
+partir des huit essais réels**, puis réutilisé dans chaque pli. L'essai censé
+être exclu avait donc contribué indirectement à l'entraînement : ses fenêtres
+avaient servi de **points d'ancrage** au bootstrap, et ses valeurs alimentaient
+les écarts-types pilotant le jitter. Le pli de test ne contenait aucune fenêtre
+synthétique — la fuite était donc invisible à la lecture du code. C'est une
+**fuite par ancrage**.
+
+La correction rend la génération dépendante du pli : à chaque itération, le pool
+est intégralement régénéré à partir des seuls essais d'entraînement, même
+algorithme, même volume, même graine. Le tableau ci-dessous compare les trois
+protocoles.""")
+
+code("""aug = pd.read_csv(
+    ROOT / "reports/AI_thesis_results/block_2_model_augmentation/table_for_thesis.csv",
+    encoding="utf-8-sig")
+aug = aug.rename(columns={
+    "Model": "Modèle",
+    "Macro-F1 without augmentation": "Sans augmentation",
+    "Macro-F1 with leaky global augmentation (superseded)": "Augmentation globale (fuitée)",
+    "Macro-F1 with training-only augmentation": "Augmentation par pli (corrigée)",
+    "Absolute change": "Écart",
+})
+aug[["Modèle", "Sans augmentation", "Augmentation globale (fuitée)",
+     "Augmentation par pli (corrigée)", "Écart"]].set_index("Modèle")""")
+
+md("""L'enseignement est net. **Le gain attribué à l'augmentation était très
+majoritairement un artefact de la fuite** : sur le Random Forest il passe de
++0,109 à −0,001, et la réduction de variance annoncée s'évanouit (écart-type de
+0,176 à 0,126, et non à 0,054). Sous le protocole corrigé, aucun modèle
+n'atteint 0,85 et les cinq restent groupés entre 0,78 et 0,82 — soit, avec des
+écarts-types de 0,13 à 0,17 sur six plis, des performances **statistiquement
+indiscernables**.
+
+Ce résultat est exposé plutôt que passé sous silence : un chiffre de 0,918
+présenté comme la
+performance d'un modèle déployé aurait constitué une sur-promesse envers Rondol.
+Il illustre aussi le point central de cette section — la performance d'un modèle
+est une propriété du **protocole d'évaluation** autant que de l'algorithme.
+
+*Note de lecture : les moyennes de ce tableau portent sur les six essais
+évaluables (les essais 32 et 42, intégralement stables, ne permettent ni
+F1-macro interprétable ni ROC-AUC), là où le tableau Leave-One-Group-Out plus
+haut porte sur les huit. D'où le léger écart, pour le Random Forest, entre 0,796
+et 0,809 sans augmentation.*""")
 
 code("""import joblib
 model = joblib.load(ROOT / "models/RandomForest_w60_augmented.joblib")
@@ -229,7 +309,7 @@ résultat n'a volontairement pas été optimisé : l'écart avec les performance
 sur essais réels documente honnêtement la sensibilité au changement de
 distribution.""")
 
-code("""ext = json.load(open(ROOT / "reports/eval_consolidated_w60.json"))
+code("""ext = json.load(open(ROOT / "reports/eval_consolidated_w60.json", encoding="utf-8"))
 pd.Series(ext).drop("confusion_matrix").to_frame("validation externe (base simulée)")""")
 
 md("""## 4. De la donnée à la recommandation : le moteur à règles expert
@@ -242,10 +322,20 @@ expertes**, entièrement auditable, qui lit l'état procédé directement — sa
 boîte noire. La démonstration ci-dessous exécute cette chaîne de bout en bout,
 sur le code réellement déployé dans l'application.""")
 
-code("""import sys as _sys
+code("""import sys as _sys, logging as _logging
 for p in (str(ROOT), str(ROOT / "AgentIndustrial_v1" / "core"), str(ROOT / "AgentIndustrial_v1")):
     if p not in _sys.path:
         _sys.path.insert(0, p)
+
+# Le moteur de règles importe Streamlit, qui journalise « missing ScriptRunContext »
+# hors d'une session `streamlit run`. Sans conséquence ici — on exécute la logique
+# pure — mais ce bruit polluerait la sortie du notebook livré. Streamlit fixe le
+# niveau de chacun de ses sous-loggers à l'import, donc régler le seul logger
+# parent est inopérant : il faut parcourir l'arbre APRÈS l'import.
+import streamlit as _st  # noqa: F401 — importé ici pour fixer les loggers ensuite
+for _name in list(_logging.root.manager.loggerDict):
+    if _name == "streamlit" or _name.startswith("streamlit."):
+        _logging.getLogger(_name).setLevel(_logging.ERROR)
 
 from AgentIndustrial_v1.core.process import ProcessState
 from AgentIndustrial_v1.core import rules, recommendations
