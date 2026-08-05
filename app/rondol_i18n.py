@@ -1251,6 +1251,30 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "sr.empty.rec_evidence": {"fr": "0 élément utilisateur / 40 au total (tip inclus)",
                               "en": "0 user elements / 40 total (tip incl.)"},
     "sr.flow.inlet": {"fr": "Entrée matière", "en": "Material inlet"},
+
+    # Alternative textuelle du schéma de vis (WCAG 1.1.1) : le rendu est dessiné
+    # en HTML/CSS, donc sans nom accessible il est muet pour un lecteur d'écran.
+    # Le détail position par position reste porté par le tableau « éléments
+    # placés », déjà présent sous le schéma.
+    # Infobulles des positions sans élément. Étaient figées en français
+    # (« arbre nu », « type inconnu ») et fuitaient donc en mode anglais.
+    "sr.a11y.bare_shaft": {"fr": "Pos {pos} · arbre nu",
+                           "en": "Pos {pos} · bare shaft"},
+    "sr.a11y.unknown_type": {"fr": "Pos {pos} · type inconnu",
+                             "en": "Pos {pos} · unknown type"},
+    "sr.a11y.tip": {
+        "fr": "Pointe · {label} — élément physique unique, non déplaçable, "
+              "non duplicable",
+        "en": "Tip · {label} — single physical element, cannot be moved or "
+              "duplicated"},
+    "sr.a11y.screw_alt": {
+        "fr": "Schéma du profil de vis assemblé : {placed} éléments placés sur "
+              "{total} positions, répartis en {zones} zones. Le détail de "
+              "chaque position est donné dans le tableau des éléments placés, "
+              "sous le schéma.",
+        "en": "Assembled screw profile diagram: {placed} elements placed across "
+              "{total} positions, in {zones} zones. Per-position detail is "
+              "given in the placed-elements table below the diagram."},
     "sr.empty.count_summary": {"fr": "Aucun élément placé", "en": "No element placed"},
     "sr.empty.count_reasoning": {
         "fr": "Aucun élément placé après le feeder : pas de signal métier "

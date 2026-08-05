@@ -528,7 +528,12 @@ def build_screw_assembly_html(
         if bt == 0:
             close_helix_run(cur_x)
             slots_html.append(
-                f'<div class="rs-slot rs-empty" title="Pos {i} · arbre nu" '
+                # aria-hidden : une position sans élément n'apporte aucune
+                # information ; l'exposer ferait énoncer « arbre nu » des dizaines
+                # de fois à un lecteur d'écran. Le résumé porté par le conteneur
+                # et le tableau des éléments placés suffisent.
+                f'<div class="rs-slot rs-empty" aria-hidden="true" '
+                f'title="{_t("sr.a11y.bare_shaft", pos=i)}" '
                 f'style="width:{POS_UNIT_PX}px;"></div>'
             )
             cur_x += POS_UNIT_PX
@@ -598,7 +603,8 @@ def build_screw_assembly_html(
         # Type inconnu : traite comme empty (n'étend pas la base).
         close_helix_run(cur_x)
         slots_html.append(
-            f'<div class="rs-slot rs-empty" title="Pos {i} · type inconnu" '
+            f'<div class="rs-slot rs-empty" aria-hidden="true" '
+            f'title="{_t("sr.a11y.unknown_type", pos=i)}" '
             f'style="width:{slot_w}px;"></div>'
         )
         cur_x += slot_w
@@ -734,8 +740,7 @@ def build_screw_assembly_html(
         f'<div class="rs-tip-apex{tip_pulse}" '
         f'style="left:{inner_w - apex_size // 2}px;'
         f'--tip-color:{tip_color};" '
-        f'title="Pointe · {tip_label_short} — élément physique unique, '
-        f'non déplaçable, non duplicable"></div>'
+        f'title="{_t("sr.a11y.tip", label=tip_label_short)}"></div>'
     )
 
     # Flux matière : streak chaud qui se déplace gauche → droite à travers
@@ -775,8 +780,22 @@ def build_screw_assembly_html(
         flow_gap=FLOW_BANNER_GAP_PX,
     )
 
+    # Alternative textuelle (WCAG 1.1.1) : le schéma est dessiné en HTML/CSS, donc
+    # sans nom accessible il reste muet pour un lecteur d'écran. On expose le
+    # conteneur comme une image unique portant un résumé ; le détail position par
+    # position est déjà lisible dans le tableau des éléments placés, sous le
+    # schéma. Lecture seule : aucun recalcul de géométrie.
+    _placed = sum(
+        1 for _i in range(n_positions)
+        if not is_part2_fn(cfg[_i]) and base_type_fn(cfg[_i]) != 0
+    )
+    _n_zones = len(zone_starts) if (show_zones and zone_starts) else 0
+    _alt = _t("sr.a11y.screw_alt", placed=_placed, total=n_positions, zones=_n_zones)
+    _alt = _alt.replace('"', "&quot;")
+
     body = (
-        f'<div class="rs-container" style="height:{container_total_h}px;">'
+        f'<div class="rs-container" role="img" aria-label="{_alt}" '
+        f'style="height:{container_total_h}px;">'
         f'<div class="rs-inner" style="width:{inner_w}px;">'
         + flow_banner_html
         + zones_html
