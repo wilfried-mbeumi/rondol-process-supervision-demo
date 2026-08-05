@@ -81,6 +81,27 @@ SINGLE_FILES = [
 
 EXCLUDE_DIR_PARTS = {"__pycache__", ".git", ".venv", ".pytest_cache", "node_modules"}
 
+# Garde-fou secrets. Les règles ci-dessus filtrent par EXTENSION : `.streamlit`
+# autorise `.toml`, donc un `secrets.toml` créé un jour pour tester Supabase
+# partirait silencieusement dans le ZIP remis au jury. On refuse donc par NOM,
+# indépendamment de l'extension. Seuls les gabarits `.example` sont conservés.
+EXCLUDE_FILE_NAMES = {
+    "secrets.toml",
+    "secrets_depot.txt",
+    ".env",
+}
+SECRET_NAME_HINTS = ("secret", "credential", "apikey", "api_key", "token")
+
+
+def _is_secret(path: Path) -> bool:
+    """Vrai si le fichier ne doit JAMAIS entrer dans le livrable."""
+    name = path.name.lower()
+    if name in EXCLUDE_FILE_NAMES:
+        return True
+    if name.endswith(".example"):
+        return False  # gabarit sans valeur réelle : légitime
+    return any(h in name for h in SECRET_NAME_HINTS)
+
 LIENS = """Liens du projet Rondol — these professionnelle RNCP 37137
 ========================================================
 URL publique (application Streamlit) : https://rondol-process-supervision-demo.streamlit.app
@@ -97,7 +118,9 @@ Identifiants de test de l'application : voir PDR_README.md section 7 (email/mot 
 
 
 def _excluded(path: Path) -> bool:
-    return any(part in EXCLUDE_DIR_PARTS for part in path.parts)
+    if any(part in EXCLUDE_DIR_PARTS for part in path.parts):
+        return True
+    return _is_secret(path)
 
 
 def main() -> int:
