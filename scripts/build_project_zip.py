@@ -43,6 +43,11 @@ DIR_RULES = {
     "src": {".py"},
     "tests": {".py"},
     "database": {".sql"},
+    # Le notebook d'analyse est exigé par le référentiel. Le ZIP est le seul
+    # livrable qui contienne AUSSI les mesures de campagne
+    # (Essais_07-13_Avril_2026/) : c'est donc le seul où le notebook soit
+    # rejouable de bout en bout.
+    "notebooks": {".ipynb"},
     ".streamlit": {".toml", ".example"},
     "Essais_07-13_Avril_2026": {".csv"},
     "data/features": {".csv", ".json"},
@@ -79,7 +84,8 @@ SINGLE_FILES = [
     "reports/feature_importance_RandomForest_w60.csv",
 ] + SCRIPT_FILES
 
-EXCLUDE_DIR_PARTS = {"__pycache__", ".git", ".venv", ".pytest_cache", "node_modules"}
+EXCLUDE_DIR_PARTS = {"__pycache__", ".git", ".venv", ".pytest_cache", "node_modules",
+                     ".ipynb_checkpoints"}
 
 # Garde-fou secrets. Les règles ci-dessus filtrent par EXTENSION : `.streamlit`
 # autorise `.toml`, donc un `secrets.toml` créé un jour pour tester Supabase
@@ -153,7 +159,9 @@ def main() -> int:
                 print(f"[WARN] fichier absent : {rel}")
 
     size_mb = OUT.stat().st_size / 1e6
-    print(f"[OK] {OUT.name} — {added} fichiers, {size_mb:.1f} Mo (perimetre : code + config, hors memoire/soutenance/notebook)")
+    print(f"[OK] {OUT.name} — {added} fichiers, {size_mb:.1f} Mo "
+          f"(perimetre : code + config + notebook + mesures de campagne, "
+          f"hors memoire/soutenance)")
     return 0
 
 

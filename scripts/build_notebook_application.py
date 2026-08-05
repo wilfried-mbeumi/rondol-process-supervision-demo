@@ -73,35 +73,48 @@ l'entraînement, et la base consolidée continue (100 800 lignes) construite en
 calibrant chaque distribution sur les mesures réelles.""")
 
 code("""import pandas as pd
-# La base consolidée (10 Mo) n'est pas versionnée : elle est REGENERABLE à
-# graine fixe, donc on ne l'embarque pas dans le dépôt. Si elle est absente, on
-# le dit explicitement plutôt que de laisser une trace d'erreur dans le notebook.
+# La base consolidée (10 Mo) n'est pas versionnée : elle est intégralement
+# REGENERABLE à graine fixe, sans donnée brute, donc on ne l'embarque pas dans le
+# dépôt. Si elle est absente, on l'annonce sans interrompre le notebook : les
+# cellules qui en dépendent se signalent alors comme ignorées.
 _consolide = ROOT / "data/consolidated/dataset_consolide_rondol.csv"
-if not _consolide.exists():
-    raise SystemExit(
-        "Base consolidée absente (non versionnée car régénérable).\\n"
-        "Régénérez-la depuis la racine du dépôt :\\n"
-        "    python scripts/generate_consolidated_dataset.py")
-df = pd.read_csv(_consolide, parse_dates=["timestamp"])
-print(df.shape)
-df[["timestamp","Z4","Z8","DIE","screw_rpm","feed_rate_gph","torque_pct","phase","recipe"]].sample(6, random_state=7)""")
+if _consolide.exists():
+    df = pd.read_csv(_consolide, parse_dates=["timestamp"])
+    print(df.shape)
+    _apercu = df[["timestamp","Z4","Z8","DIE","screw_rpm","feed_rate_gph",
+                  "torque_pct","phase","recipe"]].sample(6, random_state=7)
+else:
+    df = None
+    _apercu = None
+    print("Base consolidée absente — cellule ignorée.\\n"
+          "Pour la produire (aucune donnée brute requise, graine fixe) :\\n"
+          "    python scripts/generate_consolidated_dataset.py")
+_apercu""")
 
 code("""%matplotlib inline
 import matplotlib.pyplot as plt
 
-day = df[(df.timestamp >= "2026-04-08") & (df.timestamp < "2026-04-09")]
-fig, axes = plt.subplots(2, 1, figsize=(11, 5.5), sharex=True)
-for z in ["Z2","Z4","Z6","Z8"]:
-    axes[0].plot(day.timestamp, day[z].where(day[z] < 400), lw=0.8, label=z)
-axes[0].set_ylabel("Température (°C)"); axes[0].legend(ncol=4, fontsize=8); axes[0].set_title("Journée d'essais du 8 avril — zones de chauffe")
-axes[1].plot(day.timestamp, day.screw_rpm, lw=0.8, color="teal")
-axes[1].set_ylabel("Vis (tr/min)")
-plt.tight_layout(); plt.show()""")
+if df is None:
+    print("Base consolidée absente — figure ignorée (cf. cellule précédente).")
+else:
+    day = df[(df.timestamp >= "2026-04-08") & (df.timestamp < "2026-04-09")]
+    fig, axes = plt.subplots(2, 1, figsize=(11, 5.5), sharex=True)
+    for z in ["Z2","Z4","Z6","Z8"]:
+        axes[0].plot(day.timestamp, day[z].where(day[z] < 400), lw=0.8, label=z)
+    axes[0].set_ylabel("Température (°C)"); axes[0].legend(ncol=4, fontsize=8); axes[0].set_title("Journée d'essais du 8 avril — zones de chauffe")
+    axes[1].plot(day.timestamp, day.screw_rpm, lw=0.8, color="teal")
+    axes[1].set_ylabel("Vis (tr/min)")
+    plt.tight_layout(); plt.show()""")
 
-code("""run = df[df.phase == "run"]
-num = run[["screw_rpm","feed_rate_gph","torque_pct","Z6","Z7","Z8"]]
-num = num[num < 3000]  # exclure le code d'erreur thermocouple 3276,7
-num.corr().round(2)""")
+code("""if df is None:
+    print("Base consolidée absente — matrice de corrélation ignorée.")
+    _corr = None
+else:
+    run = df[df.phase == "run"]
+    num = run[["screw_rpm","feed_rate_gph","torque_pct","Z6","Z7","Z8"]]
+    num = num[num < 3000]  # exclure le code d'erreur thermocouple 3276,7
+    _corr = num.corr().round(2)
+_corr""")
 
 md("""On retrouve les corrélations physiques attendues : le couple croît avec le débit
 d'alimentation et décroît quand la température de fusion monte (la viscosité
@@ -115,20 +128,25 @@ auditées : couverture par capteur, codes d'erreur, doublons. Ce constat motive
 directement le choix de fenêtrage et d'imputation retenu par le pipeline
 (`src/preprocess.py`).""")
 
-code("""# Séries brutes fusionnées (3 Mo) : non versionnées, reconstruites par le
-# pipeline. Message explicite si absentes, plutôt qu'une trace d'erreur brute.
+code("""# Séries brutes fusionnées (3 Mo) : reconstruites par le pipeline à partir des
+# 12 CSV de la campagne d'avril 2026. Ces mesures d'essais ne sont pas dans le
+# dépôt Git (données d'entreprise) ; elles sont livrées dans le ZIP du projet,
+# sous Essais_07-13_Avril_2026/. Depuis un simple clone du dépôt, cette cellule
+# ne peut donc pas être rejouée — les résultats restent lisibles ci-dessous, tels
+# qu'obtenus lors de la génération du notebook.
 _interim = ROOT / "data/interim/merged_timeseries.csv"
 if not _interim.exists():
-    raise SystemExit(
-        "Séries brutes absentes (non versionnées car reconstruites).\\n"
-        "Régénérez-les depuis la racine du dépôt :\\n"
-        "    python -m src.build_dataset")
-raw = pd.read_csv(_interim, parse_dates=["timestamp"])
-cov = raw.drop(columns=["timestamp"]).notna().mean().mul(100).round(1).sort_values()
-print("Couverture par capteur (% de lignes renseignées, sur 6 jours d'essais) :")
-print(cov.to_string())
-n_glitch = (raw.drop(columns=["timestamp"]) > 1000).sum().sum()
-print(f"\\nCode d'erreur thermocouple (valeur ≈ 3276,7 °C) : {n_glitch} occurrences détectées et neutralisées avant fenêtrage.")""")
+    print("Séries brutes fusionnées absentes — cellule ignorée.\\n"
+          "Elles se reconstruisent avec :  python -m src.build_dataset\\n"
+          "ce qui exige les mesures de campagne (Essais_07-13_Avril_2026/),\\n"
+          "livrées dans le ZIP du projet et hors du dépôt Git.")
+else:
+    raw = pd.read_csv(_interim, parse_dates=["timestamp"])
+    cov = raw.drop(columns=["timestamp"]).notna().mean().mul(100).round(1).sort_values()
+    print("Couverture par capteur (% de lignes renseignées, sur 6 jours d'essais) :")
+    print(cov.to_string())
+    n_glitch = (raw.drop(columns=["timestamp"]) > 1000).sum().sum()
+    print(f"\\nCode d'erreur thermocouple (valeur ≈ 3276,7 °C) : {n_glitch} occurrences détectées et neutralisées avant fenêtrage.")""")
 
 md("""La couverture très inégale (10 à 16 % selon les capteurs) confirme la nécessité
 d'une segmentation stricte en runs productifs avant toute extraction de
