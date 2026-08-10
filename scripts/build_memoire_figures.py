@@ -129,36 +129,49 @@ def fig_architecture():
 # 2. Pipeline de données
 # --------------------------------------------------------------------------- #
 def fig_data_pipeline():
-    fig, ax = _ax(12, 5.6)
+    fig, ax = _ax(12, 6.4)
     title(ax, "Flux de données : du capteur brut à la recommandation",
           "Campagne d'essais Rondol 7–13 avril 2026 · 12 capteurs de température")
+    # Deux rangées de quatre : sur une seule rangée de sept, « Recommandations »
+    # et « Timestamp/Name/Value » débordaient de leur cadre et se chevauchaient.
+    # 87 variables = 12 capteurs x 7 statistiques + 3 gradients croisés ; c'est
+    # bien le nombre attendu par le modèle déployé (n_features_in_ = 87).
     steps = [
-        ("CSV capteurs", "12 voies\nTimestamp/Name/Value", BLUELT, BLUE),
-        ("Nettoyage", "dédup · resample 10 s\nforward-fill ≤ 60 s", BLUELT, BLUE),
-        ("Fenêtres", "30 / 60 / 120 s\nrecouvrement 50 %", BLUELT, BLUE),
-        ("Features", "96 variables\n7 stats × 12 + 3 croisées", GREENLT, GREEN),
+        ("CSV capteurs", "12 voies\nTimestamp · Name · Value", BLUELT, BLUE),
+        ("Nettoyage", "déduplication · resample 10 s\nforward-fill ≤ 60 s", BLUELT, BLUE),
+        ("Fenêtrage", "30 / 60 / 120 s\nrecouvrement 50 %", BLUELT, BLUE),
+        ("Variables", "87 variables\n12 × 7 stats + 3 croisées", GREENLT, GREEN),
         ("Modèle ML", "RandomForest\n(augmenté, retenu)", GREENLT, GREEN),
-        ("Recommandations", "agent règles\nalertes + actions", BLUELT, BLUE),
-        ("Interface", "Streamlit\nSupervision", BLUELT, BLUE),
+        ("Agent à règles", "alertes + actions\nexplicables", BLUELT, BLUE),
+        ("Interface", "Streamlit\npage Supervision", BLUELT, BLUE),
     ]
-    n = len(steps)
-    w = 11.5
-    gap = (100 - 6 - n * w) / (n - 1)
-    y = 38
-    h = 22
-    x = 3
+    COLS, MARGE, GAP = 4, 4, 4
+    w = (100 - 2 * MARGE - (COLS - 1) * GAP) / COLS      # = 20 : titres au large
+    h = 21
+    lignes_y = (52, 18)
     for i, (t, sub, fc, ec) in enumerate(steps):
-        xi = x + i * (w + gap)
-        b = FancyBboxPatch((xi, y), w, h, boxstyle="round,pad=0.3,rounding_size=1.6",
-                           linewidth=1.6, edgecolor=ec, facecolor=fc)
-        ax.add_patch(b)
-        ax.text(xi + w / 2, y + h - 4, t, ha="center", va="center", fontsize=10,
-                fontweight="bold", color=ec)
-        ax.text(xi + w / 2, y + (h - 8) / 2 + 1, sub, ha="center", va="center",
-                fontsize=8.2, color=INK)
-        if i < n - 1:
-            arrow(ax, xi + w, y + h / 2, xi + w + gap, y + h / 2, color=GREY, lw=1.8)
-    ax.text(50, 26, "Cible décalée d'une fenêtre (prévision de l'état futur) · séparation par essai (anti-fuite)",
+        col, row = i % COLS, i // COLS
+        xi, yi = MARGE + col * (w + GAP), lignes_y[row]
+        ax.add_patch(FancyBboxPatch((xi, yi), w, h,
+                                    boxstyle="round,pad=0.3,rounding_size=1.6",
+                                    linewidth=1.6, edgecolor=ec, facecolor=fc))
+        ax.text(xi + w / 2, yi + h - 5, t, ha="center", va="center",
+                fontsize=10.5, fontweight="bold", color=ec)
+        ax.text(xi + w / 2, yi + (h - 9) / 2, sub, ha="center", va="center",
+                fontsize=8.6, color=INK, linespacing=1.5)
+        if col < COLS - 1 and i < len(steps) - 1:
+            arrow(ax, xi + w, yi + h / 2, xi + w + GAP, yi + h / 2, color=GREY, lw=1.8)
+    # Liaison rangée 1 -> rangée 2 : coude à angles droits dans l'entre-deux,
+    # plutôt qu'une diagonale qui barrerait toute la figure.
+    x_fin = MARGE + (COLS - 1) * (w + GAP) + w / 2
+    x_deb = MARGE + w / 2
+    y_mid = lignes_y[1] + h + (lignes_y[0] - lignes_y[1] - h) / 2
+    ax.plot([x_fin, x_fin], [lignes_y[0], y_mid], color=GREY, lw=1.8,
+            solid_capstyle="round", zorder=1)
+    ax.plot([x_fin, x_deb], [y_mid, y_mid], color=GREY, lw=1.8,
+            solid_capstyle="round", zorder=1)
+    arrow(ax, x_deb, y_mid, x_deb, lignes_y[1] + h, color=GREY, lw=1.8)
+    ax.text(50, 8, "Cible décalée d'une fenêtre (prévision de l'état futur) · séparation par essai (anti-fuite)",
             ha="center", va="center", fontsize=9.2, color=GREY, style="italic")
     save(fig, "fig_data_pipeline.png")
 
@@ -384,7 +397,7 @@ def fig_gantt():
         ("Modélisation ML (RF / XGB / SVM)", 5, 2.4),
         ("Interface Streamlit (6 pages)", 6, 3),
         ("Persistance Supabase", 7.5, 1.8),
-        ("Tests & stabilisation (685)", 7.8, 1.7),
+        ("Tests & stabilisation (720)", 7.8, 1.7),
         ("Démonstration client", 9.5, 0.5),
         ("Rédaction & dépôt du mémoire", 8.5, 2),
     ]
@@ -414,29 +427,33 @@ def fig_gantt():
 # 10. Familles de tests
 # --------------------------------------------------------------------------- #
 def fig_tests():
-    fig, ax = _ax(11, 5.2)
-    title(ax, "Stratégie de tests : 685 tests automatisés sur 71 fichiers",
-          "Tous passants · exécution ≈ 146 s · chaque incident de production figé en test")
+    # Grille 3 x 2 : sur une seule rangée de six, les intitulés les plus longs
+    # (« Internationalisation », « Redémarrage E2E ») débordaient de leur cadre.
+    fig, ax = _ax(11, 6.0)
+    title(ax, "Stratégie de tests : 720 tests automatisés sur 75 fichiers",
+          "Tous passants · exécution ≈ 2 min · chaque incident de production figé en test")
     fams = [
-        ("Unitaires purs", "logique métier &\nmoteur procédé", BLUE),
-        ("Interface Streamlit", "≈ 30 tests\nAppTest (widgets)", BLUE2),
+        ("Unitaires purs", "logique métier\n& moteur procédé", BLUE),
+        ("Interface Streamlit", "≈ 30 tests AppTest\n(widgets réels)", BLUE2),
         ("Persistance", "survie au\nredémarrage simulé", GREEN),
-        ("Non-régression", "bugs de prod\nfigés", GREY),
-        ("Internationalisation", "> 70 chaînes FR\ninterdites en EN", AMBER),
-        ("Redémarrage E2E", "reboot cloud\n+ valeurs widgets", RED),
+        ("Non-régression", "chaque bug de\nproduction figé", GREY),
+        ("Internationalisation", "> 70 chaînes FR\ninterdites en anglais", AMBER),
+        ("Accessibilité", "nom accessible,\ncontrastes WCAG", RED),
     ]
-    n = len(fams)
-    w = 14
-    gap = (100 - 6 - n * w) / (n - 1)
-    y, h, x = 30, 30, 3
+    COLS, MARGE, GAP = 3, 5, 5
+    w = (100 - 2 * MARGE - (COLS - 1) * GAP) / COLS      # ≈ 26,7 : place pour les titres
+    h, y_haut, y_bas = 29, 47, 10
     for i, (t, sub, ec) in enumerate(fams):
-        xi = x + i * (w + gap)
-        b = FancyBboxPatch((xi, y), w, h, boxstyle="round,pad=0.3,rounding_size=1.6",
-                           linewidth=1.7, edgecolor=ec, facecolor=WHITE)
-        ax.add_patch(b)
-        ax.text(xi + w / 2, y + h - 5, t, ha="center", va="center", fontsize=9.6,
-                fontweight="bold", color=ec)
-        ax.text(xi + w / 2, y + h / 2 - 2, sub, ha="center", va="center", fontsize=8.4, color=INK)
+        col, row = i % COLS, i // COLS
+        xi = MARGE + col * (w + GAP)
+        yi = y_haut if row == 0 else y_bas
+        ax.add_patch(FancyBboxPatch((xi, yi), w, h,
+                                    boxstyle="round,pad=0.3,rounding_size=1.6",
+                                    linewidth=1.7, edgecolor=ec, facecolor=WHITE))
+        ax.text(xi + w / 2, yi + h - 7, t, ha="center", va="center",
+                fontsize=11, fontweight="bold", color=ec)
+        ax.text(xi + w / 2, yi + h / 2 - 4, sub, ha="center", va="center",
+                fontsize=9.2, color=INK, linespacing=1.5)
     save(fig, "fig_tests.png")
 
 
@@ -511,11 +528,14 @@ def fig_roadmap():
     fig, ax = _ax(11, 5.4)
     title(ax, "Feuille de route : quatre axes d'évolution",
           "Chaque limite identifiée appelle une évolution ciblée")
+    # Intitulés raccourcis : « 1 · Données & calibration » débordait de son
+    # bandeau. Le jalon « Dump SQL certification » a disparu de l'axe 4 : le
+    # dump est livré (cf. Annexe B), ce n'est plus une perspective.
     axes = [
-        ("1 · Données & calibration", "• Multiplier les essais\n• Données synthétiques\n• Calibration industrielle", BLUE),
+        ("1 · Données", "• Multiplier les essais\n• Données synthétiques\n• Calibration industrielle", BLUE),
         ("2 · Équations & ML", "• Coder E5 / E6 / E7\n• Interprétabilité SHAP\n• Pression filière", GREEN),
         ("3 · Industrialisation", "• Chaîne CI/CD\n• Couverture mesurée\n• Plan de tests formel", BLUE2),
-        ("4 · Périmètre & V2", "• Multi-utilisateur\n• Dump SQL certification\n• Capteurs temps réel\n  (couple, pression)", AMBER),
+        ("4 · Périmètre & V2", "• Multi-utilisateur\n• Capteurs temps réel\n  (couple, pression)\n• Calibration V2", AMBER),
     ]
     n = len(axes)
     w = 21
@@ -554,14 +574,19 @@ def fig_er_schema():
     ax.text(11, 47, "payload  JSONB", ha="left", fontsize=9.4, color=INK, family="monospace")
     ax.text(11, 38, "clé = 'applied_state'", ha="left", fontsize=8.6, color=GREY, style="italic")
     # JSONB
-    b2 = FancyBboxPatch((54, 18), 40, 64, boxstyle="round,pad=0.3,rounding_size=1.6",
+    # Cadre ajusté au contenu : il descendait jusqu'à y=18 pour un document qui
+    # s'arrête bien plus haut, d'où un grand vide. Le bloc JSON est aligné en
+    # haut, sous l'en-tête, au lieu d'être centré — ce qui le faisait remonter
+    # jusqu'à chevaucher le titre.
+    b2 = FancyBboxPatch((54, 30), 40, 52, boxstyle="round,pad=0.3,rounding_size=1.6",
                         linewidth=1.8, edgecolor=GREEN, facecolor=GREENLT)
     ax.add_patch(b2)
-    ax.text(74, 77, "payload : applied_state (JSONB)", ha="center", fontsize=10,
-            fontweight="bold", color=GREEN)
-    ax.text(57, 66,
+    ax.text(74, 77.5, "payload : applied_state (JSONB)", ha="center", va="center",
+            fontsize=10, fontweight="bold", color=GREEN)
+    ax.text(57, 71,
             "{\n  \"screw_config\": [81 entiers],\n  \"thermal_targets\": {Z1…Z8, DIE},\n  \"feeders\": [...],\n  \"feeder_calibrations\": {...},\n  \"dosing\": {...},\n  \"meta\": {...}\n}",
-            ha="left", va="center", fontsize=8.8, color=INK, family="monospace")
+            ha="left", va="top", fontsize=8.8, color=INK, family="monospace",
+            linespacing=1.45)
     arrow(ax, 42, 50, 54, 50, color=GREY, lw=1.8)
     save(fig, "fig_er_schema.png")
 
