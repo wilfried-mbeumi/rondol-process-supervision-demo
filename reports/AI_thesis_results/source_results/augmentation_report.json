@@ -1,0 +1,33 @@
+{
+  "window_sec": 60,
+  "seed": 42,
+  "n_real": 627,
+  "n_synthetic": 800,
+  "n_total": 1427,
+  "class_real": {
+    "1": 449,
+    "0": 178
+  },
+  "class_synthetic": {
+    "0": 400,
+    "1": 400
+  },
+  "nan_rate_reproduced_per_sensor": {
+    "Z1": 0.0,
+    "Z2": 0.0,
+    "Z3": 0.0016,
+    "Z4": 0.0,
+    "Z5": 0.0144,
+    "Z6": 0.0207,
+    "Z7": 0.0144,
+    "Z8": 0.0016,
+    "DIE": 0.0,
+    "CastFilmBody": 0.0,
+    "CastFilmP1": 0.0,
+    "CastFilmP2": 0.0
+  },
+  "synthetic_nan_total": 78,
+  "jitter_fraction": 0.3,
+  "outlier_rate": 0.003,
+  "eval_guardrail": "synthetic run_id in 900..909 — JAMAIS en test ; évaluation sur essais réels uniquement"
+}

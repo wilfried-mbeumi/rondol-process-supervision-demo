@@ -1,0 +1,3 @@
+﻿evaluation,label,actual_stable_predicted_stable_TN,actual_stable_predicted_unstable_FP,actual_unstable_predicted_stable_FN,actual_unstable_predicted_unstable_TP,n_windows,n_stable,n_unstable
+logo_real_runs,"A — Leave-One-Group-Out, 8 essais réels",422,27,59,119,627,449,178
+continuous_simulated,B — Dataset continu simulé (validation externe),2332,747,150,250,3479,3079,400

@@ -1,0 +1,25 @@
+{
+  "model": "MLPClassifier (réseau de neurones, baseline deep learning)",
+  "window_sec": 60,
+  "architecture": "hidden_layer_sizes=(64,32), relu, adam, early_stopping",
+  "split_method": "GroupShuffleSplit(groups=run_id) 70/30",
+  "n_train": 287,
+  "n_test": 340,
+  "n_runs_train": 5,
+  "n_runs_test": 3,
+  "accuracy": 0.9588,
+  "f1_macro": 0.9262,
+  "f1_unstable": 0.8772,
+  "f1_stable": 0.9753,
+  "roc_auc": 0.967,
+  "confusion_matrix": [
+    [
+      50,
+      12
+    ],
+    [
+      2,
+      276
+    ]
+  ]
+}

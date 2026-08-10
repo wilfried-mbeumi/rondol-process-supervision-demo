@@ -1,0 +1,4 @@
+﻿Validation strategy,Number of evaluations,Macro-F1,Stable-class F1,Unstable-class F1,Accuracy,ROC-AUC
+Random split (window-level),10,0.932 ± 0.015,0.961 ± 0.009,0.903 ± 0.021,0.944 ± 0.012,0.976 ± 0.014
+GroupShuffleSplit (run-level),10,0.752 ± 0.116,0.821 ± 0.106,0.684 ± 0.139,0.781 ± 0.124,0.928 ± 0.034
+Leave-One-Group-Out (run-level),6,0.809 ± 0.176,0.894 ± 0.138,0.724 ± 0.333,0.902 ± 0.085,0.925 ± 0.056

@@ -1,0 +1,96 @@
+{
+  "window_sec": 60,
+  "split_method": "GroupShuffleSplit(groups=run_id)",
+  "n_train": 287,
+  "n_test": 340,
+  "n_runs_train": 5,
+  "n_runs_test": 3,
+  "class_balance_train_pct_stable": 59.58,
+  "class_balance_test_pct_stable": 81.76,
+  "cv": [
+    {
+      "model": "RandomForest",
+      "cv_f1_macro_mean": 0.935,
+      "cv_f1_macro_std": 0.029,
+      "cv_accuracy_mean": 0.9375,
+      "cv_accuracy_std": 0.0277,
+      "cv_roc_auc_mean": 0.9759,
+      "cv_roc_auc_std": 0.0212
+    },
+    {
+      "model": "XGBoost",
+      "cv_f1_macro_mean": 0.939,
+      "cv_f1_macro_std": 0.0306,
+      "cv_accuracy_mean": 0.941,
+      "cv_accuracy_std": 0.0298,
+      "cv_roc_auc_mean": 0.9827,
+      "cv_roc_auc_std": 0.0198
+    },
+    {
+      "model": "SVM",
+      "cv_f1_macro_mean": 0.8983,
+      "cv_f1_macro_std": 0.0376,
+      "cv_accuracy_mean": 0.9027,
+      "cv_accuracy_std": 0.0353,
+      "cv_roc_auc_mean": 0.9575,
+      "cv_roc_auc_std": 0.0373
+    }
+  ],
+  "test": {
+    "RandomForest": {
+      "accuracy": 0.95,
+      "f1_macro": 0.9166846846846847,
+      "f1_weighted": 0.950154954954955,
+      "f1_unstable": 0.864,
+      "f1_stable": 0.9693693693693693,
+      "roc_auc": 0.9465653283824554,
+      "confusion_matrix": [
+        [
+          54,
+          8
+        ],
+        [
+          9,
+          269
+        ]
+      ]
+    },
+    "XGBoost": {
+      "accuracy": 0.8823529411764706,
+      "f1_macro": 0.8272708799024588,
+      "f1_weighted": 0.889238198835722,
+      "f1_unstable": 0.7297297297297297,
+      "f1_stable": 0.924812030075188,
+      "roc_auc": 0.9479577628220005,
+      "confusion_matrix": [
+        [
+          54,
+          8
+        ],
+        [
+          32,
+          246
+        ]
+      ]
+    },
+    "SVM": {
+      "accuracy": 0.9529411764705882,
+      "f1_macro": 0.9156902857851342,
+      "f1_weighted": 0.9512929069712318,
+      "f1_unstable": 0.8596491228070176,
+      "f1_stable": 0.9717314487632509,
+      "roc_auc": 0.9467974007890462,
+      "confusion_matrix": [
+        [
+          49,
+          13
+        ],
+        [
+          3,
+          275
+        ]
+      ]
+    }
+  },
+  "best_model": "RandomForest"
+}

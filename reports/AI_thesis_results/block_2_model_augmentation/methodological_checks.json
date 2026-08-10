@@ -1,0 +1,48 @@
+{
+  "protocole": "LeaveOneGroupOut sur les 8 essais réels, fenêtre 60 s",
+  "n_essais_reels": 8,
+  "n_fenetres_reelles": 627,
+  "n_fenetres_synthetiques_par_fold": 800,
+  "essais_mono_classe_exclus_des_agregats": [
+    32,
+    42
+  ],
+  "generateur_fold_aware_identique_au_generateur_publie": {
+    "verifie": true,
+    "detail": "identique au pool publié (bit-à-bit sur les 87 features)",
+    "methode": "regénération avec le support d'ancrage complet et la graine 42, puis comparaison bit-à-bit des 87 features au pool publié dans dataset_ml_w60_augmented.csv"
+  },
+  "garanties": [
+    {
+      "point": "le run réel exclu n'a jamais été utilisé pour entraîner le modèle",
+      "pooled_global": "SATISFAIT",
+      "fold_aware": "SATISFAIT",
+      "preuve": "le fold de test est sélectionné par run_id ; l'entraînement porte sur real[run_id != r]"
+    },
+    {
+      "point": "il n'a pas été utilisé pour calculer les paramètres de prétraitement",
+      "pooled_global": "SATISFAIT",
+      "fold_aware": "SATISFAIT",
+      "preuve": "imputation médiane et standardisation sont des étapes internes du Pipeline sklearn, refittées sur le seul fold d'entraînement à chaque appel de fit()"
+    },
+    {
+      "point": "il n'a pas été utilisé comme point d'ancrage pour générer les fenêtres synthétiques",
+      "pooled_global": "NON SATISFAIT",
+      "fold_aware": "SATISFAIT",
+      "preuve": "pooled_global réutilise le pool publié, généré une fois sur les 8 essais ; fold_aware appelle generate_synthetic(real[run_id != r]) à chaque fold"
+    },
+    {
+      "point": "les données synthétiques ont été générées exclusivement à partir des observations du fold d'entraînement",
+      "pooled_global": "NON SATISFAIT",
+      "fold_aware": "SATISFAIT",
+      "preuve": "les taux de valeurs manquantes par capteur et les écarts-types de classe qui pilotent le jitter sont estimés sur le seul fold d'entraînement"
+    },
+    {
+      "point": "aucune donnée synthétique n'a été ajoutée au fold de test",
+      "pooled_global": "SATISFAIT",
+      "fold_aware": "SATISFAIT",
+      "preuve": "le fold de test est extrait de real (synthetic == 0) ; les run_id synthétiques (900-909) sont disjoints des run_id réels"
+    }
+  ],
+  "conclusion": "Le protocole historique (pooled_global) viole deux des cinq garanties. Les chiffres publiés dans reports/augmentation_eval.json en sont issus et sont donc optimistes. La condition fold_aware satisfait les cinq garanties et constitue le résultat à retenir pour la thèse."
+}
