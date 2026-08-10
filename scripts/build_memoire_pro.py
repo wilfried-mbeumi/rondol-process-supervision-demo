@@ -29,7 +29,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_memoire_final as bmf  # noqa: E402  (pipeline éprouvé réutilisé)
+from docx.enum.section import WD_SECTION  # noqa: E402
 from docx.enum.text import WD_ALIGN_PARAGRAPH  # noqa: E402
+from docx.oxml import OxmlElement  # noqa: E402
+from docx.oxml.ns import qn  # noqa: E402
 from docx.shared import Cm, Pt  # noqa: E402
 
 OUT_DOCX = ROOT / "MBEUMI_Wilfried_THESE.docx"
@@ -37,6 +40,39 @@ OUT_PDF = ROOT / "MBEUMI_Wilfried_THESE.pdf"
 FIGURES_OUT = ROOT / "figures_memoire"
 
 BIB_ITEM_RE = re.compile(r"^\d+\.\s")
+
+# Titre de niveau 1 qui ouvre le corps du mémoire : c'est là que la pagination
+# arabe redémarre à 1.
+BODY_START_TITLE = "Introduction générale"
+
+
+# --------------------------------------------------------------------------- #
+# Pagination conforme à l'usage académique
+#   - page de garde + page institutionnelle : aucun numéro ;
+#   - pages liminaires (remerciements, résumé, abstract, glossaire, sommaire) :
+#     chiffres romains minuscules i, ii, iii… ;
+#   - corps du mémoire, à partir de l'introduction générale : chiffres arabes
+#     redémarrant à 1.
+# --------------------------------------------------------------------------- #
+def set_page_numbering(section, fmt: str, start: int) -> None:
+    """Impose le format et le point de départ de la numérotation d'une section."""
+    sectPr = section._sectPr
+    for existing in sectPr.findall(qn("w:pgNumType")):
+        sectPr.remove(existing)
+    pg = OxmlElement("w:pgNumType")
+    pg.set(qn("w:fmt"), fmt)
+    pg.set(qn("w:start"), str(start))
+    sectPr.append(pg)
+
+
+def open_body_section(doc):
+    """Ouvre la section du corps : nouvelle page, en-tête/pied, arabe à partir de 1."""
+    section = doc.add_section(WD_SECTION.NEW_PAGE)
+    bmf.configure_page(section)
+    nexa_png, rondol_png = bmf.ensure_logos()
+    bmf.build_header_footer(section, nexa_png, rondol_png)
+    set_page_numbering(section, "decimal", 1)
+    return section
 
 
 # --------------------------------------------------------------------------- #
@@ -49,6 +85,7 @@ def parse_body(doc, md_text):
     lines = md_text[idx if idx >= 0 else 0:].splitlines()
     i, first_h1, just_broke = 0, True, False
     in_biblio = False
+    body_started = [False]   # liste = cellule mutable partagée avec la boucle
     while i < len(lines):
         stripped = lines[i].rstrip().strip()
 
@@ -107,10 +144,17 @@ def parse_body(doc, md_text):
 
         # Titres
         if stripped.startswith("# "):
-            if not first_h1 and not just_broke:
+            title = stripped[2:].strip()
+            # L'introduction générale ouvre le corps : on y remplace le simple
+            # saut de page par une rupture de SECTION, seule façon de faire
+            # repartir la numérotation à 1 en chiffres arabes après les pages
+            # liminaires en chiffres romains.
+            if title == BODY_START_TITLE and not body_started[0]:
+                open_body_section(doc)
+                body_started[0] = True
+            elif not first_h1 and not just_broke:
                 doc.add_page_break()
             first_h1 = False
-            title = stripped[2:].strip()
             in_biblio = title.lower().startswith("bibliographie")
             doc.add_paragraph(title, style="Heading 1")
             just_broke = False
@@ -263,6 +307,20 @@ def main():
 
     print("[1/4] Construction du document professionnel ...")
     doc = bmf.build_document()
+
+    # Pagination : les pages liminaires (section 2, ouverte par bmf après la
+    # page de garde et la page institutionnelle) passent en chiffres romains
+    # minuscules. La section du corps, ouverte à l'introduction générale par
+    # open_body_section(), est déjà en arabe redémarrant à 1.
+    # Les sections 0 et 1 — page de garde et page institutionnelle — ne sont
+    # pas touchées : elles restent sans en-tête, sans pied et sans numéro.
+    sections = doc.sections
+    if len(sections) >= 2:
+        set_page_numbering(sections[1], "lowerRoman", 1)
+    n_body = sum(1 for s in sections[2:])
+    print(f"      Pagination : liminaires en romains, "
+          f"corps en arabes ({n_body} section(s) de corps)")
+
     doc.save(str(OUT_DOCX))
     print(f"      DOCX : {OUT_DOCX}")
     print(f"      Figures insérées : {bmf.fig_counter[0]}")

@@ -9,6 +9,21 @@ Le test est TOUJOURS un essai réel non vu. Le synthétique n'est JAMAIS en test
 
 Sortie : reports/augmentation_eval.json  (+ tableau imprimé)
 Usage   : python -m src.evaluate_augmentation
+
+AVERTISSEMENT — protocole superseded (juillet 2026)
+---------------------------------------------------
+Le protocole implémenté ici comporte une FUITE PAR ANCRAGE. Le pool synthétique
+lu depuis dataset_ml_w60_augmented.csv a été généré une seule fois à partir des
+HUIT essais réels ; l'injecter dans chaque fold d'entraînement fait entrer dans
+l'entraînement des fenêtres ancrées sur l'essai de test, et des écarts-types de
+classe calculés en partie sur lui. Les chiffres de reports/augmentation_eval.json
+(notamment RandomForest 0,918) sont donc optimistes.
+
+Ce module est conservé INCHANGÉ comme trace d'audit des valeurs historiquement
+publiées. Le protocole de référence est désormais la condition `fold_aware` de
+scripts/thesis_results/block2_model_augmentation.py, qui régénère le pool à
+chaque fold à partir des seuls essais d'entraînement. Voir
+reports/AI_thesis_results/block_2_model_augmentation/methodological_checks.json.
 """
 from __future__ import annotations
 

@@ -7,6 +7,23 @@ Centralise :
 - split train/test stratifié 70/30
 - construction des pipelines sklearn (RF, XGBoost, SVM)
 - scoring standardisé (accuracy, F1, ROC-AUC)
+
+NOTE — compute_metrics et les folds mono-classe (juillet 2026)
+--------------------------------------------------------------
+compute_metrics appelle classification_report avec deux target_names. Si
+y_true et y_pred ne contiennent qu'une seule classe — cas des essais 32 et 42,
+intégralement stables, en Leave-One-Group-Out — sklearn lève une ValueError.
+Les appelants qui capturent l'exception (src/robustness_check.py) écartent
+alors le fold entier, et le périmètre d'agrégation finit par dépendre des
+prédictions du modèle plutôt que d'une règle explicite.
+
+Le comportement est conservé tel quel pour ne pas modifier rétroactivement les
+chiffres déjà publiés. Le correctif consisterait à passer labels=[0, 1] à
+confusion_matrix et classification_report ; il impliquerait de régénérer
+reports/robustness_full_w60.json et les figures qui en dérivent. La couche de
+calcul utilisée pour le livrable de thèse
+(scripts/thesis_results/common.py, compute_metrics) applique déjà ce correctif
+et trace explicitement les folds mono-classe via un indicateur dédié.
 """
 
 from __future__ import annotations

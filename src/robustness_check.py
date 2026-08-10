@@ -22,6 +22,25 @@ détecter les splits dégénérés (run de test 100 % stable, etc.).
 Usage :
   python -m src.robustness_check
   python -m src.robustness_check --window 60 --n-seeds 10
+
+LIMITES CONNUES — à lire avec reports/robustness_full_w60.json (juillet 2026)
+-----------------------------------------------------------------------------
+1. Prétraitement non aligné avec le reste du projet : ce module ajoute une
+   imputation médiane à RandomForest et XGBoost (voir _make_pipelines), là où
+   src/ml_utils.py ne leur en met aucune et src/evaluate_augmentation.py leur
+   ajoute imputation ET standardisation. Les trois protocoles ne sont donc pas
+   directement comparables entre eux.
+2. Périmètre LOGO variable selon le modèle : sur un essai de test mono-classe
+   (essais 32 et 42, 100 % stables), ml_utils.compute_metrics lève une
+   exception via classification_report (1 classe présente pour 2 target_names).
+   _eval_one_split la capture et le fold entier est écarté de la moyenne. Le
+   périmètre dépend donc des prédictions du modèle : la moyenne LOGO publiée
+   porte sur 6 folds pour RandomForest et SVM, mais sur 7 pour XGBoost.
+
+Ce module est conservé INCHANGÉ comme trace d'audit des valeurs publiées. La
+configuration de référence, harmonisée et à périmètre explicite, est
+scripts/thesis_results/ ; les écarts chiffre par chiffre sont documentés dans
+reports/AI_thesis_results/reconciliation_report.md.
 """
 
 from __future__ import annotations
