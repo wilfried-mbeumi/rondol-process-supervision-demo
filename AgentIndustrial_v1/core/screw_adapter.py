@@ -40,7 +40,9 @@ from screw_logic import (  # type: ignore  # noqa: E402
     N_POSITIONS,
     TIP_PART1_POS,
     TOTAL_FREE_VOL,
+    _params_from_hmi,
     base_type,
+    compute_process_state,
     count_elements,
     fill_factor_average,
     free_volume,
@@ -172,6 +174,19 @@ def refresh_kpis(state: ProcessState) -> ScrewKPIs:
         rpm, solid_flow, ff, torque_pct=state.v2.torque_pct,
     )
 
+    # Débordement feeder : le FF moyen sature en deçà de 1.0, seul le backbone
+    # Network 7 expose overflow_*. On réutilise EXACTEMENT les mêmes paramètres
+    # que fill_factor_average (via _params_from_hmi) pour rester cohérent avec
+    # le FF affiché. Garde : flags False si config/débit dégénérés.
+    overflow_main = False
+    overflow_side = False
+    if solid_flow > 0.0 and density > 0.0:
+        _ps = compute_process_state(
+            cfg, _params_from_hmi(rpm, solid_flow, density)
+        )
+        overflow_main = bool(_ps.overflow_main_feeder)
+        overflow_side = bool(_ps.overflow_side_feeder)
+
     state.kpis = ScrewKPIs(
         n_elements=n_el,
         free_volume_cm3=vol_free,
@@ -181,6 +196,8 @@ def refresh_kpis(state: ProcessState) -> ScrewKPIs:
         zone_residence_s=list(rt_zone),
         profile_archetype=profile.archetype,
         profile_summary=profile.summary,
+        overflow_main_feeder=overflow_main,
+        overflow_side_feeder=overflow_side,
     )
     return state.kpis
 

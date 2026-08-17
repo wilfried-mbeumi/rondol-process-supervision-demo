@@ -346,6 +346,55 @@ def _rule_fill_factor(state: ProcessState) -> list[Alert]:
     return out
 
 
+def _rule_overflow(state: ProcessState) -> list[Alert]:
+    """R4-bis — Débordement au point d'injection (FF local ≥ 100 %).
+
+    Le FF moyen (règle R4) sature bien en deçà de 1.0 : une vis gavée à la
+    trémie reste invisible pour R4. Le backbone Network 7 expose le seul signal
+    fiable via kpis.overflow_main_feeder / overflow_side_feeder.
+    """
+    out: list[Alert] = []
+    if state.kpis.overflow_main_feeder:
+        out.append(Alert(
+            code="FEEDER_OVERFLOW_MAIN",
+            severity=SEVERITY_CRITICAL,
+            title=_b("Débordement au feeder principal",
+                     "Main feeder overflow"),
+            description=_b(
+                "Taux de remplissage local = 100 % au feeder principal : le "
+                "débit dépasse la capacité d'engloutissement de la vis. "
+                "Bourrage trémie, surcouple et pulsations de pression "
+                "attendus — réduire le débit ou augmenter la vitesse vis.",
+                "Local fill factor = 100 % at the main feeder: feed rate "
+                "exceeds the screw intake capacity. Hopper flooding, "
+                "over-torque and pressure pulsations expected — reduce feed "
+                "rate or increase screw speed.",
+            ),
+            evidence=_b("FF local principal = 100 %",
+                        "Main local FF = 100 %"),
+            target=_b("Feeder principal", "Main feeder"),
+        ))
+    if state.kpis.overflow_side_feeder:
+        out.append(Alert(
+            code="FEEDER_OVERFLOW_SIDE",
+            severity=SEVERITY_CRITICAL,
+            title=_b("Débordement au feeder latéral",
+                     "Side feeder overflow"),
+            description=_b(
+                "Taux de remplissage local = 100 % au feeder latéral : le "
+                "débit d'injection dépasse la capacité locale de la vis. "
+                "Bourrage et surcouple attendus — réduire le débit latéral.",
+                "Local fill factor = 100 % at the side feeder: injection rate "
+                "exceeds the local screw capacity. Flooding and over-torque "
+                "expected — reduce the side feed rate.",
+            ),
+            evidence=_b("FF local latéral = 100 %",
+                        "Side local FF = 100 %"),
+            target=_b("Feeder latéral", "Side feeder"),
+        ))
+    return out
+
+
 def _rule_sme(state: ProcessState) -> list[Alert]:
     """R5 — Specific Mechanical Energy trop élevé (seuil procédé).
 
@@ -910,6 +959,7 @@ _ALL_RULES = (
     _rule_thermal_compat,
     _rule_powder_overload,
     _rule_fill_factor,
+    _rule_overflow,
     _rule_sme,
     _rule_residence_time,
     _rule_die_temp_monotony,

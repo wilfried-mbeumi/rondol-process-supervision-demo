@@ -174,22 +174,22 @@ with st.sidebar:
 
     st.markdown("**Scénarios démo**")
     if st.button("⊕ Cas LFP + LATP + Li (poster 15 mai)",
-                 use_container_width=True, key="btn_demo_lfp"):
+                 width="stretch", key="btn_demo_lfp"):
         st.session_state["ai_state"] = _demo_state_lfp_latp_li()
         st.rerun()
     if st.button("⊕ Cas par défaut (1 feeder granulés)",
-                 use_container_width=True, key="btn_demo_default"):
+                 width="stretch", key="btn_demo_default"):
         st.session_state["ai_state"] = ProcessState(
             screw_config=_demo_screw_profile(),
             feeders=new_feeder_bank(),
         )
         st.rerun()
     if st.button("⟲ Reset vis (config vide)",
-                 use_container_width=True, key="btn_reset_screw"):
+                 width="stretch", key="btn_reset_screw"):
         state.screw_config = new_empty_configuration()
         st.rerun()
     if st.button("⊕ Charger profil démo standard",
-                 use_container_width=True, key="btn_load_demo_screw"):
+                 width="stretch", key="btn_load_demo_screw"):
         state.screw_config = _demo_screw_profile()
         st.rerun()
     st.divider()

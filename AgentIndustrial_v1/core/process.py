@@ -104,6 +104,12 @@ class ScrewKPIs:
     zone_residence_s: list[float] = field(default_factory=lambda: [0.0] * 9)
     profile_archetype: str = ""
     profile_summary: str = ""
+    # Débordement feeder (FF local ≥ 1.0 au point d'injection) — calculé par le
+    # backbone Network 7, remonté par screw_adapter.refresh_kpis. Le FF moyen
+    # sature bien en deçà de 1.0, donc ce flag est le seul signal fiable de vis
+    # gavée à la trémie (cf. règle _rule_overflow).
+    overflow_main_feeder: bool = False
+    overflow_side_feeder: bool = False
 
 
 @dataclass
