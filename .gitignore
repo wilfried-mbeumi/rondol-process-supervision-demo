@@ -115,3 +115,10 @@ data/consolidated/*.csv
 
 # Auth : store local de repli (jamais committé)
 data/auth/
+
+# ----- Artefacts d'audit / travail soutenance (non livrables) -----
+reports/soutenance/_audit_*
+reports/soutenance/_final_*
+reports/soutenance/audit_final/
+notebooks/*.html
+LIVRAISON_MAEL/
