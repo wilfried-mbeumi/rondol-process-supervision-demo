@@ -1,5 +1,9 @@
 {
-  "validation": "LeaveOneGroupOut sur essais RÉELS ; synthétique en TRAIN uniquement",
+  "_status": "SUPERSEDED",
+  "_superseded_by": "reports/AI_thesis_results/block_2_model_augmentation/",
+  "_reason": "Fuite par ancrage identifiee (audit 2026-07-31) : le pool synthetique etait genere UNE FOIS sur les 8 essais reels puis reutilise dans chaque pli LOGO. L'essai de test contribuait indirectement au train (points d'ancrage du bootstrap, ecarts-types de classe pilotant le jitter). Le RF augmente = 0.918 ci-dessous est donc un ARTEFACT. Chiffre corrige (protocole fold-aware, meme algorithme et graine) : RandomForest = 0.809 +- 0.126, delta reel = -0.001. Cf. reports/AI_thesis_results/block_2_model_augmentation/methodological_checks.json et table_for_thesis.csv pour les 5 modeles corriges.",
+  "_kept_for": "Tracabilite historique et reproduction du protocole initial documente dans le memoire (Partie 5.5.1).",
+  "validation": "LeaveOneGroupOut sur essais REELS ; synthetique en TRAIN uniquement — POOL GLOBAL FUITE (SUPERSEDED)",
   "n_real": 627,
   "n_synthetic": 800,
   "n_real_runs": 8,

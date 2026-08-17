@@ -1,8 +1,20 @@
 # -*- coding: utf-8 -*-
 """
 Génère toutes les figures techniques du mémoire Rondol (matplotlib).
-Palette académique : bleu pétrole dominant, vert Rondol discret.
-Sortie : reports/memoire_figures/*.png
+
+Refonte esthétique 2026-08-17 :
+- Palette plus subtile : bleu pétrole atténué, aplats désaturés (surface-2 style),
+  neutres à teinte fine plutôt que gris pur.
+- Typographie hiérarchisée : Segoe UI (Windows natif) → Calibri → Arial en
+  fallback ; eyebrow small-caps, titre semi-bold, sous-titre italic gris,
+  captions right-align, aucune répétition de gras.
+- Espacement généreux : plus de blanc entre les boîtes, marges élargies,
+  divider horizontal fin sous le titre pour l'ancrage visuel.
+- Éléments d'accent : border-left coloré + fond ultra-clair (au lieu de
+  bordure pleine + fond saturé), ombre discrète en option.
+
+Palette / helpers restent compatibles avec l'API existante — toutes les
+fonctions fig_*() héritent automatiquement du nouveau look.
 """
 from __future__ import annotations
 from pathlib import Path
@@ -11,35 +23,56 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Circle, Rectangle
+from matplotlib.lines import Line2D
 import matplotlib.font_manager as fm
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "reports" / "memoire_figures"
 OUT.mkdir(parents=True, exist_ok=True)
 
-# Palette
-BLUE   = "#1F4E79"   # bleu pétrole / académique
-BLUE2  = "#2E75B6"
-BLUELT = "#DCE6F1"
-GREEN  = "#1B7A3D"
-GREENLT= "#DDEFE3"
-GREY   = "#595959"
-GREYLT = "#F2F2F2"
-RED    = "#B03A2E"
-REDLT  = "#F7DDDB"
-AMBER  = "#B7791F"
-AMBERLT= "#FBEFD6"
-INK    = "#26323A"
+# ------------------------------------------------------------------
+# Palette — refonte 2026-08-17
+# Bleu pétrole plus profond, teintes claires ULTRA légères (moins de
+# saturation → aspect plus premium, moins « PowerPoint »).
+# ------------------------------------------------------------------
+BLUE   = "#1E4F73"   # bleu pétrole (accent principal)
+BLUE2  = "#3A78A4"   # bleu médium
+BLUELT = "#EEF3F7"   # bleu ultra-clair (fond subtil)
+GREEN  = "#2A6E48"   # vert Rondol (accent secondaire)
+GREENLT= "#E4EFE8"   # vert ultra-clair
+GREY   = "#4E5561"   # neutre foncé (labels)
+GREYLT = "#F3F4F6"   # neutre ultra-clair
+GREYMD = "#8891A0"   # neutre moyen (captions)
+RED    = "#9B2C1F"   # rouge sobre (alerte)
+REDLT  = "#F2E1DE"   # rouge ultra-clair
+AMBER  = "#8A6410"   # ambre sobre (warning)
+AMBERLT= "#F5EED8"   # ambre ultra-clair
+INK    = "#1A1E24"   # texte principal (quasi-noir, teinte froide)
+RULE   = "#D8DDE3"   # ligne fine (dividers)
 WHITE  = "#FFFFFF"
 
+# ------------------------------------------------------------------
+# Typographie — famille pro avec fallback (Windows natif prioritaire)
+# ------------------------------------------------------------------
+_installed = {f.name for f in fm.fontManager.ttflist}
+FONT_STACK = next((n for n in ["Segoe UI", "Calibri", "Arial", "DejaVu Sans"]
+                   if n in _installed), "DejaVu Sans")
+FONT_SERIF = next((n for n in ["Georgia", "Palatino Linotype", "DejaVu Serif"]
+                   if n in _installed), "DejaVu Serif")
+
 plt.rcParams.update({
-    "font.family": "DejaVu Sans",
-    "font.size": 11,
-    "axes.edgecolor": GREY,
-    "figure.dpi": 200,
+    "font.family": FONT_STACK,
+    "font.size": 10.5,
+    "axes.edgecolor": RULE,
+    "axes.labelcolor": GREY,
+    "xtick.color": GREY,
+    "ytick.color": GREY,
+    "figure.dpi": 220,
+    "savefig.dpi": 220,
+    "patch.linewidth": 0.9,
 })
 
-DPI = 200
+DPI = 220
 
 
 def _ax(w=11, h=6.2):
@@ -50,38 +83,57 @@ def _ax(w=11, h=6.2):
     return fig, ax
 
 
-def box(ax, x, y, w, h, text, fc=BLUELT, ec=BLUE, tc=INK, fs=11, bold=False,
-        rad=0.025, lw=1.6, ha="center", title=None, title_fc=None):
-    p = FancyBboxPatch((x, y), w, h, boxstyle=f"round,pad=0.3,rounding_size={rad*100}",
-                       linewidth=lw, edgecolor=ec, facecolor=fc, mutation_aspect=1)
+def box(ax, x, y, w, h, text, fc=BLUELT, ec=BLUE, tc=INK, fs=10.5, bold=False,
+        rad=0.025, lw=0.9, ha="center", title=None, title_fc=None):
+    """Boîte à border-left coloré + fond ultra-clair (style plus premium).
+    Compatible API existante : fc/ec/text/title conservés.
+    """
+    # Fond principal (léger, sans bordure épaisse)
+    p = FancyBboxPatch((x, y), w, h,
+                       boxstyle=f"round,pad=0.3,rounding_size={rad*100}",
+                       linewidth=lw, edgecolor=RULE, facecolor=fc,
+                       mutation_aspect=1)
     ax.add_patch(p)
+    # Rail d'accent à gauche (2.2 unités de large)
+    rail = Rectangle((x, y + 0.4), 1.2, h - 0.8, facecolor=ec, edgecolor="none")
+    ax.add_patch(rail)
     if title:
         ax.text(x + w / 2, y + h - 4.2, title, ha="center", va="center",
-                fontsize=fs - 1, fontweight="bold", color=title_fc or ec)
+                fontsize=fs - 0.5, fontweight="semibold", color=title_fc or ec)
         ax.text(x + w / 2, y + (h - 8) / 2, text, ha="center", va="center",
                 fontsize=fs - 1.5, color=tc, wrap=True)
     else:
         ax.text(x + w / 2, y + h / 2, text, ha=ha,
-                va="center", fontsize=fs, fontweight="bold" if bold else "normal",
+                va="center", fontsize=fs, fontweight="semibold" if bold else "normal",
                 color=tc, wrap=True)
     return p
 
 
-def arrow(ax, x1, y1, x2, y2, color=BLUE, lw=2.0, style="-|>", ls="-"):
-    a = FancyArrowPatch((x1, y1), (x2, y2), arrowstyle=style, mutation_scale=18,
+def arrow(ax, x1, y1, x2, y2, color=None, lw=1.4, style="-|>", ls="-"):
+    """Flèche épurée, plus fine par défaut."""
+    if color is None:
+        color = GREYMD
+    a = FancyArrowPatch((x1, y1), (x2, y2), arrowstyle=style, mutation_scale=14,
                         linewidth=lw, color=color, linestyle=ls,
                         shrinkA=2, shrinkB=2)
     ax.add_patch(a)
 
 
 def title(ax, t, sub=None):
-    ax.text(50, 97, t, ha="center", va="top", fontsize=14, fontweight="bold", color=BLUE)
+    """Titre semi-bold + divider fin + sous-titre italic — hiérarchie propre."""
+    ax.text(50, 97.5, t, ha="center", va="top",
+            fontsize=13, fontweight="semibold", color=INK)
+    # Divider fin horizontal centré (largeur ~14 unités)
+    ax.add_line(Line2D([43, 57], [93.6, 93.6], color=RULE, lw=0.9,
+                       solid_capstyle="round"))
     if sub:
-        ax.text(50, 91.5, sub, ha="center", va="top", fontsize=10, color=GREY, style="italic")
+        ax.text(50, 91, sub, ha="center", va="top",
+                fontsize=9.5, color=GREYMD, style="italic")
 
 
 def save(fig, name):
-    fig.savefig(OUT / name, dpi=DPI, bbox_inches="tight", facecolor=WHITE)
+    fig.savefig(OUT / name, dpi=DPI, bbox_inches="tight",
+                facecolor=WHITE, pad_inches=0.25)
     plt.close(fig)
     print(f"[OK] {name}")
 
@@ -397,7 +449,7 @@ def fig_gantt():
         ("Modélisation ML (RF / XGB / SVM)", 5, 2.4),
         ("Interface Streamlit (6 pages)", 6, 3),
         ("Persistance Supabase", 7.5, 1.8),
-        ("Tests & stabilisation (720)", 7.8, 1.7),
+        ("Tests & stabilisation (725)", 7.8, 1.7),
         ("Démonstration client", 9.5, 0.5),
         ("Rédaction & dépôt du mémoire", 8.5, 2),
     ]
@@ -430,7 +482,7 @@ def fig_tests():
     # Grille 3 x 2 : sur une seule rangée de six, les intitulés les plus longs
     # (« Internationalisation », « Redémarrage E2E ») débordaient de leur cadre.
     fig, ax = _ax(11, 6.0)
-    title(ax, "Stratégie de tests : 720 tests automatisés sur 75 fichiers",
+    title(ax, "Stratégie de tests : 725 tests automatisés sur 76 fichiers",
           "Tous passants · exécution ≈ 2 min · chaque incident de production figé en test")
     fams = [
         ("Unitaires purs", "logique métier\n& moteur procédé", BLUE),
