@@ -272,7 +272,7 @@ Douze incidents de production ont été tracés, résolus et figés en tests de 
 
 **Ce que tu dis :**
 
-« 720 tests automatisés sur 75 fichiers. 100 % au vert. Indépendants de l'ordre d'exécution.
+« 725 tests automatisés sur 76 fichiers. 100 % au vert. Indépendants de l'ordre d'exécution.
 
 Six familles de tests : unitaires purs, interface Streamlit, persistance, non-régression, internationalisation, accessibilité.
 
@@ -324,7 +324,7 @@ Ce que j'ai vraiment appris : j'ai cru avoir débloqué la situation par l'augme
 
 « Non, ce n'est pas une validation externe au sens strict. C'est une épreuve de transférabilité qui mesure la sensibilité au changement de distribution. Je l'ai volontairement présentée comme telle. La vraie validation viendra de nouvelles campagnes d'essais. Je ne prétends pas autre chose. »
 
-### 3. « Qu'est-ce qui justifie 720 tests pour un prototype ? »
+### 3. « Qu'est-ce qui justifie 725 tests pour un prototype ? »
 
 « Chaque incident de production est devenu un test de non-régression. Quand on fait tourner l'outil devant un client, un bug qui revient est plus dommageable que l'absence d'une fonctionnalité. Les tests sont aussi le garant de la crédibilité scientifique : si le logiciel n'est pas reproductible, les résultats ne le sont pas non plus. »
 

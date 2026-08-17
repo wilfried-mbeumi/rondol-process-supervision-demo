@@ -42,7 +42,7 @@ def main() -> int:
     auc_ext = f"{ext['roc_auc']:.3f}".replace(".", ",")         # ex. 0,753
     n_rows = f"{gen['n_rows']:,}".replace(",", " ")             # 100 800
     n_win_ext = f"{ext['n_windows']:,}".replace(",", " ")       # 3 479
-    TESTS = "705"
+    TESTS = "725"
 
     print(f"Vérités : RF acc {acc_rf} / F1 {f1_rf} · ext AUC {auc_ext} ({n_win_ext} fen.) · base {n_rows} · tests {TESTS}")
 
@@ -66,13 +66,13 @@ def main() -> int:
     # ---------- 4. PowerPoint ----------
     try:
         from pptx import Presentation
-        prs = Presentation(str(ROOT / "reports/soutenance/MBEUMI_Wilfried_SOUTENANCE.pptx"))
+        prs = Presentation(str(ROOT / "reports/soutenance/MBEUMI_Wilfried_PREZ new.pptx"))
         pptx_txt = "\n".join(sh.text for sl in prs.slides for sh in sl.shapes if sh.has_text_frame)
         # graphiques : les valeurs sont dans les données de chart, pas le texte → on vérifie les cartes/textes
-        contient(pptx_txt, ["0.918", "100 800", TESTS, "0,753" if "0,753" in pptx_txt else "0.753"], "PowerPoint")
-        contient(pptx_txt, ["693"], "PowerPoint", doit=False)
-        if len(prs.slides.__iter__.__self__._sldIdLst) != 14:
-            err(f"PowerPoint : nombre de diapos != 14")
+        contient(pptx_txt, ["0,918", "0,809", TESTS, auc_ext], "PowerPoint")
+        contient(pptx_txt, ["693", "705", "720"], "PowerPoint", doit=False)
+        if len(prs.slides._sldIdLst) < 20:
+            err("PowerPoint : moins de 20 diapos (support incomplet)")
     except Exception as e:  # pptx non lisible = erreur de synchro
         err(f"PowerPoint illisible : {e}")
 
