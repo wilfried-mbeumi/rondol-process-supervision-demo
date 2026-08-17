@@ -243,15 +243,15 @@ with st.sidebar:
     else:
         st.caption(t("profile.sidebar.sf_pos", z=_sf_zone, pos=f"{_sf_pos_preview:02d}"))
     st.divider()
-    if st.button(t("profile.btn.reset"), use_container_width=True, key="btn_reset"):
+    if st.button(t("profile.btn.reset"), width="stretch", key="btn_reset"):
         st.session_state["screw_config"] = new_empty_configuration()
         st.session_state["last_action_msg"] = ("info", t("profile.msg.reset"))
         st.rerun()
-    if st.button(t("profile.btn.demo"), use_container_width=True, key="btn_demo"):
+    if st.button(t("profile.btn.demo"), width="stretch", key="btn_demo"):
         st.session_state["screw_config"] = _init_default_config()
         st.session_state["last_action_msg"] = ("success", t("profile.msg.demo_loaded"))
         st.rerun()
-    if st.button(t("profile.btn.demo_chaotic"), use_container_width=True, key="btn_demo_chaotic"):
+    if st.button(t("profile.btn.demo_chaotic"), width="stretch", key="btn_demo_chaotic"):
         cfg_chaotic = new_empty_configuration()
         add_element(cfg_chaotic, 1, count=4)    # forward
         add_element(cfg_chaotic, 10, count=6)   # chaotic → effet losange
@@ -714,7 +714,7 @@ for row_idx, row in enumerate(SLOT_LAYOUT):
                 )
                 img_path = ELEMENT_IMAGES.get(type_id)
                 if img_path is not None:
-                    st.image(str(img_path), use_container_width=True)
+                    st.image(str(img_path), width="stretch")
                 st.caption(et.full_name)
                 # +4 atomique réservé aux éléments entiers (consomme 1 slot ADD)
                 # type 2 = demi-élément → on garde +1 / −1 uniquement
@@ -730,13 +730,13 @@ for row_idx, row in enumerate(SLOT_LAYOUT):
                     _n_user + 4 * slot_cost > MAX_USER_ELEMENTS + 1e-9
                 )
                 disable_m = is_tip or (count_here == 0)
-                if bcol_m.button("−1", key=f"minus_{type_id}", use_container_width=True, disabled=disable_m):
+                if bcol_m.button("−1", key=f"minus_{type_id}", width="stretch", disabled=disable_m):
                     if _remove_last_of_type(type_id):
                         st.session_state["last_action_msg"] = (
                             "info", t("profile.msg.removed_one", lbl=et.label)
                         )
                     st.rerun()
-                if bcol_p1.button("+1", key=f"plus1_{type_id}", use_container_width=True, disabled=disable_p1):
+                if bcol_p1.button("+1", key=f"plus1_{type_id}", width="stretch", disabled=disable_p1):
                     placed = _add_element(type_id, count=1)
                     if placed > 0:
                         st.session_state["last_action_msg"] = (
@@ -748,7 +748,7 @@ for row_idx, row in enumerate(SLOT_LAYOUT):
                             t("profile.msg.add_impossible", lbl=et.label),
                         )
                     st.rerun()
-                if bcol_p4.button("+4", key=f"plus4_{type_id}", use_container_width=True, disabled=disable_p4):
+                if bcol_p4.button("+4", key=f"plus4_{type_id}", width="stretch", disabled=disable_p4):
                     if _add_elements_atomic(type_id, 4):
                         st.session_state["last_action_msg"] = (
                             "success", t("profile.msg.added_four", lbl=et.label)
@@ -769,7 +769,7 @@ _sc1, _sc2 = st.columns([1, 2])
 with _sc1:
     if st.button(
         t("profile.btn.save"), type="primary",
-        use_container_width=True, key="btn_profile_save_top",
+        width="stretch", key="btn_profile_save_top",
         help=t("profile.save.help"),
     ):
         _commit_profile_snapshot()
@@ -1223,7 +1223,7 @@ fig_zones.update_layout(
                title=dict(text=t("profile.chart.residence_axis"), font=dict(color="#9CA3AF"))),
     hoverlabel=dict(bgcolor="#1F2937", font_color="#F9FAFB"),
 )
-st.plotly_chart(fig_zones, use_container_width=True, key="zone_rt_chart")
+st.plotly_chart(fig_zones, width="stretch", key="zone_rt_chart")
 
 st.caption(t("profile.cap.residence", rpm=f"{rpm:.0f}", feed=f"{feed:.1f}",
               dens=f"{dens:.2f}", maxv=f"{TOTAL_FREE_VOL:.2f}"))
@@ -1244,7 +1244,7 @@ except Exception:  # noqa: BLE001
     pass
 if st.button(
     t("profile.btn.save"),
-    type="primary", use_container_width=False, key="btn_profile_save",
+    type="primary", width="content", key="btn_profile_save",
     help=t("profile.save.help"),
 ):
     _commit_profile_snapshot()

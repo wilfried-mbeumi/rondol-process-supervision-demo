@@ -264,7 +264,7 @@ else:
         with st.container(border=True):
             st.dataframe(
                 _df.style.map(_status_style, subset=[t("historique.col.status")]),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -310,7 +310,7 @@ else:
                     }
                     for c in _comp
                 ])
-                st.dataframe(_cdf, use_container_width=True, hide_index=True)
+                st.dataframe(_cdf, width="stretch", hide_index=True)
             else:
                 st.caption(t("historique.comp_absent"))
 
@@ -354,7 +354,7 @@ else:
                     }
                     for z in _zones
                 ])
-                st.dataframe(_zdf, use_container_width=True, hide_index=True)
+                st.dataframe(_zdf, width="stretch", hide_index=True)
             elif _zones:
                 st.caption(t("historique.zones_not_significant"))
             else:
@@ -440,7 +440,7 @@ with st.expander(t("historique.ml.expander"), expanded=False):
 
     st.dataframe(
         summary.style.map(color_score, subset=[_col_smean, _col_smin]),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -467,7 +467,7 @@ with st.expander(t("historique.ml.expander"), expanded=False):
                    tickfont=dict(size=10), range=[0, 105], zeroline=False),
         hoverlabel=dict(bgcolor="#1F2937", font_color="#F9FAFB"),
     )
-    st.plotly_chart(_bar_fig, use_container_width=True, key="hist_bar_chart")
+    st.plotly_chart(_bar_fig, width="stretch", key="hist_bar_chart")
 
     st.markdown(f"##### {t('historique.ml.states_title')}")
 
@@ -482,7 +482,7 @@ with st.expander(t("historique.ml.expander"), expanded=False):
     _col_state = t("historique.ml.col.state")
     _col_state_win = t("historique.ml.col.state_windows")
     counts = good["etat"].value_counts().rename_axis(_col_state).reset_index(name=_col_state_win)
-    st.dataframe(counts, use_container_width=True, hide_index=True)
+    st.dataframe(counts, width="stretch", hide_index=True)
 
     st.caption(t("historique.ml.source_caption", n=len(good), th=THRESHOLD))
 

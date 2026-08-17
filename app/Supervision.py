@@ -429,6 +429,13 @@ _STATE_STYLE = {
 }
 _badge_style = _STATE_STYLE[state]
 st.divider()
+# F2 (audit 2026-08-16) : cette bannière vient du REJEU d'un essai enregistré
+# (score ML sur run #46, avril 2026), pas de la configuration courante. Sans
+# étiquette explicite, elle contredisait visuellement le verdict agent config
+# courante affiché plus bas (« CRITIQUE 48/100 »). La caption ci-dessous lie
+# le badge à sa source ; l'agent config courante porte sa propre caption
+# home.sec.agent_sync (« CONFIGURATION COURANTE »).
+st.caption(t("home.sec.ml_replay"))
 st.html(
     f'<div style="{_badge_style}padding:0.6rem 1rem;border-radius:0.25rem;'
     f'font-size:0.95rem;font-weight:600;">'
@@ -939,7 +946,7 @@ _fig.update_layout(
     ),
     hoverlabel=dict(bgcolor="#1F2937", font_color="#F9FAFB"),
 )
-st.plotly_chart(_fig, use_container_width=True, key="score_chart")
+st.plotly_chart(_fig, width="stretch", key="score_chart")
 
 # ── KPIs résumé run : 4 colonnes fixes ───────────────────────────────────────
 pct_stable_run = float(run_df["is_stable"].mean()) * 100

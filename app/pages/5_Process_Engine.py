@@ -288,7 +288,7 @@ st.caption(_t("moteur.caption"))
 # démonstration explicite, puis on stoppe le rendu (pas de KPIs trompeurs).
 if profile_empty and not demo_active:
     st.info(_t("moteur.no_profile.info"), icon="ℹ️")
-    if st.button(_t("moteur.no_profile.btn"), type="primary", use_container_width=False):
+    if st.button(_t("moteur.no_profile.btn"), type="primary", width="content"):
         st.session_state["mp_demo_profile"] = True
         st.rerun()
     st.caption(_t("moteur.no_profile.footer"))
@@ -305,7 +305,7 @@ if demo_active:
     with dcol1:
         st.warning(_t("moteur.demo.warning"), icon="⚙️")
     with dcol2:
-        if st.button(_t("moteur.demo.unload"), use_container_width=True):
+        if st.button(_t("moteur.demo.unload"), width="stretch"):
             st.session_state["mp_demo_profile"] = False
             st.rerun()
 
@@ -445,7 +445,7 @@ for z in report.zones:
         _t("moteur.col.residence"): z.residence_time_s,
     })
 st.dataframe(
-    pd.DataFrame(_zone_rows), use_container_width=True, hide_index=True,
+    pd.DataFrame(_zone_rows), width="stretch", hide_index=True,
     column_config={
         _t("moteur.col.positions"): st.column_config.NumberColumn(_t("moteur.col.positions"), format="%d"),
         _t("moteur.col.fill_mean"): st.column_config.ProgressColumn(
@@ -477,7 +477,7 @@ for p in report.positions:
     })
 if _pos_rows:
     st.dataframe(
-        pd.DataFrame(_pos_rows), use_container_width=True, hide_index=True, height=380,
+        pd.DataFrame(_pos_rows), width="stretch", hide_index=True, height=380,
         column_config={
             "Pos.": st.column_config.NumberColumn("Pos.", format="%d"),
             _t("moteur.col.fill"): st.column_config.ProgressColumn(
@@ -566,7 +566,7 @@ with st.container(border=True):
             _t("moteur.audit.col.variable"), _t("moteur.audit.col.value"),
             _t("moteur.audit.col.unit"), _t("moteur.audit.col.source"),
             _t("moteur.audit.col.formula"), _t("moteur.audit.col.status")]),
-        use_container_width=True, hide_index=True,
+        width="stretch", hide_index=True,
     )
 
     # Statut HONNÊTE du résultat FF + clarification du périmètre du débit.
@@ -622,7 +622,7 @@ with st.container(border=True):
             "statut": _t("moteur.audit.col.status"),
             "used_in_ff": _t("moteur.flow.col.used_in_ff"),
             "commentaire": _t("moteur.flow.col.comment")}),
-        use_container_width=True, hide_index=True,
+        width="stretch", hide_index=True,
     )
 
     # ── Détail PAR FEEDER (multi-feeder) : débit + statut + contribution ──────
@@ -651,7 +651,7 @@ with st.container(border=True):
                 _t("moteur.feeder.col.contrib"): _contrib,
             })
         st.dataframe(
-            pd.DataFrame(_feeder_rows), use_container_width=True, hide_index=True,
+            pd.DataFrame(_feeder_rows), width="stretch", hide_index=True,
         )
         if _multi.total_calculable:
             _tot_msg = _t("moteur.audit.total_flow",

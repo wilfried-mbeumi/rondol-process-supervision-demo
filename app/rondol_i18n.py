@@ -84,8 +84,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
                           "en": "AI AGENT — OPERATIONAL DECISION"},
     "home.sec.global_reasoning": {"fr": "AGENT IA — RAISONNEMENT GLOBAL PROCÉDÉ",
                                   "en": "AI AGENT — GLOBAL PROCESS REASONING"},
-    "home.sec.agent_sync": {"fr": "AGENT IA — PROCÉDÉ (SYNCHRONISÉ SETTINGS)",
-                            "en": "AI AGENT — PROCESS (SYNCED WITH SETTINGS)"},
+    # F2 (audit 2026-08-16) : le bandeau d'état du haut vient du REJEU d'un
+    # essai enregistré (dataset ML avril 2026) ; ce bloc bas vient de la CONFIG
+    # COURANTE (règles agent + Settings). Les deux verdicts pouvant diverger
+    # sur le même écran, chaque bloc est désormais explicitement étiqueté sur
+    # sa source, pour éliminer la contradiction perçue en démonstration.
+    "home.sec.ml_replay": {
+        "fr": "AGENT ML — REJEU D'ESSAI ENREGISTRÉ (avril 2026)",
+        "en": "ML AGENT — RECORDED TRIAL REPLAY (April 2026)",
+    },
+    "home.sec.agent_sync": {
+        "fr": "AGENT IA — CONFIGURATION COURANTE (synchronisé Settings)",
+        "en": "AI AGENT — CURRENT CONFIGURATION (synced with Settings)",
+    },
     "home.sec.top5": {"fr": "DIAGNOSTIC PROCÉDÉ — TOP 5 CAPTEURS",
                       "en": "PROCESS DIAGNOSTIC — TOP 5 SENSORS"},
     "home.sec.auto_analysis": {"fr": "Analyse automatique — fenêtre {win}/{n}",

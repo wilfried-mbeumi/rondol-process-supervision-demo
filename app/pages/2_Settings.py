@@ -285,7 +285,7 @@ _save_col, _label_col, _info_col = st.columns([1.2, 2.2, 4.5])
 with _save_col:
     if st.button(
         t("settings.save.btn"),
-        type="primary", use_container_width=True, key="btn_apply_state",
+        type="primary", width="stretch", key="btn_apply_state",
         help=t("settings.save.help"),
     ):
         # Le commit lit l'état reconstruit depuis les clés widget. Streamlit a
@@ -1050,7 +1050,7 @@ with st.expander(t("settings.expander.svm"), expanded=False):
 
             st.dataframe(
                 comp_df.style.apply(_highlight_retained, axis=1),
-                use_container_width=True, hide_index=True,
+                width="stretch", hide_index=True,
             )
     else:
         st.info(t("settings.svm.metrics_na"))
@@ -1062,14 +1062,14 @@ with st.expander(t("settings.expander.svm"), expanded=False):
                                   "cv_roc_auc_mean", "pct_stable"] if c in thresh_df.columns]
         if disp_cols:
             thresh_disp = thresh_df[disp_cols].copy().round(3)
-            st.dataframe(thresh_disp, use_container_width=True, hide_index=True)
+            st.dataframe(thresh_disp, width="stretch", hide_index=True)
 
     if feat_imp is not None and "feature" in feat_imp.columns and "importance" in feat_imp.columns:
         st.markdown(f"**{t('settings.svm.top15')}**")
         top15 = feat_imp.nlargest(15, "importance")[["feature", "importance"]].copy()
         top15["importance"] = top15["importance"].round(4)
         top15.columns = ["Feature", "Importance"]
-        st.dataframe(top15, use_container_width=True, hide_index=True)
+        st.dataframe(top15, width="stretch", hide_index=True)
 
     st.markdown(f"**{t('settings.svm.pipeline')}**")
     st.code(

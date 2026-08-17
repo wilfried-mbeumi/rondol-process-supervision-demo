@@ -88,7 +88,7 @@ with col_a:
     st.markdown(f"**{_T['connected']}{_sep}** `{user}`")
     st.caption(f"{_T['backend']}{_sep} `{auth.backend_name()}`")
 with col_b:
-    if st.button(_T["logout"], key="btn_logout", use_container_width=True):
+    if st.button(_T["logout"], key="btn_logout", width="stretch"):
         auth.logout(st)
         st.rerun()
 
@@ -113,6 +113,6 @@ else:
             _T["col_source"]: r.get("source", "app"),
             _T["col_ts"]: r.get("ts", r.get("seq", "")),
         })
-    st.dataframe(table, use_container_width=True, hide_index=True)
+    st.dataframe(table, width="stretch", hide_index=True)
 
 st.caption("Rondol Industrie · access log")

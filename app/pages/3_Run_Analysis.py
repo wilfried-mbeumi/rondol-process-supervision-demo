@@ -210,7 +210,7 @@ fig.update_layout(
     hoverlabel=dict(bgcolor="#1F2937", font_color="#F9FAFB"),
 )
 
-st.plotly_chart(fig, use_container_width=True, key="analyse_score_chart")
+st.plotly_chart(fig, width="stretch", key="analyse_score_chart")
 st.caption(t("analyse.cap.score", th=THRESHOLD))
 
 st.divider()
@@ -239,7 +239,7 @@ def color_etat(val: str) -> str:
 # map() — API correcte pandas 2.x (applymap deprecated)
 st.dataframe(
     display_df.style.map(color_etat, subset=[_col_state]),
-    use_container_width=True,
+    width="stretch",
     height=400,
 )
 
@@ -262,4 +262,4 @@ profile_df = pd.DataFrame({
     t("analyse.tbl.sigma_mean"): profile_std,
 }).round(2)
 
-st.dataframe(profile_df, use_container_width=True)
+st.dataframe(profile_df, width="stretch")
