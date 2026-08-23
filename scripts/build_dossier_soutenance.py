@@ -93,7 +93,11 @@ def parse_table(lines: list[str], i: int):
     while i < len(lines) and lines[i].strip().startswith("|"):
         raw = lines[i].strip().strip("|")
         cells = [c.strip() for c in raw.split("|")]
-        if not all(set(c) <= set("-: ") for c in cells):  # ignore le séparateur
+        # Un séparateur contient au moins un tiret : sans ce test, une ligne
+        # d'en-tête vide « | | | » serait prise pour un séparateur.
+        is_sep = (any("-" in c for c in cells)
+                  and all(set(c) <= set("-: ") for c in cells))
+        if not is_sep:
             rows.append(cells)
         i += 1
     return rows, i
