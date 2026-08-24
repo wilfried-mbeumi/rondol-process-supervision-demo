@@ -92,20 +92,34 @@ def main() -> int:
         err("notebook : la sortie ne reflète pas la taille actuelle de la base consolidée")
     contient(nb_out, [f"{ext['roc_auc']}"], "notebook (validation externe)")
 
-    # ---------- 6. Guide de soutenance ----------
-    from docx import Document
-    gd = " ".join(p.text for p in Document(str(ROOT / "reports/soutenance/GUIDE_SOUTENANCE_MBEUMI.docx")).paragraphs)
-    contient(gd, [acc_rf, f1_rf, auc_ext, TESTS, "100 800", "jeu de rôle"], "guide soutenance")
-    contient(gd, ["693"], "guide soutenance", doit=False)
+    # ---------- 6. Dossier de soutenance ----------
+    # Le contrôle porte sur les sources Markdown, versionnées : un .docx binaire
+    # ne se relit pas dans un diff, et c'est ce qui avait laissé « 705 tests »
+    # survivre dans les guides précédents.
+    src_dir = ROOT / "reports/soutenance/DOSSIER_FINAL/_source"
+    dossier = " ".join(p.read_text(encoding="utf-8") for p in sorted(src_dir.glob("*.md")))
+    if not dossier:
+        err("dossier de soutenance : aucune source trouvée dans DOSSIER_FINAL/_source")
+    # 0,809 est le F1-macro fold-aware retenu ; f1_rf (0,917) est celui du split
+    # de test standard, il n'a pas sa place dans un support oral.
+    contient(dossier, [acc_rf, auc_ext, TESTS, "100 800", "0,809",
+                       "eu de rôle", "ntretien professionnel"], "dossier soutenance")
+    contient(dossier, ["693", "705", "720 tests", "75 fichiers"],
+             "dossier soutenance", doit=False)
 
     # ---------- 7. livrables binaires à jour (dates) ----------
     src_t = (ROOT / "docs/memoire_these_professionnelle_rondol.md").stat().st_mtime
     for f in ("MBEUMI_Wilfried_THESE.docx", "MBEUMI_Wilfried_THESE.pdf"):
         if (ROOT / f).stat().st_mtime < src_t:
             err(f"{f} plus ancien que le markdown source → rebuild requis")
-    if (ROOT / "reports/soutenance/GUIDE_SOUTENANCE_MBEUMI.pdf").stat().st_mtime < \
-       (ROOT / "reports/soutenance/GUIDE_SOUTENANCE_MBEUMI.docx").stat().st_mtime - 5:
-        err("GUIDE PDF plus ancien que le DOCX → reconversion requise")
+    # Les PDF composés du dossier doivent suivre leurs sources Markdown.
+    dossier_dir = ROOT / "reports/soutenance/DOSSIER_FINAL"
+    for md in sorted((dossier_dir / "_source").glob("*.md")):
+        pdf = next((p for p in dossier_dir.glob("*.pdf")
+                    if p.stem.split(" - ")[0] == md.name[1]), None)
+        if pdf and pdf.stat().st_mtime < md.stat().st_mtime - 5:
+            err(f"{pdf.name} plus ancien que {md.name} → "
+                f"relancer scripts/build_dossier_pdf.py")
 
     # ---------- verdict ----------
     if ERREURS:
