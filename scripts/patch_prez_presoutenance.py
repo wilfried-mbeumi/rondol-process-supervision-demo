@@ -163,6 +163,26 @@ def main() -> int:
         recentres += 1
         print(f"  diapo {num:2d} — figure recentrée, bloc de titre translaté")
 
+    # --- pages d'ouverture recomposées ---------------------------------------
+    # Couverture, sommaire et problématique portent le premier regard du jury et
+    # restaient en deçà du reste : couverture en petits caractères, sommaire
+    # déséquilibré, et surtout la question centrale du mémoire reléguée en corps
+    # de texte. Elles sont remplacées par des pages composées.
+    REFAITES = {1: "slide_couverture.png", 2: "slide_sommaire.png",
+                7: "slide_problematique.png"}
+    refaites = 0
+    for num, nom in REFAITES.items():
+        image = ROOT / "reports" / "soutenance" / nom
+        if not image.exists():
+            print(f"  [!] page recomposée absente : {nom}")
+            continue
+        slide = prs.slides[num - 1]
+        for forme in list(slide.shapes):
+            supprimer(forme)
+        slide.shapes.add_picture(str(image), 0, 0, W, H)
+        refaites += 1
+        print(f"  diapo {num:2d} — page recomposée ({nom})")
+
     # --- contraste : figures claires -> versions sombres ---------------------
     # Les figures du mémoire sont dessinées sur fond blanc. Projetées sur le vert
     # foncé du support, elles y découpent des rectangles blancs — c'est le défaut
