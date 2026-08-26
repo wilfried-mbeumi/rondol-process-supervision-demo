@@ -41,6 +41,60 @@ def supprimer(shape) -> None:
     shape._element.getparent().remove(shape._element)
 
 
+def retirer_filigrane(pptx: Path) -> int:
+    """Retire le badge de l'éditeur, posé dans les gabarits et non les pages.
+
+    C'est une image liée à gamma.app, placée en bas à droite de chaque gabarit —
+    d'où son absence de la liste des formes d'une diapositive. On repère la
+    relation portant l'adresse de l'éditeur, puis le bloc <p:pic> qui la
+    référence.
+    """
+    import re
+    import zipfile
+
+    lien = re.compile(r'Id="([^"]+)"[^>]*Target="https://gamma\.app[^"]*"')
+    tampon: dict[str, bytes] = {}
+    retires = 0
+
+    with zipfile.ZipFile(pptx) as z:
+        noms = z.namelist()
+        contenus = {n: z.read(n) for n in noms}
+
+    for nom in noms:
+        if not (nom.startswith("ppt/slideLayouts/slideLayout")
+                and nom.endswith(".xml")):
+            continue
+        rels_nom = nom.replace("slideLayouts/", "slideLayouts/_rels/") + ".rels"
+        if rels_nom not in contenus:
+            continue
+        ids = lien.findall(contenus[rels_nom].decode("utf-8", "ignore"))
+        if not ids:
+            continue
+        xml = contenus[nom].decode("utf-8")
+        avant = xml
+        for rid in ids:
+            # Le bloc <p:pic> qui référence cette relation, et lui seul.
+            xml = re.sub(
+                r'<p:pic>(?:(?!</p:pic>).)*?r:id="' + re.escape(rid)
+                + r'"(?:(?!</p:pic>).)*?</p:pic>',
+                "", xml, flags=re.S)
+        if xml != avant:
+            tampon[nom] = xml.encode("utf-8")
+            retires += 1
+
+    if not tampon:
+        return 0
+
+    contenus.update(tampon)
+    temporaire = pptx.with_suffix(".tmp.pptx")
+    with zipfile.ZipFile(temporaire, "w", zipfile.ZIP_DEFLATED) as z:
+        for nom in noms:
+            z.writestr(nom, contenus[nom])
+    pptx.unlink()
+    temporaire.rename(pptx)
+    return retires
+
+
 def main() -> int:
     if not SRC.exists():
         raise SystemExit(f"Support introuvable : {SRC}")
@@ -115,7 +169,9 @@ def main() -> int:
     # de contraste relevé en pré-soutenance. On leur substitue les versions
     # composées sur le fond du support (figures_support/).
     SOMBRES = {6: "fig_swot.png", 8: "fig_architecture.png",
-               11: "fig_two_level_ai.png", 14: "fig_championnat_modeles.png"}
+               11: "fig_two_level_ai.png", 12: "fig_data_pipeline.png",
+               14: "fig_championnat_modeles.png", 18: "fig_validation.png",
+               22: "fig_gantt.png", 25: "fig_tests.png"}
     assombries = 0
     for num, nom in SOMBRES.items():
         source = ROOT / "figures_support" / nom
@@ -174,10 +230,63 @@ def main() -> int:
         ajoutees += 1
         print(f"  diapo {position + 1:2d} — ajoutée : {image.stem}")
 
+    # --- cartes claires -> teinte du thème -----------------------------------
+    # Gamma pose ses encarts en lavande clair (#C6C9DC) : sur le vert foncé du
+    # support, ce sont des pavés blancs. On les rhabille, et on éclaircit le
+    # texte posé dessus, sinon il devient illisible.
+    from pptx.dml.color import RGBColor
+    CLAIR = (0xC6, 0xC9, 0xDC)
+    CARTE = RGBColor(0x1B, 0x46, 0x40)
+    ENCRE = RGBColor(0xF2, 0xEC, 0xE0)
+    cartes = 0
+
+    for slide in prs.slides:
+        zones = []
+        for shape in slide.shapes:
+            try:
+                remplissage = shape.fill
+                if remplissage.type != 1:
+                    continue
+                couleur = remplissage.fore_color
+                if couleur.type != 1 or tuple(couleur.rgb) != CLAIR:
+                    continue
+            except Exception:
+                continue
+            if (shape.height or 0) / H * 100 < 5:   # filets de tableau
+                continue
+            remplissage.fore_color.rgb = CARTE
+            try:
+                shape.line.color.rgb = RGBColor(0x2F, 0xB3, 0x9B)
+                shape.line.width = Emu(9525)
+            except Exception:
+                pass
+            zones.append((shape.left, shape.top,
+                          shape.left + shape.width, shape.top + shape.height))
+            cartes += 1
+
+        if not zones:
+            continue
+        for shape in slide.shapes:
+            if not shape.has_text_frame or shape.left is None:
+                continue
+            cx = shape.left + (shape.width or 0) / 2
+            cy = shape.top + (shape.height or 0) / 2
+            if not any(x1 <= cx <= x2 and y1 <= cy <= y2 for x1, y1, x2, y2 in zones):
+                continue
+            for para in shape.text_frame.paragraphs:
+                for run in para.runs:
+                    run.font.color.rgb = ENCRE
+
+    if cartes:
+        print(f"  {cartes} encart(s) clair(s) passé(s) à la teinte du thème")
+
     prs.save(OUT)
+    filigranes = retirer_filigrane(OUT)
+    if filigranes:
+        print(f"  filigrane de l'éditeur retiré de {filigranes} gabarit(s)")
     print(f"\n[OK] {OUT.name} — {retires} bandeau(x) retiré(s), "
-          f"{remplacees} figure(s) remplacée(s), {ajoutees} ajoutée(s), "
-          f"{len(prs.slides)} diapositives")
+          f"{remplacees + assombries} figure(s) remplacée(s), {ajoutees} ajoutée(s), "
+          f"{filigranes} filigrane(s), {len(prs.slides)} diapositives")
     return 0
 
 
