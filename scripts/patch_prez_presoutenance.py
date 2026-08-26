@@ -109,6 +109,44 @@ def main() -> int:
         recentres += 1
         print(f"  diapo {num:2d} — figure recentrée, bloc de titre translaté")
 
+    # --- contraste : figures claires -> versions sombres ---------------------
+    # Les figures du mémoire sont dessinées sur fond blanc. Projetées sur le vert
+    # foncé du support, elles y découpent des rectangles blancs — c'est le défaut
+    # de contraste relevé en pré-soutenance. On leur substitue les versions
+    # composées sur le fond du support (figures_support/).
+    SOMBRES = {6: "fig_swot.png", 8: "fig_architecture.png",
+               11: "fig_two_level_ai.png", 14: "fig_championnat_modeles.png"}
+    assombries = 0
+    for num, nom in SOMBRES.items():
+        source = ROOT / "figures_support" / nom
+        if not source.exists():
+            print(f"  [!] version sombre absente : {nom}")
+            continue
+        slide = prs.slides[num - 1]
+        figures = [s for s in slide.shapes if s.shape_type == 13]
+        if not figures:
+            continue
+        cible = max(figures, key=lambda s: s.width * s.height)
+        pos = (cible.left, cible.top, cible.width, cible.height)
+        supprimer(cible)
+        slide.shapes.add_picture(str(source), *pos)
+        assombries += 1
+        print(f"  diapo {num:2d} — figure passée en palette sombre ({nom})")
+
+    # --- bandeaux d'illustration restants sur les pages de contenu -----------
+    # Conservés sur la couverture et la page de fin, où l'image est un parti pris.
+    for num in (2, 12, 25, 26):
+        if num > len(prs.slides):
+            continue
+        slide = prs.slides[num - 1]
+        for shape in list(slide.shapes):
+            if shape.shape_type != 13 or shape.left is None:
+                continue
+            if shape.height / H * 100 >= 95 and shape.width / W * 100 <= 40:
+                supprimer(shape)
+                retires += 1
+                print(f"  diapo {num:2d} — bandeau d'illustration retiré")
+
     # --- diapositives ajoutées après la pré-soutenance -----------------------
     # « Pourquoi ces cinq modèles » précède le championnat ; « Augmentation de
     # données » suit « Le vrai résultat », là où la question du volume se pose.
