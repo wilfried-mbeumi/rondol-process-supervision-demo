@@ -6,11 +6,20 @@ Leave-One-Group-Out (un essai laissé de côté à chaque pli, 8 essais), c'est-
 dire la mesure honnête : aucun modèle n'est évalué sur un essai qu'il a vu.
 
 Sortie : figures_memoire/fig_championnat_modeles.png
-Source : reports/model_comparison_logo_w60.json
+Source : reports/AI_thesis_results/block_2_model_augmentation/table_for_thesis.csv
+
+La figure lisait auparavant reports/model_comparison_logo_w60.json (campagne du
+7 juillet), qui donne Random Forest à 0,796 et place le SVM en tête. Le mémoire,
+lui, publie le Tableau 8 issu de la campagne finale fold-aware du 31 juillet, où
+Random Forest est à 0,809. Les deux coexistaient : le tableau du mémoire et sa
+Figure 11 se contredisaient sur le chiffre central du travail.
+
+La source est donc alignée sur celle du mémoire — un seul jeu de chiffres.
 """
 from __future__ import annotations
 
-import json
+import csv
+import re
 from pathlib import Path
 
 import matplotlib
@@ -19,7 +28,8 @@ import matplotlib.pyplot as plt
 from matplotlib import font_manager  # noqa: F401
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "reports" / "model_comparison_logo_w60.json"
+SRC = (ROOT / "reports" / "AI_thesis_results" / "block_2_model_augmentation"
+       / "table_for_thesis.csv")
 # Le pipeline du mémoire lit les figures dans reports/memoire_figures/ ;
 # figures_memoire/ est la copie livrable (alimentée par build_memoire_pro.py).
 OUT = ROOT / "reports" / "memoire_figures" / "fig_championnat_modeles.png"
@@ -32,22 +42,36 @@ GRIS = "#5A6675"
 GRILLE = "#DDE3EA"
 
 LABELS = {
-    "LogisticRegression": "Régression\nlogistique",
-    "RandomForest": "Random\nForest",
-    "SVM_RBF": "SVM (RBF)",
+    "Logistic regression": "Régression\nlogistique",
+    "Random Forest": "Random\nForest",
+    "SVM (RBF)": "SVM (RBF)",
     "XGBoost": "XGBoost",
-    "MLP": "Réseau de\nneurones (MLP)",
+    "Neural network (MLP)": "Réseau de\nneurones (MLP)",
 }
+
+# « 0.809 ± 0.176 » -> (0.809, 0.176)
+_VAL = re.compile(r"([\d.]+)\s*±\s*([\d.]+)")
+
+
+def lire_table() -> list[tuple[str, float, float]]:
+    """Lit le Tableau 8 du mémoire : F1-macro sans augmentation, par modèle."""
+    lignes = []
+    with SRC.open(encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            m = _VAL.search(row["Macro-F1 without augmentation"])
+            if not m:
+                continue
+            lignes.append((row["Model"].strip(), float(m.group(1)), float(m.group(2))))
+    if not lignes:
+        raise SystemExit(f"Aucune valeur lisible dans {SRC}")
+    return lignes
 
 
 def main() -> None:
-    data = json.loads(SRC.read_text(encoding="utf-8"))
-    models = data["models"]
-    # Tri décroissant par F1-macro moyen
-    items = sorted(models.items(), key=lambda kv: kv[1]["logo_f1_macro_mean"], reverse=True)
-    noms = [LABELS.get(k, k) for k, _ in items]
-    moy = [v["logo_f1_macro_mean"] for _, v in items]
-    ect = [v["logo_f1_macro_std"] for _, v in items]
+    items = sorted(lire_table(), key=lambda t: t[1], reverse=True)
+    noms = [LABELS.get(k, k) for k, _, _ in items]
+    moy = [m for _, m, _ in items]
+    ect = [e for _, _, e in items]
 
     fig, ax = plt.subplots(figsize=(9.2, 4.6), dpi=200)
     fig.patch.set_facecolor("white")
