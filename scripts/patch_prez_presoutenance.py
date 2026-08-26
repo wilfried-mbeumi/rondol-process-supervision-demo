@@ -163,13 +163,14 @@ def main() -> int:
         recentres += 1
         print(f"  diapo {num:2d} — figure recentrée, bloc de titre translaté")
 
-    # --- pages d'ouverture recomposées ---------------------------------------
-    # Couverture, sommaire et problématique portent le premier regard du jury et
-    # restaient en deçà du reste : couverture en petits caractères, sommaire
-    # déséquilibré, et surtout la question centrale du mémoire reléguée en corps
-    # de texte. Elles sont remplacées par des pages composées.
-    REFAITES = {1: "slide_couverture.png", 2: "slide_sommaire.png",
-                7: "slide_problematique.png"}
+    # --- pages d'ouverture ---------------------------------------------------
+    # Une version recomposée de la couverture, du sommaire et de la problématique
+    # a été essayée puis écartée : composées hors de l'éditeur, elles n'avaient
+    # pas la typographie du reste du support et se voyaient comme des pièces
+    # rapportées. Les pages d'origine sont conservées.
+    # Pour les réactiver : slide_couverture.png, slide_sommaire.png et
+    # slide_problematique.png sont dans reports/soutenance/.
+    REFAITES: dict[int, str] = {}
     refaites = 0
     for num, nom in REFAITES.items():
         image = ROOT / "reports" / "soutenance" / nom
